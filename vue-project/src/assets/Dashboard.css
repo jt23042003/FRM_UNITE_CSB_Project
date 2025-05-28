@@ -1,0 +1,41 @@
+.dashboard-main {
+    padding: 2.5rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .dashboard-main h1 {
+    font-size: 2.2rem;
+    color: #2563eb;
+    margin-bottom: 2rem;
+  }
+  .dashboard-widgets {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .widget {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    padding: 2rem 2.5rem;
+    min-width: 180px;
+    flex: 1 1 200px;
+    text-align: center;
+  }
+  .widget h3 {
+    font-size: 1.1rem;
+    color: #888;
+    margin-bottom: 0.8rem;
+  }
+  .widget p {
+    font-size: 2rem;
+    color: #2563eb;
+    font-weight: bold;
+    margin: 0;
+  }
+  @media (max-width: 700px) {
+    .dashboard-widgets { flex-direction: column; gap: 1.2rem; }
+    .widget { padding: 1.2rem; }
+  }
+  

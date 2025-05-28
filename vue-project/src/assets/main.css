@@ -1,0 +1,21 @@
+@import './base.css';
+
+#app {
+  width: 100%;
+  max-width: unset; /* 🧨 remove the constraint */
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: block; /* 🧨 stop interfering with layout */
+    place-items: unset;
+  }
+
+  #app {
+    display: block;
+    grid-template-columns: unset;
+    padding: 0;
+  }
+}
