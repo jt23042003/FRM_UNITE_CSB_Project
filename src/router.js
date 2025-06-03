@@ -4,16 +4,23 @@ import I4CCaseEntry from '@/pages/I4CCaseEntry.vue'
 import CaseDetails from '@/pages/CaseDetails.vue'
 import Dashboard from './pages/Dashboard.vue'
 import CaseRiskReview from './pages/CaseRiskReview.vue'
+import CaseScreen from './pages/CaseScreen.vue'
 
 const routes = [
   {
     path: '/',
     component: MainLayout,
     children: [
-      { path: '/dashboard', component: Dashboard},
-      { path: '/data-entry', component: I4CCaseEntry },
-      { path: '/case-details', component: CaseDetails },
-      { path: '/case-risk-review', component: CaseRiskReview }
+      { path: 'dashboard', name:'Dashboard', component: Dashboard },
+      { path: 'data-entry', name:'DataEntry', component: I4CCaseEntry },
+      { path: 'case-details', name:'CaseDetails', component: CaseDetails },
+      { path: 'case-risk-review', name:'CaseRiskReview', component: CaseRiskReview },
+      {
+        path: 'case-details/:ackno',
+        name: 'CaseScreen',
+        component: CaseScreen,
+        props: true
+      }
       // Add more children routes here
     ]
   }
@@ -44,11 +51,16 @@ export const router = createRouter({
 //     component: MainLayout,
 //     meta: { requiresAuth: true },
 //     children: [
-//       { path: 'dashboard', component: Dashboard },
-//       { path: 'data-entry', component: I4CCaseEntry },
-//       { path: 'case-details', component: CaseDetails },
-//       { path: 'case-dashboard', component: CaseViewDashboard },
-//       { path: 'case-management', component: CaseManagement }
+//       { path: 'dashboard', name:'Dashboard', component: Dashboard },
+      // { path: 'data-entry', name:'DataEntry', component: I4CCaseEntry },
+      // { path: 'case-details', name:'CaseDetails', component: CaseDetails },
+      // { path: 'case-risk-review', name:'CaseRiskReview', component: CaseRiskReview },
+      // {
+      //   path: 'case-details/:ackno',
+      //   name: 'CaseScreen',
+      //   component: CaseScreen,
+      //   props: true
+      // }
 //       // Add more children routes here
 //     ]
 //   },

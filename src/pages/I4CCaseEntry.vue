@@ -45,7 +45,7 @@
         </label>
         <label>
           Card Number
-          <input v-model="form.cardNumber" type="number" />
+          <input v-model="form.cardNumber" type="number" required/>
         </label>
         <label>
           Transaction Id / UTR Number
@@ -67,16 +67,16 @@
           <input v-model.number="form.disputedAmount" type="number" min="0" step="1" required />
         </label>
         <label>
-          Action
+          Action (Non Mandatory)
           <input v-model="form.action" type="text" />
         </label>
         <label>
           Money transfer TO Bank
-          <input v-model="form.toBank" type="number" />
+          <input v-model="form.toBank" type="number" required/>
         </label>
         <label>
           Money transfer TO Account
-          <input v-model="form.toAccount" type="number" />
+          <input v-model="form.toAccount" type="number" required/>
         </label>
         <label>
           IFSC Code (Non Mandatory)
@@ -84,15 +84,15 @@
         </label>
         <label>
           Money transfer TO Transaction Id / UTR Number
-          <input v-model="form.toTransactionId" type="number" />
+          <input v-model="form.toTransactionId" type="number" required/>
         </label>
         <label>
           Money transfer TO Amount
-          <input v-model.number="form.toAmount" type="number" min="0" step="1" />
+          <input v-model.number="form.toAmount" type="number" min="0" step="1" required/>
         </label>
         <label>
           Action Taken Date
-          <input v-model="form.actionTakenDate" type="date" />
+          <input v-model="form.actionTakenDate" type="date" required/>
         </label>
         <label>
           Lien Amount (Non Mandatory)
@@ -104,7 +104,7 @@
           <span v-if="form.evidenceName" style="display:block;margin-top:0.3rem;color:#2563eb;">Selected: {{ form.evidenceName }}</span>
         </label>
         <label class="span-all">
-      Additional Information
+      Additional Information (Non Mandatory)
       <textarea v-model="form.additionalInfo" placeholder="I was added in a WhatsApp group and..."></textarea>
     </label>
       </div>
@@ -158,7 +158,7 @@ function onFileChange(e) {
 const onSubmit = async () => {
   try {
     await axios.post(
-  'http://34.47.219.225:9000/api/match-i4c-data',
+  'http://34.47.219.225:9000/api/case-entry',
   { ...form },
   { headers: { 'Content-Type': 'application/json' } }
 )
