@@ -190,75 +190,75 @@
         </div>
       </section>
 
-      <!-- 5. Decisioning Console -->
       <section class="card-section">
-        <h2>Decisioning Console</h2>
-        <div class="display-grid">
-          <div>
-            <label><strong>Risk Score:</strong></label>
-            <select v-model="decisionConsole.riskScore" class="console-select">
-              <option value="">Select</option>
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
-            </select>
-          </div>
-          <div>
-            <label><strong>Triggering Rules:</strong></label>
-            <input type="text" v-model="decisionConsole.triggeringRules" class="console-input" placeholder="(leave blank for now)" disabled />
-          </div>
-          <div class="span-2">
-            <label><strong>Comments/Notes:</strong></label>
-            <textarea v-model="decisionConsole.comments" class="console-textarea" placeholder="Enter comments, context or collaborative notes"></textarea>
-          </div>
-          <div>
-            <label><strong>Decision/Actions:</strong></label>
-            <select v-model="decisionConsole.decisionAction" class="console-select">
-              <option value="">Select Action</option>
-              <option>Already actioned</option>
-              <option>To be Actioned</option>
-              <option>Hold Funds</option>
-              <option>Freeze Account</option>
-              <option>Unfreeze Account</option>
-              <option>Escalate</option>
-              <option>Mark as False Positive</option>
-              <option>Request Additional Info</option>
-              <option>Block Transaction</option>
-              <option>Monitor Account</option>
-              <option>Dispute Resolution</option>
-              <option>Report to Authorities</option>
-              <option>Close Case</option>
-            </select>
-          </div>
-          <!-- Case Management (inline layout) -->
-          <div class="case-mgmt-row">
-            <label style="margin-right: 0.7rem;"><strong>Case Management:</strong></label>
-            <select v-model="decisionConsole.caseManagement" class="console-select" style="max-width: 160px;">
-              <option value="">Select</option>
-              <option value="assign">Assign To</option>
-            </select>
-            <template v-if="decisionConsole.caseManagement === 'assign'">
-              <input
-                v-model="decisionConsole.assignedEmployee"
-                class="console-input"
-                placeholder="Enter Employee ID (e.g., e2918)"
-                autocomplete="off"
-                style="max-width: 150px; margin-left: 1rem;"
-              />
-              <button class="assign-btn" @click="assignCase" :disabled="!decisionConsole.assignedEmployee" style="margin-left: 0.7rem;">
-                Assign
-              </button>
-            </template>
-          </div>
-          <div class="span-2">
-            <label><strong>Audit Trail/History:</strong></label>
-            <textarea v-model="decisionConsole.auditTrail" class="console-textarea" placeholder="Auto-generated, time-stamped log of actions" disabled />
-          </div>
-        </div>
-        <button class="submit-btn" style="margin-top:1.2rem;" @click="submitDecisioningConsole">
-          Submit
-        </button>
-      </section>
+  <h2>Decisioning Console</h2>
+  <div class="display-grid">
+    <div>
+      <label><strong>Risk Score:</strong></label>
+      <select v-model="decisionConsole.riskScore" class="console-select">
+        <option value="">Select</option>
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+      </select>
+    </div>
+    <div>
+      <label><strong>Triggering Rules:</strong></label>
+      <input type="text" v-model="decisionConsole.triggeringRules" class="console-input" placeholder="(leave blank for now)" disabled />
+    </div>
+
+    <div class="span-2">
+        <label><strong>System Recommendation:</strong></label>
+        <textarea v-model="decisionConsole.systemRecommendation" class="console-textarea" placeholder="AI-generated recommendation will appear here..." disabled></textarea>
+    </div>
+    <div class="span-2">
+        <label><strong>System Explanation:</strong></label>
+        <textarea v-model="decisionConsole.systemExplanation" class="console-textarea" placeholder="AI-generated explanation will appear here..." disabled></textarea>
+    </div>
+
+    <div class="span-2">
+      <label><strong>Comments/Notes:</strong></label>
+      <textarea v-model="decisionConsole.comments" class="console-textarea" placeholder="Enter comments, context or collaborative notes"></textarea>
+    </div>
+    <div>
+      <label><strong>Decision/Actions:</strong></label>
+      <select v-model="decisionConsole.decisionAction" class="console-select">
+        <option value="">Select Action</option>
+        <option>Already actioned</option>
+        <option>To be Actioned</option>
+        <option>Hold Funds</option>
+        <option>Freeze Account</option>
+        <option>Unfreeze Account</option>
+        <option>Escalate</option>
+        <option>Mark as False Positive</option>
+        <option>Request Additional Info</option>
+        <option>Block Transaction</option>
+        <option>Monitor Account</option>
+        <option>Dispute Resolution</option>
+        <option>Report to Authorities</option>
+        <option>Close Case</option>
+      </select>
+    </div>
+    <div class="case-mgmt-row">
+      <label style="margin-right: 0.7rem;"><strong>Case Management:</strong></label>
+      <select v-model="decisionConsole.caseManagement" class="console-select" style="max-width: 160px;">
+        <option value="">Select</option>
+        <option value="assign">Assign To</option>
+      </select>
+      <template v-if="decisionConsole.caseManagement === 'assign'">
+        <input v-model="decisionConsole.assignedEmployee" class="console-input" placeholder="Enter Employee ID" style="max-width: 150px; margin-left: 1rem;" />
+        <button class="assign-btn" @click="assignCase" :disabled="!decisionConsole.assignedEmployee" style="margin-left: 0.7rem;">Assign</button>
+      </template>
+    </div>
+    <div class="span-2">
+      <label><strong>Audit Trail/History:</strong></label>
+      <textarea v-model="decisionConsole.auditTrail" class="console-textarea" placeholder="Auto-generated, time-stamped log of actions" disabled />
+    </div>
+  </div>
+  <button class="submit-btn" style="margin-top:1.2rem;" @click="submitDecisioningConsole">
+    Submit
+  </button>
+</section>
     </div>
   </div>
 </template>
@@ -481,18 +481,75 @@ const decisionConsole = reactive({
   decisionAction: '',
   caseManagement: '',
   assignedEmployee: '',
-  auditTrail: '2025-05-09 15:54:00 - Case created by Risk Officer\n2025-05-09 16:02:00 - Status changed to Under Investigation'
-})
+  auditTrail: '', // Will be loaded from the backend
+  systemRecommendation: '', // New field
+  systemExplanation: ''     // New field
+});
+
+// --- Function to load existing decision data ---
+const fetchDecisionData = async () => {
+  if (!ackno) return;
+  try {
+    const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/decision`);
+    if (res.data.success && res.data.data) {
+      // Populate the form with data from the backend
+      decisionConsole.riskScore = res.data.data.risk_score || '';
+      decisionConsole.comments = res.data.data.comments || '';
+      decisionConsole.decisionAction = res.data.data.decision_action || '';
+      decisionConsole.assignedEmployee = res.data.data.assigned_employee || '';
+      decisionConsole.auditTrail = res.data.data.audit_trail || 'No actions logged yet.';
+      
+      // Populate new fields (with placeholder logic for now)
+      decisionConsole.systemRecommendation = res.data.data.system_recommendation || 'Recommendation: Monitor Account';
+      decisionConsole.systemExplanation = res.data.data.system_explanation || 'Explanation: Transaction pattern matches moderate risk profile.';
+    }
+  } catch (error) {
+    console.error('Failed to fetch decision data:', error);
+  }
+};
+
+// --- Function to submit the decision ---
+const submitDecisioningConsole = async () => {
+  if (!ackno) return;
+  try {
+    const payload = {
+      riskScore: decisionConsole.riskScore,
+      triggeringRules: decisionConsole.triggeringRules,
+      comments: decisionConsole.comments,
+      decisionAction: decisionConsole.decisionAction,
+      assignedEmployee: decisionConsole.assignedEmployee,
+      auditTrail: decisionConsole.auditTrail,
+      systemRecommendation: decisionConsole.systemRecommendation,
+      systemExplanation: decisionConsole.systemExplanation,
+    };
+    
+    const res = await axios.post(`http://34.47.219.225:9000/api/case/${ackno}/decision`, payload);
+    
+    if (res.data.success) {
+      alert('Decision submitted successfully!');
+    } else {
+      alert('Failed to submit decision.');
+    }
+  } catch (error) {
+    console.error('Error submitting decision:', error);
+    alert('An error occurred while submitting the decision.');
+  }
+};
+
 function assignCase() {
   if (decisionConsole.assignedEmployee) {
-    alert(`Case assigned to employee ID: ${decisionConsole.assignedEmployee}`)
-    // Add API call here if needed
+    alert(`Case assigned to employee ID: ${decisionConsole.assignedEmployee}`);
+    // You could also trigger a save here if desired
+    // submitDecisioningConsole();
   }
 }
-function submitDecisioningConsole() {
-  alert('Decisioning Console submitted!\n' + JSON.stringify(decisionConsole, null, 2))
-  // Replace with actual API call as needed
-}
+
+// --- Load data when the component is mounted ---
+onMounted(() => {
+  fetchDecisionData();
+});
+
+
 </script>
 
 <!-- Import the CSS file -->
