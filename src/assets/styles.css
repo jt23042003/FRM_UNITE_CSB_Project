@@ -252,3 +252,34 @@ ul { list-style-type: none; }
   padding-left: 0.1rem;
   letter-spacing: 0.2px;
 }
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensure it takes full viewport height */
+}
+
+.logout-btn {
+  /* This pushes the button to the bottom of the flex container */
+  margin-top: auto; 
+  
+  /* Styling for the button */
+  margin-left: 1rem;
+  margin-right: 1rem;
+  margin-bottom: 1.5rem; /* Space from the bottom edge */
+  padding: 12px 20px;
+  border: 1px solid #4A5568; /* A subtle border that matches dark themes */
+  background-color: transparent;
+  color: #A0AEC0; /* A light grey text color */
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.logout-btn:hover {
+  background-color: #2D3748; /* A slightly lighter dark color */
+  color: white;
+  border-color: #718096;
+}
