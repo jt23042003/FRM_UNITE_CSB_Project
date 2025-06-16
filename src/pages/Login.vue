@@ -43,16 +43,18 @@ const login = async () => {
       username: username.value,
       password: password.value
     })
+
     const token = res.headers.authorization?.split(' ')[1]
     if (token) {
       localStorage.setItem('jwt', token)
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       router.push('/dashboard')
     } else {
-      throw new Error('Authentication token missing')
+      throw new Error('Authentication token was not found in the response headers.');
     }
   } catch (err) {
     error.value = 'Invalid username or password'
+    console.error(err)
   }
   loading.value = false
 }

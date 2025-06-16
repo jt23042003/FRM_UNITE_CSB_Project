@@ -356,7 +356,7 @@ onMounted(async () => {
 
     // Fetch Risk Entity Data (no mapping needed)
     riskEntityLoading.value = true
-    const riskRes = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/risk-entity-profile`)
+    const riskRes = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/risk-profile`)
     Object.assign(riskEntity, riskRes.data)
     
   } catch (e) {
