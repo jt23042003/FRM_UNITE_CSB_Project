@@ -428,3 +428,115 @@
     background: #1d4ed8;
   }
     
+  /* ============================================= */
+/* Professional Styles for Fraud Notice Uploads  */
+/* ============================================= */
+
+.card-section h2 + .section-subtitle {
+  margin-top: -1.25rem;
+  margin-bottom: 1.5rem;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* The main container for all upload slots */
+.upload-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden; /* Ensures child elements conform to the rounded corners */
+  background-color: #f9fafb;
+}
+
+/* An individual row for one document type */
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  transition: background-color 0.2s ease;
+}
+
+/* Remove the border from the very last item in the list */
+.upload-row:last-child {
+  border-bottom: none;
+}
+
+/* Add a subtle hover effect to each row */
+.upload-row:hover {
+  background-color: #f9fafb;
+}
+
+/* The document type label (e.g., "Account Statement") */
+.doc-label {
+  flex-basis: 220px; /* Gives all labels a consistent width */
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #374151;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* Wrapper for the input and the selected file name */
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-grow: 1;
+}
+
+/* The actual <input type="file"> element */
+.doc-file-input {
+  font-size: 0.9rem;
+}
+/* Style the button part for Chrome/Edge/Safari */
+.doc-file-input::-webkit-file-upload-button {
+  background-color: #e5e7eb;
+  color: #374151;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.doc-file-input::-webkit-file-upload-button:hover {
+  background-color: #d1d5db;
+}
+
+/* Display for the name of the file once selected */
+.file-name-display {
+  font-style: italic;
+  color: #1d4ed8;
+  font-size: 0.9rem;
+  background-color: #eff6ff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px; /* Pill shape */
+  white-space: nowrap;
+}
+
+/* The panel showing documents already on the server */
+.evidence-panel {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    margin-top: 2rem;
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.evidence-header {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+/* Spacing for the main upload button container */
+.multi-upload-form .action-buttons {
+  margin-top: 2rem;
+  justify-content: flex-end; /* Align button to the right */
+}

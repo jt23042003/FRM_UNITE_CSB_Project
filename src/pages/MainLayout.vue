@@ -8,6 +8,7 @@
       <nav>
         <ul>
           <li><router-link to="/dashboard">Dashboard</router-link></li>
+          <li><router-link to="/bulk-upload">File Upload</router-link></li>
           <li><router-link to="/data-entry">Data Entry</router-link></li>
           <li><router-link to="/case-details">Case Details</router-link></li>
           </ul>

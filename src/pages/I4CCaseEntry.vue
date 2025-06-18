@@ -45,7 +45,7 @@
           <input v-model="form.ifsc" type="text" :required="isFieldRequired('ifsc')" />
         </label>
         <label>
-          UPI Id (Non Mandatory)
+          UPI Id
           <input v-model="form.toUpiId" type="text" :required="isFieldRequired('toUpiId')" />
         </label>
         

@@ -17,7 +17,7 @@
           <div><strong>District:</strong> {{ caseData.district }}</div>
           <div><strong>Policestation:</strong> {{ caseData.policestation }}</div>
           <div><strong>Mode of Payment:</strong> {{ caseData.paymentMode }}</div>
-          <div><strong>Account Number:</strong> {{ caseData.accountNumber }}</div>
+          <div><strong>Account Number (Victim):</strong> {{ caseData.accountNumber }}</div>
           <div><strong>Card Number:</strong> {{ caseData.cardNumber }}</div>
           <div><strong>Transaction Id / UTR Number:</strong> {{ caseData.transactionId }}</div>
           <div><strong>Layers:</strong> {{ caseData.layers }}</div>
@@ -159,36 +159,45 @@
 
       <!-- 4. Document Uploads (Upload + List) -->
       <section class="card-section">
-        <div class="fraud-upload-container">
-          <h2>Fraud Notice Uploads</h2>
-          <form @submit.prevent="uploadDocument" class="upload-form">
-            <select v-model="newDoc.type" required class="doc-type-select">
-              <option value="">Select Document Type</option>
-              <option>Account Statement</option>
-              <option>Account Details</option>
-              <option>Branch Details</option>
-              <option>Lien Details</option>
-              <option>AOF (Account Opening Form)</option>
-              <option>KYC (Know Your Customer)</option>
-              <option>65B Certificate</option>
-              <option>Photo</option>
-            </select>
-            <input type="file" ref="fileInput" @change="onDocFileChange" required class="doc-file-input" />
-            <button type="submit" class="upload-btn">Upload</button>
-          </form>
-          <div class="evidence-panel">
-            <div class="evidence-header">Evidence/Documents Uploaded</div>
-            <ul class="doc-list">
-              <li v-for="doc in caseData.documents" :key="doc.id">
-                <span class="doc-type">{{ doc.type }}</span>
-                <a :href="doc.url" target="_blank">{{ doc.name }}</a>
-                <button @click="deleteDocument(doc.id)" class="delete-doc-btn">Delete</button>
-              </li>
-              <li v-if="!caseData.documents.length">No documents uploaded.</li>
-            </ul>
-          </div>
+  <h2>Fraud Notice Uploads</h2>
+  <p class="section-subtitle">Attach all relevant documents. All uploads are optional.</p>
+  
+  <form @submit.prevent="submitUploadedFiles" class="multi-upload-form">
+    
+    <div class="upload-list">
+      <div v-for="docType in documentTypes" :key="docType" class="upload-row">
+        <label :for="docType" class="doc-label">{{ docType }}</label>
+        <div class="file-input-wrapper">
+          <input 
+            type="file" 
+            :id="docType"
+            @change="handleFileSelection($event, docType)" 
+            class="doc-file-input"
+          />
+          <span v-if="filesToUpload[docType]" class="file-name-display">
+            {{ filesToUpload[docType].name }}
+          </span>
         </div>
-      </section>
+      </div>
+    </div>
+
+    <div class="action-buttons">
+      <button type="submit" class="submit-btn" :disabled="isUploading">
+        {{ isUploading ? 'Uploading...' : 'Upload Selected Files' }}
+      </button>
+    </div>
+  </form>
+
+  <div class="evidence-panel">
+    <div class="evidence-header">Previously Uploaded Documents</div>
+    <ul class="doc-list">
+      <li v-for="doc in existingDocuments" :key="doc.id">
+        </li>
+      <li v-if="!existingDocuments.length">No documents uploaded for this case yet.</li>
+    </ul>
+  </div>
+</section>
+
 
       <section class="card-section">
   <h2>Decisioning Console</h2>
@@ -426,52 +435,89 @@ function downloadTransactions() {
 
 
 // ---- Document Uploads ----
-const newDoc = reactive({ type: '', file: null })
-const fileInput = ref(null)
-function onDocFileChange(e) {
-  newDoc.file = e.target.files[0] || null
+
+const documentTypes = [
+  'Account Statement', 'Account Details', 'Branch Details', 'Lien Details',
+  'AOF (Account Opening Form)', 'KYC (Know Your Customer)', '65B Certificate', 'Photo'
+];
+
+// Use a reactive object to hold the files staged for upload
+// Keys are the document types, values are the File objects
+const filesToUpload = reactive({});
+
+// Reactive state for the list of documents already on the server
+const existingDocuments = ref([]);
+const isUploading = ref(false);
+
+// This function is called whenever any file input changes
+function handleFileSelection(event, docType) {
+  const file = event.target.files[0];
+  if (file) {
+    filesToUpload[docType] = file;
+  } else {
+    // If the user cancels file selection, remove it
+    delete filesToUpload[docType];
+  }
 }
 
-async function uploadDocument() {
-  if (!newDoc.type || !newDoc.file) {
-    alert("Please select a document type and a file.");
+// This function uploads all selected files at once
+async function submitUploadedFiles() {
+  if (Object.keys(filesToUpload).length === 0) {
+    alert("Please select at least one file to upload.");
     return;
   }
-
-  // THIS IS THE DYNAMIC PART
-  const ackno = route.params.ackno; // Get the ackno from the URL, e.g., /cases/ACKNEW123
-  
-  // Check if ackno was found
   if (!ackno) {
-    alert("Could not determine the case ID from the URL.");
+    alert("Could not determine the case ID.");
     return;
   }
 
+  isUploading.value = true;
   const formData = new FormData();
-  formData.append('document_type', newDoc.type);
-  formData.append('file', newDoc.file, newDoc.file.name);
 
-  const url = `http://34.47.219.225:9000/api/case/${ackno}/upload-document`;
+  // Append each selected file to the FormData object
+  // The key will be the document type string
+  for (const docType in filesToUpload) {
+    formData.append(docType, filesToUpload[docType]);
+  }
+
+  const url = `http://34.47.219.225:9000/api/case/${ackno}/upload-documents`; // Note the new URL
 
   try {
     const response = await axios.post(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
-
+    alert('Files uploaded successfully!');
     console.log('Upload successful:', response.data);
-    // Now you can update your local list with the successful upload
     
+    // After successful upload, clear the selection and refresh the list of documents
+    Object.keys(filesToUpload).forEach(key => delete filesToUpload[key]);
+    fetchExistingDocuments(); 
+
   } catch (error) {
-    console.error('Error uploading file:', error);
-    alert('Failed to upload file.');
+    console.error('Error uploading files:', error);
+    alert('Failed to upload files.');
+  } finally {
+    isUploading.value = false;
   }
 }
 
-function deleteDocument(id) {
-  caseData.documents = caseData.documents.filter(doc => doc.id !== id)
+// --- Function to get the list of existing documents ---
+async function fetchExistingDocuments() {
+    if (!ackno) return;
+    try {
+      const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/documents`);
+        if (res.data.success) {
+            existingDocuments.value = res.data.documents;
+        }
+    } catch (error) {
+        console.error("Failed to fetch documents:", error);
+    }
 }
+
+// --- Load existing documents when the component is first loaded ---
+onMounted(() => {
+    fetchExistingDocuments();
+});
 
 // ---- Decisioning Console ----
 const decisionConsole = reactive({
