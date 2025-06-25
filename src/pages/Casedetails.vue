@@ -44,6 +44,7 @@
             <th>Location</th>
             <th>Transaction/Case Amount</th>
             <th>Status</th>
+            <th>Assigned To</th>
           </tr>
         </thead>
         <tbody>
@@ -71,6 +72,7 @@
               {{ caseItem.status || '-' }}
             </span>
           </td>
+          <td>{{ caseItem.assigned_to || '-' }}</td>
         </tr>
           <tr v-if="pagedCases.length === 0">
             <td colspan="7" style="text-align:center;">No cases found.</td>
@@ -89,11 +91,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import '../assets/CaseViewDashboard.css'
+import '../assets/CaseDetails.css'
 
 const statuses = [
   'New',
-  'Open'
+  'Open',
+  'Assigned'
 ]
 
 const cases = ref([])
@@ -107,14 +110,48 @@ const filters = ref({
 
 const fetchCases = async () => {
   try {
-    const res = await axios.get('http://34.47.219.225:9000/api/case-list')
-    cases.value = Array.isArray(res.data.cases) ? res.data.cases : []
-    page.value = 1
+    // FIX: Retrieve the JWT token from where it's stored (e.g., localStorage)
+    const token = localStorage.getItem('jwt'); // Adjust key if stored differently
+    console.log(token);
+
+    if (!token) {
+      console.error("Authentication token not found. Please log in.");
+      alert("You are not logged in or your session has expired. Please log in.");
+      // OPTIONAL: Redirect to login page here if token is missing
+      return;
+    }
+
+    const res = await axios.get('http://34.47.219.225:9000/api/case-list', {
+      headers: {
+        // FIX: Include the Authorization header with the Bearer token
+        'Authorization': `Bearer ${token}`
+      },
+      params: {
+        // You can add your filters and pagination parameters here if they are active
+        // logged_in_username: filters.value.caseId, // This is now extracted from the token on backend
+        // skip: (page.value - 1) * pageSize,
+        // limit: pageSize,
+      }
+    });
+
+    // FIX: Access res.data directly, as backend is returning the array directly now
+    cases.value = Array.isArray(res.data.cases) ? res.data.cases : []; // This line might still be problematic if backend returns direct array and not {cases:[]}
+    // Based on previous logs, backend returns { "cases": [...] }, so res.data.cases is correct.
+    
+    page.value = 1;
+    console.log("Cases fetched successfully:", cases.value);
+
   } catch (err) {
-    console.error('Failed to fetch data:', err)
-    cases.value = []
+    console.error('Failed to fetch data:', err.response?.data || err.message);
+    if (err.response && err.response.status === 401) {
+      alert("Unauthorized: Please log in again.");
+      // OPTIONAL: Redirect to login page here on 401 error
+    } else {
+      alert("Failed to load cases. Check console for details.");
+    }
+    cases.value = [];
   }
-}
+};
 
 
 // Fetch data on mount

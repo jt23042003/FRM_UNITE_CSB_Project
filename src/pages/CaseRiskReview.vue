@@ -198,76 +198,75 @@
   </div>
 </section>
 
+<div class="card-section">
+    <h2>Decisioning Console</h2>
+    <div class="display-grid">
+      <div>
+        <label><strong>Risk Score:</strong></label>
+        <select v-model="decisionConsole.riskScore" class="console-select">
+          <option value="">Select</option>
+          <option>Low</option>
+          <option>Medium</option>
+          <option>High</option>
+        </select>
+      </div>
+      <div>
+        <label><strong>Triggering Rules:</strong></label>
+        <input type="text" v-model="decisionConsole.triggeringRules" class="console-input" placeholder="(leave blank for now)" disabled />
+      </div>
 
-      <section class="card-section">
-  <h2>Decisioning Console</h2>
-  <div class="display-grid">
-    <div>
-      <label><strong>Risk Score:</strong></label>
-      <select v-model="decisionConsole.riskScore" class="console-select">
-        <option value="">Select</option>
-        <option>Low</option>
-        <option>Medium</option>
-        <option>High</option>
-      </select>
-    </div>
-    <div>
-      <label><strong>Triggering Rules:</strong></label>
-      <input type="text" v-model="decisionConsole.triggeringRules" class="console-input" placeholder="(leave blank for now)" disabled />
-    </div>
+      <div class="span-2">
+          <label><strong>System Recommendation:</strong></label>
+          <textarea v-model="decisionConsole.systemRecommendation" class="console-textarea" placeholder="AI-generated recommendation will appear here..." disabled></textarea>
+      </div>
+      <div class="span-2">
+          <label><strong>System Explanation:</strong></label>
+          <textarea v-model="decisionConsole.systemExplanation" class="console-textarea" placeholder="AI-generated explanation will appear here..." disabled></textarea>
+      </div>
 
-    <div class="span-2">
-        <label><strong>System Recommendation:</strong></label>
-        <textarea v-model="decisionConsole.systemRecommendation" class="console-textarea" placeholder="AI-generated recommendation will appear here..." disabled></textarea>
+      <div class="span-2">
+        <label><strong>Comments/Notes:</strong></label>
+        <textarea v-model="decisionConsole.comments" class="console-textarea" placeholder="Enter comments, context or collaborative notes"></textarea>
+      </div>
+      <div>
+        <label><strong>Decision/Actions:</strong></label>
+        <select v-model="decisionConsole.decisionAction" class="console-select">
+          <option value="">Select Action</option>
+          <option>Already actioned</option>
+          <option>To be Actioned</option>
+          <option>Hold Funds</option>
+          <option>Freeze Account</option>
+          <option>Unfreeze Account</option>
+          <option>Escalate</option>
+          <option>Mark as False Positive</option>
+          <option>Request Additional Info</option>
+          <option>Block Transaction</option>
+          <option>Monitor Account</option>
+          <option>Dispute Resolution</option>
+          <option>Report to Authorities</option>
+          <option>Close Case</option>
+        </select>
+      </div>
+      <div class="case-mgmt-row">
+        <label style="margin-right: 0.7rem;"><strong>Case Management:</strong></label>
+        <select v-model="decisionConsole.caseManagement" class="console-select" style="max-width: 160px;">
+          <option value="">Select</option>
+          <option value="assign">Assign To</option>
+        </select>
+        <template v-if="decisionConsole.caseManagement === 'assign'">
+          <input v-model="decisionConsole.assignedEmployee" class="console-input" placeholder="Enter Employee ID" style="max-width: 150px; margin-left: 1rem;" />
+          <button class="assign-btn" @click="assignCase" :disabled="!decisionConsole.assignedEmployee" style="margin-left: 0.7rem;">Assign</button>
+        </template>
+      </div>
+      <div class="span-2">
+        <label><strong>Audit Trail/History:</strong></label>
+        <textarea v-model="decisionConsole.auditTrail" class="console-textarea" placeholder="Auto-generated, time-stamped log of actions" disabled />
+      </div>
     </div>
-    <div class="span-2">
-        <label><strong>System Explanation:</strong></label>
-        <textarea v-model="decisionConsole.systemExplanation" class="console-textarea" placeholder="AI-generated explanation will appear here..." disabled></textarea>
-    </div>
-
-    <div class="span-2">
-      <label><strong>Comments/Notes:</strong></label>
-      <textarea v-model="decisionConsole.comments" class="console-textarea" placeholder="Enter comments, context or collaborative notes"></textarea>
-    </div>
-    <div>
-      <label><strong>Decision/Actions:</strong></label>
-      <select v-model="decisionConsole.decisionAction" class="console-select">
-        <option value="">Select Action</option>
-        <option>Already actioned</option>
-        <option>To be Actioned</option>
-        <option>Hold Funds</option>
-        <option>Freeze Account</option>
-        <option>Unfreeze Account</option>
-        <option>Escalate</option>
-        <option>Mark as False Positive</option>
-        <option>Request Additional Info</option>
-        <option>Block Transaction</option>
-        <option>Monitor Account</option>
-        <option>Dispute Resolution</option>
-        <option>Report to Authorities</option>
-        <option>Close Case</option>
-      </select>
-    </div>
-    <div class="case-mgmt-row">
-      <label style="margin-right: 0.7rem;"><strong>Case Management:</strong></label>
-      <select v-model="decisionConsole.caseManagement" class="console-select" style="max-width: 160px;">
-        <option value="">Select</option>
-        <option value="assign">Assign To</option>
-      </select>
-      <template v-if="decisionConsole.caseManagement === 'assign'">
-        <input v-model="decisionConsole.assignedEmployee" class="console-input" placeholder="Enter Employee ID" style="max-width: 150px; margin-left: 1rem;" />
-        <button class="assign-btn" @click="assignCase" :disabled="!decisionConsole.assignedEmployee" style="margin-left: 0.7rem;">Assign</button>
-      </template>
-    </div>
-    <div class="span-2">
-      <label><strong>Audit Trail/History:</strong></label>
-      <textarea v-model="decisionConsole.auditTrail" class="console-textarea" placeholder="Auto-generated, time-stamped log of actions" disabled />
-    </div>
-  </div>
-  <button class="submit-btn" style="margin-top:1.2rem;" @click="submitDecisioningConsole">
-    Submit
-  </button>
-</section>
+    <button class="submit-btn" style="margin-top:1.2rem;" @click="submitDecisioningConsole">
+      Submit
+    </button>
+</div>
     </div>
   </div>
 </template>
@@ -519,79 +518,165 @@ onMounted(() => {
     fetchExistingDocuments();
 });
 
-// ---- Decisioning Console ----
+// --- Your reactive object where data is stored ---
+// Ensure all these properties exist in your reactive object
+// and match the camelCase keys returned by the backend.
+// --- Reactive state for form data ---
 const decisionConsole = reactive({
+  // ackno: ackno, // REMOVE THIS LINE: ackno is a separate ref, don't nest it here unless truly needed
   riskScore: '',
   triggeringRules: '',
   comments: '',
   decisionAction: '',
-  caseManagement: '',
-  assignedEmployee: '',
-  auditTrail: '', // Will be loaded from the backend
-  systemRecommendation: '', // New field
-  systemExplanation: ''     // New field
+  caseManagement: '', // Ensure this is reactive to control the assign input visibility
+  assignedEmployee: '', // This will hold the employee ID for assignment
+  auditTrail: '',
+  systemRecommendation: '',
+  systemExplanation: '',
+  // Add other reactive properties if your form has them and they should be updated
+  // e.g., lastUpdatedAt: null,
 });
+
+// --- Dynamic Validation Function (Your existing code) ---
+// ... (isFieldRequired) ...
 
 // --- Function to load existing decision data ---
 const fetchDecisionData = async () => {
-  if (!ackno) return;
+  // Use ackno.value consistently for the API call
+  console.log("Fetching decision data for ackno:", ackno); 
+  if (!ackno) {
+    console.error("ACK ID is missing from URL parameters. Cannot fetch decision data.");
+    return;
+  }
+
   try {
     const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/decision`);
+    
     if (res.data.success && res.data.data) {
-      // Populate the form with data from the backend
-      decisionConsole.riskScore = res.data.data.risk_score || '';
-      decisionConsole.comments = res.data.data.comments || '';
-      decisionConsole.decisionAction = res.data.data.decision_action || '';
-      decisionConsole.assignedEmployee = res.data.data.assigned_employee || '';
-      decisionConsole.auditTrail = res.data.data.audit_trail || 'No actions logged yet.';
-      
-      // Populate new fields (with placeholder logic for now)
-      decisionConsole.systemRecommendation = res.data.data.system_recommendation || 'Recommendation: Monitor Account';
-      decisionConsole.systemExplanation = res.data.data.system_explanation || 'Explanation: Transaction pattern matches moderate risk profile.';
+      const backendData = res.data.data;
+      console.log("Fetched decision data:", backendData);
+
+      // FIX: Assign all relevant fields from backend (camelCase) to decisionConsole
+      decisionConsole.riskScore = backendData.riskScore || '';
+      decisionConsole.triggeringRules = backendData.triggeringRules || '';
+      decisionConsole.comments = backendData.comments || '';
+      decisionConsole.decisionAction = backendData.decisionAction || '';
+      decisionConsole.caseManagement = backendData.caseManagement || ''; // If backend sends this
+      decisionConsole.assignedEmployee = backendData.assignedEmployee || ''; // Populate assignedEmployee from fetch
+      decisionConsole.auditTrail = backendData.auditTrail || '';
+      decisionConsole.systemRecommendation = backendData.systemRecommendation || '';
+      decisionConsole.systemExplanation = backendData.systemExplanation || '';
+      // ... assign other fields if they exist in backendData and decisionConsole
+
+    } else {
+        // If success is true but data is null/empty, or success is false
+        console.log("No decision data found in backend or backend reported no success. Clearing form fields.");
+        // FIX: Clear or set initial placeholders
+        decisionConsole.riskScore = '';
+        decisionConsole.triggeringRules = '';
+        decisionConsole.comments = '';
+        decisionConsole.decisionAction = '';
+        decisionConsole.assignedEmployee = ''; // Clear assignedEmployee on empty data
+        decisionConsole.auditTrail = '';
+        decisionConsole.systemRecommendation = '';
+        decisionConsole.systemExplanation = '';
     }
   } catch (error) {
-    console.error('Failed to fetch decision data:', error);
+    console.error('Failed to fetch decision data:', error.response?.data || error.message);
+    alert('Failed to load decision data. Check console for details.');
+    // FIX: Clear fields on error
+    decisionConsole.riskScore = '';
+    decisionConsole.triggeringRules = '';
+    decisionConsole.comments = '';
+    decisionConsole.decisionAction = '';
+    decisionConsole.assignedEmployee = '';
+    decisionConsole.auditTrail = '';
+    decisionConsole.systemRecommendation = '';
+    decisionConsole.systemExplanation = '';
   }
 };
 
-// --- Function to submit the decision ---
+// --- NEW/MODIFIED Function to assign the case ---
+const assignCase = async () => {
+  const employeeName = decisionConsole.assignedEmployee; // Get employee name from v-model
+  const currentAckNo = ackno; // Get ACK ID
+
+  if (!ackno) {
+    alert('ACK ID is missing. Cannot assign case.');
+    return;
+  }
+  if (!employeeName.trim()) {
+    alert('Please enter an employee name to assign the case.');
+    return;
+  }
+
+  try {
+    const payload = {
+      assigned_to_employee: employeeName // Key MUST match backend's @Body() parameter
+    };
+
+    const res = await axios.post(
+      `http://34.47.219.225:9000/api/case/${ackno}/assign`,
+      payload
+    );
+
+    if (res.data.success) {
+      alert("Case ${ackno} assigned to ${employeeName} successfully!");
+      console.log('Assignment success:', res.data);
+      // Optional: Re-fetch decision data to update the console (e.g., status badge on dashboard)
+      // fetchDecisionData(); 
+      // If the dashboard needs to reflect the change immediately, you might dispatch an event
+      // or implement a refresh mechanism on the dashboard component.
+    } else {
+      alert('Failed to assign case: ' + (res.data.message || 'Unknown error.'));
+      console.error('Assignment error:', res.data);
+    }
+  } catch (error) {
+    console.error('Error assigning case:', error.response?.data || error.message);
+    alert('An error occurred while assigning the case. Check console for details.');
+  }
+};
+
+// --- Function to submit the overall decision (unrelated to direct assign) ---
 const submitDecisioningConsole = async () => {
-  if (!ackno) return;
+  if (!ackno) {
+    alert('ACK ID is missing. Cannot submit decision.');
+    return;
+  }
   try {
     const payload = {
       riskScore: decisionConsole.riskScore,
       triggeringRules: decisionConsole.triggeringRules,
       comments: decisionConsole.comments,
       decisionAction: decisionConsole.decisionAction,
-      assignedEmployee: decisionConsole.assignedEmployee,
+      // Do NOT send assignedEmployee as part of this payload, it's handled by /assign API
+      // systemRecommendation and systemExplanation are disabled, so they shouldn't be part of payload
+      // unless you explicitly enable and expect user to edit them for submission.
       auditTrail: decisionConsole.auditTrail,
-      systemRecommendation: decisionConsole.systemRecommendation,
-      systemExplanation: decisionConsole.systemExplanation,
     };
     
+    // axios.post for the main decision data (save_decision_api)
     const res = await axios.post(`http://34.47.219.225:9000/api/case/${ackno}/decision`, payload);
     
     if (res.data.success) {
       alert('Decision submitted successfully!');
+      console.log('Decision submission success:', res.data);
+      // Optional: Re-fetch data to update audit trail etc.
+      // fetchDecisionData();
     } else {
       alert('Failed to submit decision.');
+      console.error('Decision submission error:', res.data);
     }
   } catch (error) {
-    console.error('Error submitting decision:', error);
+    console.error('Error submitting decision:', error.response?.data || error.message);
     alert('An error occurred while submitting the decision.');
   }
 };
 
-function assignCase() {
-  if (decisionConsole.assignedEmployee) {
-    alert(`Case assigned to employee ID: ${decisionConsole.assignedEmployee}`);
-    // You could also trigger a save here if desired
-    // submitDecisioningConsole();
-  }
-}
 
 // --- Load data when the component is mounted ---
 onMounted(() => {
+  console.log("Component mounted, fetching decision data for ackno:", ackno);
   fetchDecisionData();
 });
 
