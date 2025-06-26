@@ -112,7 +112,7 @@ const fetchCases = async () => {
   try {
     // FIX: Retrieve the JWT token from where it's stored (e.g., localStorage)
     const token = localStorage.getItem('jwt'); // Adjust key if stored differently
-    console.log(token);
+    // console.log(token);
 
     if (!token) {
       console.error("Authentication token not found. Please log in.");
