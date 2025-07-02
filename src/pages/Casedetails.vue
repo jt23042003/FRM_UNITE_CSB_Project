@@ -20,6 +20,10 @@
           <option value="">All Statuses</option>
           <option v-for="status in statuses" :key="status">{{ status }}</option>
         </select>
+        <select v-model="filters.complaintType" class="filter-input enhanced-type-select">
+          <option value="">All Types</option>
+          <option v-for="type in complaintTypes" :key="type">{{ type }}</option>
+        </select>
         <button @click="fetchCases" class="search-btn enhanced-search-btn">Search</button>
         <button @click="clearFilters" class="reset-btn enhanced-reset-btn">Clear</button>
       </div>
@@ -96,7 +100,18 @@ import '../assets/CaseDetails.css'
 const statuses = [
   'New',
   'Open',
-  'Assigned'
+  'Assigned',
+  'Closed'
+]
+
+// NEW: Define complaint types
+const complaintTypes = [
+  'VM',
+  'BM',
+  'NAB',
+  'PSA',
+  'ECBT',
+  'ECBNT'
 ]
 
 const cases = ref([])
@@ -105,39 +120,33 @@ const pageSize = 25
 
 const filters = ref({
   caseId: '',
-  status: ''
+  status: '',
+  // NEW: Add complaintType to filters
+  complaintType: ''
 })
 
 const fetchCases = async () => {
   try {
-    // FIX: Retrieve the JWT token from where it's stored (e.g., localStorage)
-    const token = localStorage.getItem('jwt'); // Adjust key if stored differently
-    // console.log(token);
+    const token = localStorage.getItem('jwt');
 
     if (!token) {
       console.error("Authentication token not found. Please log in.");
       alert("You are not logged in or your session has expired. Please log in.");
-      // OPTIONAL: Redirect to login page here if token is missing
       return;
     }
 
     const res = await axios.get('http://34.47.219.225:9000/api/case-list', {
       headers: {
-        // FIX: Include the Authorization header with the Bearer token
         'Authorization': `Bearer ${token}`
       },
       params: {
-        // You can add your filters and pagination parameters here if they are active
-        // logged_in_username: filters.value.caseId, // This is now extracted from the token on backend
-        // skip: (page.value - 1) * pageSize,
-        // limit: pageSize,
+        // If your backend supports filtering by complaint_type directly, you can pass it here
+        // For now, we'll keep frontend filtering for simplicity, but uncomment if applicable:
+        // complaint_type: filters.value.complaintType
       }
     });
 
-    // FIX: Access res.data directly, as backend is returning the array directly now
-    cases.value = Array.isArray(res.data.cases) ? res.data.cases : []; // This line might still be problematic if backend returns direct array and not {cases:[]}
-    // Based on previous logs, backend returns { "cases": [...] }, so res.data.cases is correct.
-    
+    cases.value = Array.isArray(res.data.cases) ? res.data.cases : [];
     page.value = 1;
     console.log("Cases fetched successfully:", cases.value);
 
@@ -145,7 +154,6 @@ const fetchCases = async () => {
     console.error('Failed to fetch data:', err.response?.data || err.message);
     if (err.response && err.response.status === 401) {
       alert("Unauthorized: Please log in again.");
-      // OPTIONAL: Redirect to login page here on 401 error
     } else {
       alert("Failed to load cases. Check console for details.");
     }
@@ -153,15 +161,16 @@ const fetchCases = async () => {
   }
 };
 
-
 // Fetch data on mount
 onMounted(fetchCases)
 
-// Filter on frontend for search and status
+// Filter on frontend for search, status, and complaint type
 const filteredCases = computed(() => {
   return cases.value.filter(c =>
     (!filters.value.caseId || (c.ack_no && c.ack_no.toLowerCase().includes(filters.value.caseId.trim().toLowerCase()))) &&
-    (!filters.value.status || c.status === filters.value.status)
+    (!filters.value.status || c.status === filters.value.status) &&
+    // NEW: Add filtering for complaintType
+    (!filters.value.complaintType || c.complaint_type === filters.value.complaintType)
   )
 })
 
@@ -179,6 +188,8 @@ const nextPage = () => { if (page.value < totalPages.value) page.value++ }
 const clearFilters = () => {
   filters.value.caseId = ''
   filters.value.status = ''
+  // NEW: Clear complaintType filter
+  filters.value.complaintType = ''
   page.value = 1
   fetchCases()
 }

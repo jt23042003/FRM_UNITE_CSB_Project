@@ -44,22 +44,37 @@ const login = async () => {
       password: password.value
     })
 
-    const token = res.headers.authorization?.split(' ')[1]
-    if (token) {
-      localStorage.setItem('jwt', token)
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      router.push('/dashboard')
+    // FIX: Extract data from res.data (response body)
+    const accessToken = res.data.access_token;
+    const refreshToken = res.data.refresh_token; // Assuming you return refresh_token
+    const userType = res.data.user_type;     // FIX: Extract user_type
+    const loggedInUsername = res.data.username; // FIX: Extract username
+
+    if (accessToken) {
+      // Store all relevant data in localStorage
+      localStorage.setItem('jwt', accessToken);
+      localStorage.setItem('refresh_token', refreshToken); // Store refresh token if you get it
+      localStorage.setItem('user_type', userType);         // FIX: Store user_type
+      localStorage.setItem('username', loggedInUsername);   // FIX: Store username
+
+      // Set default Authorization header for Axios for all subsequent requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`; // Use accessToken directly
+      
+      router.push('/dashboard'); // Redirect to dashboard after successful login
     } else {
-      throw new Error('Authentication token was not found in the response headers.');
+      // This case should ideally not happen if login is successful but token is missing from body
+      throw new Error('Authentication token was not found in the response body.');
     }
   } catch (err) {
-    error.value = 'Invalid username or password'
-    console.error(err)
+    // Handle specific error messages from backend if available (e.g., err.response.data.detail)
+    error.value = err.response?.data?.detail || 'Invalid username or password. Please try again.';
+    console.error('Login error:', err.response?.data || err.message);
+  } finally {
+    loading.value = false;
   }
-  loading.value = false
 }
 </script>
 
 <style scoped>
   @import '@/assets/login.css'; /* Your existing global styles */
-  </style>
+</style>

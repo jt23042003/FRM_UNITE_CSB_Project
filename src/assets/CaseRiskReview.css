@@ -583,3 +583,103 @@ body {
       margin-left: 0 !important;
   }
 }
+
+/* Styles for the Modal Popup */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Ensure it's on top of other content */
+}
+
+.modal-content {
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.comment-modal-textarea {
+  width: calc(100% - 20px); /* Account for padding */
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+  resize: vertical; /* Allow user to resize vertically */
+  min-height: 80px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+}
+
+.modal-btn-save,
+.modal-btn-cancel {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.modal-btn-save {
+  background-color: #007bff;
+  color: white;
+}
+
+.modal-btn-save:hover {
+  background-color: #0056b3;
+}
+
+.modal-btn-cancel {
+  background-color: #f4f4f4;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.modal-btn-cancel:hover {
+  background-color: #e0e0e0;
+}
+
+/* Existing styles for .doc-comment-display and list items should still apply
+   or be refined if the layout of previously uploaded documents needs adjustment. */
+.doc-comment-display {
+  font-size: 0.85em;
+  color: #555;
+  margin-top: 5px;
+  margin-left: 10px; /* Indent slightly */
+  white-space: pre-wrap; /* Preserve whitespace and wrap text */
+  word-break: break-word; /* Break long words */
+}
+
+.doc-list-item {
+  display: flex;
+  flex-direction: column; /* Stack name, type, date, then comment */
+  align-items: flex-start; /* Align text to the left */
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+/* Re-adjust flex-basis for spans if needed after changing to flex-direction: column */
+.doc-list-item > span,
+.doc-list-item > a {
+  margin-bottom: 3px; /* Small space between lines */
+}

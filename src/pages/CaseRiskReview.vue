@@ -157,8 +157,7 @@
   </div>
 </section>
 
-      <!-- 4. Document Uploads (Upload + List) -->
-      <section class="card-section">
+<section class="card-section">
   <h2>Fraud Notice Uploads</h2>
   <p class="section-subtitle">Attach all relevant documents. All uploads are optional.</p>
   
@@ -174,10 +173,11 @@
             @change="handleFileSelection($event, docType)" 
             class="doc-file-input"
           />
-          <span v-if="filesToUpload[docType]" class="file-name-display">
-            {{ filesToUpload[docType].name }}
+          <span v-if="filesToUpload[docType] && filesToUpload[docType].file" class="file-name-display">
+            {{ filesToUpload[docType].file.name }} 
+            <span v-if="filesToUpload[docType].comment" style="color: green; margin-left: 5px;">✓</span>
           </span>
-        </div>
+          </div>
       </div>
     </div>
 
@@ -191,15 +191,95 @@
   <div class="evidence-panel">
     <div class="evidence-header">Previously Uploaded Documents</div>
     <ul class="doc-list">
-      <li v-for="doc in existingDocuments" :key="doc.id">
-        </li>
+      <li v-for="doc in existingDocuments" :key="doc.id" class="doc-list-item">
+        <a :href="`/api/download-document/${doc.id}`" target="_blank" rel="noopener noreferrer" class="doc-list-name" style="color: #007bff; text-decoration: underline; cursor: pointer;">
+          {{ doc.original_filename }}
+        </a>
+        <span class="doc-list-type">{{ doc.document_type }}</span>
+        <span class="doc-list-date">{{ new Date(doc.uploaded_at).toLocaleString() }}</span>
+        <p v-if="doc.comment" class="doc-comment-display">
+          **Comment:** {{ doc.comment }}
+        </p>
+      </li>
       <li v-if="!existingDocuments.length">No documents uploaded for this case yet.</li>
     </ul>
   </div>
 </section>
 
-<div class="card-section">
-    <h2>Decisioning Console</h2>
+<div class="modal-overlay" v-if="showCommentPopup">
+  <div class="modal-content">
+    <h3>Add Comment for {{ currentDocTypeForComment }}</h3>
+    <textarea
+      v-model="currentCommentText"
+      placeholder="Enter your comment here..."
+      rows="5"
+      class="comment-modal-textarea"
+    ></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn-save" @click="saveCommentAndProceed">Save Comment</button>
+      <button class="modal-btn-cancel" @click="cancelComment">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<section class="card-section" v-if="userType === 'CRO' || userType === 'risk_officer'">
+        <h2>Case Management</h2>
+        <div class="case-mgmt-row" style="padding-top: 10px;">
+          <label style="margin-right: 0.7rem;"><strong>Action:</strong></label>
+          <select v-model="caseManagementAction" class="console-select" style="max-width: 200px;">
+            <option value="ops">Operations</option>
+            <option value="assign">Assign To</option>
+            <option value="readyToClose">Ready to Close</option>
+          </select>
+
+          <template v-if="caseManagementAction === 'ops'">
+        <div style="margin-left: 1rem; display: flex; align-items: center;">
+          <input 
+            type="checkbox" 
+            id="operationsCheckbox"
+            :checked="operationsStatus" 
+            disabled 
+            style="margin-right: 0.5rem;"
+          />
+          <label for="operationsCheckbox"><strong>Operations Status</strong></label>
+        </div>
+      </template>
+
+          <template v-if="caseManagementAction === 'assign'">
+            <input v-model="assignedEmployee" class="console-input" placeholder="Enter Employee ID" style="max-width: 200px; margin-left: 1rem;" />
+            
+            <textarea
+              v-model="assignmentNotes"
+              class="console-textarea"
+              placeholder="Add notes for this assignment..."
+              rows="2"
+              style="max-width: 300px; width: 100%; margin-left: 1rem; margin-top: 5px;"
+            ></textarea>
+            
+            <button class="assign-btn" @click="assignCase" :disabled="!assignedEmployee" style="margin-left: 0.7rem; margin-top: 5px;">Assign</button>
+          </template>
+        </div>
+      </section>
+
+      <section class="card-section" v-else-if="userType === 'others'"> <h2>Case Actions</h2>
+        <div class="display-grid">
+          <div class="span-2">
+            <label><strong>Notes for Sending Back:</strong></label>
+            <textarea
+              v-model="sentBackNotes"
+              class="console-textarea"
+              placeholder="Enter notes for why this case is being sent back..."
+              rows="5"
+            ></textarea>
+          </div>
+        </div>
+        <button class="submit-btn" style="margin-top:1.2rem;" @click="sendBackCase" :disabled="!sentBackNotes.trim()">
+          Send Case Back
+        </button>
+      </section>
+
+      <div class="card-section" v-if="caseManagementAction === 'readyToClose'">
+        <h2>Decisioning Console</h2>
     <div class="display-grid">
       <div>
         <label><strong>Risk Score:</strong></label>
@@ -247,25 +327,13 @@
           <option>Close Case</option>
         </select>
       </div>
-      <div class="case-mgmt-row">
-        <label style="margin-right: 0.7rem;"><strong>Case Management:</strong></label>
-        <select v-model="decisionConsole.caseManagement" class="console-select" style="max-width: 160px;">
-          <option value="">Select</option>
-          <option value="assign">Assign To</option>
-        </select>
-        <template v-if="decisionConsole.caseManagement === 'assign'">
-          <input v-model="decisionConsole.assignedEmployee" class="console-input" placeholder="Enter Employee ID" style="max-width: 150px; margin-left: 1rem;" />
-          <button class="assign-btn" @click="assignCase" :disabled="!decisionConsole.assignedEmployee" style="margin-left: 0.7rem;">Assign</button>
-        </template>
-      </div>
       <div class="span-2">
         <label><strong>Audit Trail/History:</strong></label>
         <textarea v-model="decisionConsole.auditTrail" class="console-textarea" placeholder="Auto-generated, time-stamped log of actions" disabled />
       </div>
     </div>
     <button class="submit-btn" style="margin-top:1.2rem;" @click="submitDecisioningConsole">
-      Submit
-    </button>
+      Submit Decision </button>
 </div>
     </div>
   </div>
@@ -274,11 +342,14 @@
 <script setup>
 // Add watch to your imports
 import { reactive, ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+// Add useRouter to the import from vue-router
+import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 
 
 const route = useRoute()
+// Initialize the router instance
+const router = useRouter()
 const ackno = route.params.ackno
 
 // Case Data
@@ -440,28 +511,78 @@ const documentTypes = [
   'AOF (Account Opening Form)', 'KYC (Know Your Customer)', '65B Certificate', 'Photo'
 ];
 
-// Use a reactive object to hold the files staged for upload
-// Keys are the document types, values are the File objects
+// Use a reactive object to hold the files staged for upload (File + Comment)
+// Keys are the document types, values are objects like { file: File, comment: string }
 const filesToUpload = reactive({});
 
 // Reactive state for the list of documents already on the server
 const existingDocuments = ref([]);
 const isUploading = ref(false);
 
-// This function is called whenever any file input changes
+// NEW: States for the comment popup
+const showCommentPopup = ref(false);
+const currentDocTypeForComment = ref(''); // Stores which docType the current popup is for
+const currentCommentText = ref('');      // Binds to the comment textarea in the popup
+const selectedFileForUpload = ref(null); // Temporarily holds the file until comment is saved
+
+
+// MODIFIED: This function is now responsible for opening the popup
 function handleFileSelection(event, docType) {
   const file = event.target.files[0];
   if (file) {
-    filesToUpload[docType] = file;
+    selectedFileForUpload.value = file; // Store the file temporarily
+    currentDocTypeForComment.value = docType; // Store the document type
+    
+    // Pre-fill comment if user previously selected and then cancelled
+    currentCommentText.value = filesToUpload[docType]?.comment || ''; 
+
+    showCommentPopup.value = true; // Show the comment popup
+    // Clear the input so same file can be selected again after a cancel or save
+    event.target.value = null; 
   } else {
-    // If the user cancels file selection, remove it
+    // If user cancels file selection without opening popup, clear previous (if any)
     delete filesToUpload[docType];
   }
 }
 
-// This function uploads all selected files at once
+// NEW: Function to save the comment and add file/comment to filesToUpload
+function saveCommentAndProceed() {
+  if (selectedFileForUpload.value && currentDocTypeForComment.value) {
+    filesToUpload[currentDocTypeForComment.value] = {
+      file: selectedFileForUpload.value,
+      comment: currentCommentText.value
+    };
+  }
+  // Reset popup states
+  showCommentPopup.value = false;
+  selectedFileForUpload.value = null;
+  currentDocTypeForComment.value = '';
+  currentCommentText.value = '';
+}
+
+// NEW: Function to cancel the comment process
+function cancelComment() {
+  // If a file was selected but comment process cancelled, ensure it's not staged
+  // You might want to keep the file if a previous comment existed for it
+  if (!filesToUpload[currentDocTypeForComment.value]?.file) {
+      delete filesToUpload[currentDocTypeForComment.value];
+  }
+
+  // Reset popup states
+  showCommentPopup.value = false;
+  selectedFileForUpload.value = null;
+  currentDocTypeForComment.value = '';
+  currentCommentText.value = '';
+}
+
+
+// submitUploadedFiles: MODIFIED - The logic here remains mostly the same,
+// but it now correctly expects `filesToUpload` to contain `{ file, comment }` objects.
 async function submitUploadedFiles() {
-  if (Object.keys(filesToUpload).length === 0) {
+  // MODIFIED: Filter out entries where only a comment exists but no file
+  const filesToProcess = Object.keys(filesToUpload).filter(docType => filesToUpload[docType].file);
+
+  if (filesToProcess.length === 0) {
     alert("Please select at least one file to upload.");
     return;
   }
@@ -473,25 +594,30 @@ async function submitUploadedFiles() {
   isUploading.value = true;
   const formData = new FormData();
 
-  // Append each selected file to the FormData object
-  // The key will be the document type string
-  for (const docType in filesToUpload) {
-    formData.append(docType, filesToUpload[docType]);
+  for (const docType of filesToProcess) {
+    formData.append(docType, filesToUpload[docType].file);
+    // Ensure comment is sent even if empty string
+    formData.append(`${docType}_comment`, filesToUpload[docType].comment || ''); 
   }
 
-  const url = `http://34.47.219.225:9000/api/case/${ackno}/upload-documents`; // Note the new URL
+  const url = `http://34.47.219.225:9000/api/case/${ackno}/upload-documents`;
 
   try {
     const response = await axios.post(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    alert('Files uploaded successfully!');
-    console.log('Upload successful:', response.data);
-    
-    // After successful upload, clear the selection and refresh the list of documents
-    Object.keys(filesToUpload).forEach(key => delete filesToUpload[key]);
-    fetchExistingDocuments(); 
 
+    if (response.data.success && response.data.documents) {
+      // Add the newly uploaded documents from the response directly to our list
+      existingDocuments.value.push(...response.data.documents);
+      alert('Files uploaded successfully!');
+    } else {
+      alert('Upload failed: ' + (response.data.message || 'Unknown error.'));
+    }
+
+    // Clear all staged files and comments
+    Object.keys(filesToUpload).forEach(key => delete filesToUpload[key]);
+    
   } catch (error) {
     console.error('Error uploading files:', error);
     alert('Failed to upload files.');
@@ -500,13 +626,14 @@ async function submitUploadedFiles() {
   }
 }
 
-// --- Function to get the list of existing documents ---
+// fetchExistingDocuments: (No changes here, assuming backend already returns `comment` field)
 async function fetchExistingDocuments() {
     if (!ackno) return;
     try {
       const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/documents`);
+        // Assuming 'doc.comment' will be part of each document object returned by backend
         if (res.data.success) {
-            existingDocuments.value = res.data.documents;
+            existingDocuments.value = res.data.documents; 
         }
     } catch (error) {
         console.error("Failed to fetch documents:", error);
@@ -518,9 +645,20 @@ onMounted(() => {
     fetchExistingDocuments();
 });
 
+
 // --- Your reactive object where data is stored ---
 // Ensure all these properties exist in your reactive object
 // and match the camelCase keys returned by the backend.
+
+// NEW: State for the new Case Management dropdown
+const userType = ref('');
+const caseManagementAction = ref(''); // Will hold 'assign', 'readyToClose', or ''
+const assignedEmployee = ref(''); // Will hold the employee ID for 'Assign To'
+// NEW: State for notes when assigning a case
+const assignmentNotes = ref('');
+// NEW: State for notes when sending case back
+const sentBackNotes = ref(''); // <--- ADD THIS LINE
+const operationsStatus = ref(false);
 // --- Reactive state for form data ---
 const decisionConsole = reactive({
   // ackno: ackno, // REMOVE THIS LINE: ackno is a separate ref, don't nest it here unless truly needed
@@ -528,8 +666,6 @@ const decisionConsole = reactive({
   triggeringRules: '',
   comments: '',
   decisionAction: '',
-  caseManagement: '', // Ensure this is reactive to control the assign input visibility
-  assignedEmployee: '', // This will hold the employee ID for assignment
   auditTrail: '',
   systemRecommendation: '',
   systemExplanation: '',
@@ -537,6 +673,66 @@ const decisionConsole = reactive({
   // e.g., lastUpdatedAt: null,
 });
 
+const sendBackCase = async () => {
+  if (!ackno) {
+    alert('ACK ID is missing. Cannot send case back.');
+    return;
+  }
+  if (!sentBackNotes.value.trim()) {
+    alert('Please add some notes before sending the case back.');
+    return;
+  }
+
+  try {
+    const payload = {
+      ackNo: ackno,
+      notes: sentBackNotes.value,
+      sent_by_user_type: userType.value, // Include user type for backend audit
+      sent_by_username: localStorage.getItem('username') // Include username
+    };
+
+    // IMPORTANT: Confirm this API endpoint with your backend.
+    const res = await axios.post(`http://34.47.219.225:9000/api/case/${ackno}/send-back`, payload);
+
+    if (res.data.success) {
+      alert(`Case ${ackno} sent back successfully with notes.`);
+      console.log('Case sent back success:', res.data);
+      sentBackNotes.value = ''; // Clear notes after successful send
+      router.push('/dashboard'); // Or '/case-details' or wherever is appropriate after sending back
+    } else {
+      alert('Failed to send case back: ' + (res.data.message || 'Unknown error.'));
+      console.error('Send back error:', res.data);
+    }
+  } catch (error) {
+    console.error('An error occurred while sending the case back:', error.response?.data || error.message);
+    alert('An error occurred while sending the case back. Check console for details.');
+  }
+};
+
+// 3. NEW: Function to fetch the operations status from the API
+const fetchOperationsStatus = async () => {
+  if (!ackno) {
+    console.error("ACK ID is missing. Cannot fetch operations status.");
+    operationsStatus.value = false; // Ensure it's unchecked if no ID
+    return;
+  }
+  try {
+    // NOTE: You must replace this URL with your actual API endpoint
+    const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/operations-status`);
+    
+    // Assuming the API returns a boolean in `res.data.status`
+    if (res.data && typeof res.data.status === 'boolean') {
+      operationsStatus.value = res.data.status;
+    } else {
+      console.warn("API response for operations status was not a valid boolean.", res.data);
+      operationsStatus.value = false; // Default to false on invalid response
+    }
+  } catch (error) {
+    console.error('Failed to fetch operations status:', error.response?.data || error.message);
+    operationsStatus.value = false; // Ensure it's unchecked on API error
+    alert('An error occurred while fetching the operations status.');
+  }
+};
 // --- Dynamic Validation Function (Your existing code) ---
 // ... (isFieldRequired) ...
 
@@ -561,8 +757,7 @@ const fetchDecisionData = async () => {
       decisionConsole.triggeringRules = backendData.triggeringRules || '';
       decisionConsole.comments = backendData.comments || '';
       decisionConsole.decisionAction = backendData.decisionAction || '';
-      decisionConsole.caseManagement = backendData.caseManagement || ''; // If backend sends this
-      decisionConsole.assignedEmployee = backendData.assignedEmployee || ''; // Populate assignedEmployee from fetch
+      assignedEmployee.value = backendData.assignedEmployee || ''; // Populate assignedEmployee from fetch
       decisionConsole.auditTrail = backendData.auditTrail || '';
       decisionConsole.systemRecommendation = backendData.systemRecommendation || '';
       decisionConsole.systemExplanation = backendData.systemExplanation || '';
@@ -580,6 +775,7 @@ const fetchDecisionData = async () => {
         decisionConsole.auditTrail = '';
         decisionConsole.systemRecommendation = '';
         decisionConsole.systemExplanation = '';
+        assignedEmployee.value = '';
     }
   } catch (error) {
     console.error('Failed to fetch decision data:', error.response?.data || error.message);
@@ -593,13 +789,14 @@ const fetchDecisionData = async () => {
     decisionConsole.auditTrail = '';
     decisionConsole.systemRecommendation = '';
     decisionConsole.systemExplanation = '';
+    assignedEmployee.value = '';
   }
 };
 
 // --- NEW/MODIFIED Function to assign the case ---
 const assignCase = async () => {
-  const employeeName = decisionConsole.assignedEmployee; // Get employee name from v-model
-  const currentAckNo = ackno; // Get ACK ID
+  const employeeName = assignedEmployee.value; // Get employee name from new ref
+  const notes = assignmentNotes.value;
 
   if (!ackno) {
     alert('ACK ID is missing. Cannot assign case.');
@@ -612,7 +809,8 @@ const assignCase = async () => {
 
   try {
     const payload = {
-      assigned_to_employee: employeeName // Key MUST match backend's @Body() parameter
+      assigned_to_employee: employeeName, // Key MUST match backend's @Body() parameter
+      assignment_notes: notes
     };
 
     const res = await axios.post(
@@ -621,9 +819,10 @@ const assignCase = async () => {
     );
 
     if (res.data.success) {
-      alert("Case ${ackno} assigned to ${employeeName} successfully!");
+      alert(`Case ${ackno} assigned to ${employeeName} successfully!`);
       console.log('Assignment success:', res.data);
-      // Optional: Re-fetch decision data to update the console (e.g., status badge on dashboard)
+      router.push('/case-details');
+      // Optrouterional: Re-fetch decision data to update the console (e.g., status badge on dashboard)
       // fetchDecisionData(); 
       // If the dashboard needs to reflect the change immediately, you might dispatch an event
       // or implement a refresh mechanism on the dashboard component.
@@ -639,8 +838,13 @@ const assignCase = async () => {
 
 // --- Function to submit the overall decision (unrelated to direct assign) ---
 const submitDecisioningConsole = async () => {
+
   if (!ackno) {
     alert('ACK ID is missing. Cannot submit decision.');
+    return;
+  }
+  if (caseManagementAction.value !== 'readyToClose') {
+    alert('Please select "Ready to Close" in Case Management to submit a decision.');
     return;
   }
   try {
@@ -649,10 +853,12 @@ const submitDecisioningConsole = async () => {
       triggeringRules: decisionConsole.triggeringRules,
       comments: decisionConsole.comments,
       decisionAction: decisionConsole.decisionAction,
+      // Ensure these are NOT in the payload if you removed them from decisionConsole
       // Do NOT send assignedEmployee as part of this payload, it's handled by /assign API
-      // systemRecommendation and systemExplanation are disabled, so they shouldn't be part of payload
-      // unless you explicitly enable and expect user to edit them for submission.
       auditTrail: decisionConsole.auditTrail,
+      // If your backend expects them even disabled, keep these:
+      systemRecommendation: decisionConsole.systemRecommendation,
+      systemExplanation: decisionConsole.systemExplanation,
     };
     
     // axios.post for the main decision data (save_decision_api)
@@ -661,6 +867,7 @@ const submitDecisioningConsole = async () => {
     if (res.data.success) {
       alert('Decision submitted successfully!');
       console.log('Decision submission success:', res.data);
+      router.push('/case-details');
       // Optional: Re-fetch data to update audit trail etc.
       // fetchDecisionData();
     } else {
@@ -673,10 +880,40 @@ const submitDecisioningConsole = async () => {
   }
 };
 
+// 4. NEW: Add a watcher to trigger the API call when 'Operations' is selected
+watch(caseManagementAction, (newAction) => {
+  if (newAction === 'ops') {
+    fetchOperationsStatus();
+  }
+});
+
 
 // --- Load data when the component is mounted ---
 onMounted(() => {
   console.log("Component mounted, fetching decision data for ackno:", ackno);
+  fetchDecisionData();
+});
+
+// --- Load data when the component is mounted ---
+onMounted(async () => { // Make sure onMounted is `async` if it performs async operations
+  console.log("Component mounted, fetching decision data for ackno:", ackno);
+
+  // Retrieve user_type from localStorage
+  const storedUserType = localStorage.getItem('user_type');
+  if (storedUserType) {
+    userType.value = storedUserType;
+    console.log("User Type loaded:", userType.value);
+  } else {
+    console.warn("User type not found in localStorage. Ensure user is logged in and user_type is set.");
+    // Optional: Redirect to login or set a default if userType is critical
+    // router.push('/login');
+  }
+
+  // --- Your existing data fetching logic below this line ---
+  // Example:
+  // await fetchDecisionData(); // Make sure this is awaited if it's async
+
+  // Your existing `fetchDecisionData()` call is already there
   fetchDecisionData();
 });
 
