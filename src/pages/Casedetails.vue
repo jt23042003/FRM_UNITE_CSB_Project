@@ -20,6 +20,10 @@
           <option value="">All Statuses</option>
           <option v-for="status in statuses" :key="status">{{ status }}</option>
         </select>
+        <select v-model="filters.complaintType" class="filter-input enhanced-type-select">
+          <option value="">All Types</option>
+          <option v-for="type in complaintTypes" :key="type">{{ type }}</option>
+        </select>
         <button @click="fetchCases" class="search-btn enhanced-search-btn">Search</button>
         <button @click="clearFilters" class="reset-btn enhanced-reset-btn">Clear</button>
       </div>
@@ -44,19 +48,19 @@
             <th>Location</th>
             <th>Transaction/Case Amount</th>
             <th>Status</th>
+            <th>Assigned To</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="caseItem in pagedCases" :key="caseItem.ack_no">
           <td>
             <router-link
-              :to="`/case-details/${caseItem.ack_no}`"
-              class="ack-link"
-            >
-              {{ caseItem.ack_no }}
-            </router-link>
+            :to="`/case-details/${caseItem.source_ack_no}`"
+            class="ack-link">
+            {{ caseItem.source_ack_no }}
+          </router-link>
           </td>
-          <td>{{ caseItem.complaint_type || '-' }}</td>
+          <td>{{ caseItem.case_type || '-' }}</td>
           <td>{{ caseItem.source || '-' }}</td>
           <td>{{ caseItem.match_type || '-' }}</td>
           <td>{{ caseItem.location || '-' }}</td>
@@ -71,6 +75,7 @@
               {{ caseItem.status || '-' }}
             </span>
           </td>
+          <td>{{ caseItem.assigned_to || '-' }}</td>
         </tr>
           <tr v-if="pagedCases.length === 0">
             <td colspan="7" style="text-align:center;">No cases found.</td>
@@ -89,11 +94,24 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import '../assets/CaseViewDashboard.css'
+import '../assets/CaseDetails.css'
 
 const statuses = [
   'New',
-  'Open'
+  'Open',
+  'Assigned',
+  'Closed'
+]
+
+// NEW: Define complaint types
+const complaintTypes = [
+  'VM',
+  'BM',
+  'PMA',
+  'NAB',
+  'PSA',
+  'ECBT',
+  'ECBNT'
 ]
 
 const cases = ref([])
@@ -102,29 +120,57 @@ const pageSize = 25
 
 const filters = ref({
   caseId: '',
-  status: ''
+  status: '',
+  // NEW: Add complaintType to filters
+  complaintType: ''
 })
 
 const fetchCases = async () => {
   try {
-    const res = await axios.get('http://34.47.219.225:9000/api/case-list')
-    cases.value = Array.isArray(res.data.cases) ? res.data.cases : []
-    page.value = 1
-  } catch (err) {
-    console.error('Failed to fetch data:', err)
-    cases.value = []
-  }
-}
+    const token = localStorage.getItem('jwt');
 
+    if (!token) {
+      console.error("Authentication token not found. Please log in.");
+      alert("You are not logged in or your session has expired. Please log in.");
+      return;
+    }
+
+    const res = await axios.get('http://34.47.219.225:9000/api/new-case-list', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      params: {
+        // If your backend supports filtering by complaint_type directly, you can pass it here
+        // For now, we'll keep frontend filtering for simplicity, but uncomment if applicable:
+        // complaint_type: filters.value.complaintType
+      }
+    });
+
+    cases.value = Array.isArray(res.data.cases) ? res.data.cases : [];
+    page.value = 1;
+    console.log("Cases fetched successfully:", cases.value);
+
+  } catch (err) {
+    console.error('Failed to fetch data:', err.response?.data || err.message);
+    if (err.response && err.response.status === 401) {
+      alert("Unauthorized: Please log in again.");
+    } else {
+      alert("Failed to load cases. Check console for details.");
+    }
+    cases.value = [];
+  }
+};
 
 // Fetch data on mount
 onMounted(fetchCases)
 
-// Filter on frontend for search and status
+// Filter on frontend for search, status, and complaint type
 const filteredCases = computed(() => {
   return cases.value.filter(c =>
     (!filters.value.caseId || (c.ack_no && c.ack_no.toLowerCase().includes(filters.value.caseId.trim().toLowerCase()))) &&
-    (!filters.value.status || c.status === filters.value.status)
+    (!filters.value.status || c.status === filters.value.status) &&
+    // NEW: Add filtering for complaintType
+    (!filters.value.complaintType || c.complaint_type === filters.value.complaintType)
   )
 })
 
@@ -142,6 +188,8 @@ const nextPage = () => { if (page.value < totalPages.value) page.value++ }
 const clearFilters = () => {
   filters.value.caseId = ''
   filters.value.status = ''
+  // NEW: Clear complaintType filter
+  filters.value.complaintType = ''
   page.value = 1
   fetchCases()
 }

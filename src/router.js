@@ -1,75 +1,61 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/pages/MainLayout.vue'
+import Dashboard from './pages/Dashboard.vue'
 import I4CCaseEntry from '@/pages/I4CCaseEntry.vue'
 import CaseDetails from '@/pages/CaseDetails.vue'
-import Dashboard from './pages/Dashboard.vue'
 import CaseRiskReview from './pages/CaseRiskReview.vue'
+import Login from '@/pages/Login.vue' // <-- 1. Import the new Login page
+import BulkFileUpload from '@/pages/BulkFileUpload.vue' // Import BulkUpload if needed
 
 const routes = [
+  // 2. Add a route for the Login page
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+  },
   {
     path: '/',
     component: MainLayout,
+    // Add a meta field to protect these routes
+    meta: { requiresAuth: true }, 
     children: [
-      { path: '/dashboard', component: Dashboard},
-      { path: '/data-entry', component: I4CCaseEntry },
-      { path: '/case-details', component: CaseDetails },
-      { path: '/case-risk-review', component: CaseRiskReview }
-      // Add more children routes here
-    ]
-  }
+      { path: '', redirect: '/dashboard' }, // Redirect root to dashboard
+      { path: 'dashboard', name: 'Dashboard', component: Dashboard },
+      { path: 'data-entry', name: 'DataEntry', component: I4CCaseEntry },
+      { path: 'bulk-upload', name: 'BulkUpload', component: BulkFileUpload },
+      { path: 'case-details', name: 'CaseDetails', component: CaseDetails },
+      {
+        path: 'case-details/:ackno',
+        name: 'CaseRiskReview',
+        component: CaseRiskReview,
+        props: true,
+      },
+    ],
+  },
 ]
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 })
 
-// import { createRouter, createWebHistory } from 'vue-router'
-// import MainLayout from '@/pages/MainLayout.vue'
-// import I4CCaseEntry from '@/pages/I4CCaseEntry.vue'
-// import CaseDetails from '@/pages/CaseDetails.vue'
-// import CaseViewDashboard from './pages/CaseViewDashboard.vue'
-// import Dashboard from './pages/Dashboard.vue'
-// import CaseManagement from './pages/CaseManagement.vue'
+// 3. Add a Navigation Guard for Security
+router.beforeEach((to, from, next) => {
+  const loggedIn = localStorage.getItem('jwt');
 
-// const Login = () => import('@/pages/Login.vue')
-
-// const routes = [
-//   {
-//     path: '/login',
-//     component: Login
-//   },
-//   {
-//     path: '/',
-//     component: MainLayout,
-//     meta: { requiresAuth: true },
-//     children: [
-//       { path: 'dashboard', component: Dashboard },
-//       { path: 'data-entry', component: I4CCaseEntry },
-//       { path: 'case-details', component: CaseDetails },
-//       { path: 'case-dashboard', component: CaseViewDashboard },
-//       { path: 'case-management', component: CaseManagement }
-//       // Add more children routes here
-//     ]
-//   },
-//   { path: '/:catchAll(.*)', redirect: '/login' }
-// ]
-
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes
-// })
-
-// // Route guard for JWT auth
-// router.beforeEach((to, from, next) => {
-//   const token = localStorage.getItem('jwt')
-//   if (to.meta.requiresAuth && !token) {
-//     next('/login')
-//   } else if (to.path === '/login' && token) {
-//     next('/dashboard')
-//   } else {
-//     next()
-//   }
-// })
-
-// export { router }
+  // If the route requires authentication and the user is not logged in,
+  // redirect them to the login page.
+  if (to.meta.requiresAuth && !loggedIn) {
+    next('/login');
+  } 
+  // If the user is logged in and tries to go to the login page,
+  // send them to the dashboard instead.
+  else if (to.path === '/login' && loggedIn) {
+    next('/dashboard');
+  } 
+  // Otherwise, let them proceed.
+  else {
+    next();
+  }
+});

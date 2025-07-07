@@ -1,63 +1,112 @@
+/* Define color variables on the component's root element */
 .login-bg {
-    min-height: 100vh;
-    background: #f4f6fa;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .login-card {
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.09);
-    padding: 2.5rem 2.5rem 2rem 2.5rem;
-    min-width: 340px;
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
-  }
-  .login-card h2 {
-    color: #2563eb;
-    font-weight: 800;
-    margin-bottom: 0.8rem;
-    text-align: center;
-  }
-  .login-card label {
-    display: flex;
-    flex-direction: column;
-    font-weight: 600;
-    color: #374151;
-    gap: 0.3rem;
-  }
-  .login-card input {
-    padding: 0.6rem 1rem;
-    border: 1.5px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1.08rem;
-    background: #f9fafb;
-    margin-top: 0.2rem;
-  }
-  .login-btn {
-    background: #2563eb;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 1.1rem;
-    padding: 0.7rem 2.2rem;
-    cursor: pointer;
-    margin-top: 0.8rem;
-    transition: background 0.18s;
-  }
-  .login-btn:disabled {
-    background: #b3cdfd;
-    cursor: not-allowed;
-  }
-  .login-error {
-    color: #e53935;
-    background: #ffeaea;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-weight: 600;
-    margin-top: 0.3rem;
-    text-align: center;
-  }
+  --primary-color: #3b82f6;
+  --primary-color-dark: #2563eb;
+  --text-color-primary: #1a202c;
+  --text-color-secondary: #4a5568;
+  --border-color: #e2e8f0;
+  --bg-color: #f8fafc;
+  --error-color: #c53030;
+  --error-bg-color: #fed7d7;
+  
+  /* --- THIS IS THE CRITICAL FIX --- */
+  display: flex;
+  justify-content: center; /* Horizontally center */
+  align-items: center;     /* Vertically center */
+  width: 100%;
+  min-height: 100vh;       /* Force the container to be 100% of the viewport height */
+  /* --- END OF FIX --- */
+
+  background-color: var(--bg-color);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* The main white login card */
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 2.5rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Styling for the main "UniteHub Login" title */
+.login-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-color-primary);
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+/* This styles the "UniteHub" part of the title to be blue */
+.primary-text {
+  color: var(--primary-color);
+}
+
+/* Style for the form labels */
+label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  gap: 0.5rem;
+}
+
+/* Style for the input fields */
+input[type="text"],
+input[type="password"] {
+  font-size: 1rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+/* Style for when an input field is focused */
+input[type="text"]:focus,
+input[type="password"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* The main login button */
+.login-btn {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: var(--primary-color);
+  border: none;
+  padding: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.login-btn:hover:not(:disabled) {
+  background-color: var(--primary-color-dark);
+}
+
+/* Style for the button when it's loading/disabled */
+.login-btn:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+/* Style for the error message box */
+.login-error {
+  color: var(--error-color);
+  background-color: var(--error-bg-color);
+  border-radius: 4px;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+}

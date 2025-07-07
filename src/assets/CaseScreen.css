@@ -1,0 +1,40 @@
+.case-details-bg {
+    background: #f6f8fb;
+    padding: 2rem;
+    min-height: 100vh;
+  }
+  .case-details-header {
+    color: #2563eb;
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+  }
+  .case-details-table {
+    width: 100%;
+    max-width: 600px;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.07);
+    overflow: hidden;
+  }
+  .case-details-table th, .case-details-table td {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    font-size: 1.07rem;
+  }
+  .case-details-table th {
+    background: #f3f4f6;
+    color: #2563eb;
+    font-weight: 700;
+    width: 220px;
+  }
+  .case-details-table tr:last-child td, .case-details-table tr:last-child th {
+    border-bottom: none;
+  }
+  .case-details-loading, .case-details-error {
+    color: #e53935;
+    font-weight: 600;
+    margin: 2rem 0;
+  }

@@ -38,4 +38,35 @@
     .dashboard-widgets { flex-direction: column; gap: 1.2rem; }
     .widget { padding: 1.2rem; }
   }
-  
+  /* ... existing styles ... */
+
+.error-message {
+  color: #dc2626; /* Red color for error messages */
+  font-size: 0.85em;
+  margin-top: 0.25rem; /* Space below input */
+  display: block; /* Ensure it takes its own line */
+}
+
+.general-error {
+  text-align: center;
+  font-weight: 600;
+  padding: 10px;
+  background-color: #fee2e2; /* Light red background */
+  border: 1px solid #dc2626;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.required-star {
+  color: #dc2626; /* Red color for the star */
+  margin-left: 2px; /* Small space after label text */
+  font-weight: bold;
+}
+
+/* Optional: Add a visual cue to the input field itself when there's an error */
+label.has-error input,
+label.has-error select,
+label.has-error textarea {
+  border-color: #dc2626; /* Red border for error fields */
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2); /* Red glow */
+}

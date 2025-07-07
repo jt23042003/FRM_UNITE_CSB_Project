@@ -1,0 +1,213 @@
+/* Define primary colors consistent with your app's theme */
+:root {
+  --primary-color: #3b82f6;
+  --primary-color-dark: #2563eb;
+  --text-color-primary: #111827;
+  --text-color-secondary: #4b5567;
+  --border-color: #e5e7eb;
+  --bg-color: #f9fafb;
+}
+
+.page-container {
+  padding: 2.5rem;
+  background-color: var(--bg-color); /* Use global background color */
+}
+
+.screen-header {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--text-color-primary);
+  margin-bottom: 2rem;
+  letter-spacing: -1px;
+}
+
+.upload-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 2.5rem;
+  max-width: 700px; /* Slightly narrower card */
+  margin: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-color);
+  display: flex; /* Use flex for vertical stacking */
+  flex-direction: column;
+  gap: 1.5rem; /* Space between elements */
+}
+
+.card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color-dark); /* Use primary color for titles */
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.card-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-color-secondary);
+  margin-top: 0; /* Adjust margin */
+  margin-bottom: 1.5rem; /* Space below subtitle */
+  text-align: center;
+}
+
+.file-input-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  background-color: #fcfdfe; /* Lighter background for the drop zone */
+  transition: border-color 0.2s ease;
+}
+.file-input-area:hover {
+  border-color: var(--primary-color);
+}
+
+/* Style for the custom file input label */
+.file-upload-label {
+  display: inline-flex; /* To align button and text */
+  align-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  gap: 1rem;
+  justify-content: center; /* Center horizontally within the area */
+}
+
+/* Style for the 'Choose File' button text */
+.file-upload-label .button-style {
+  background-color: var(--primary-color); /* Use primary color */
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.file-upload-label .button-style:hover {
+  background-color: var(--primary-color-dark);
+}
+
+/* Style for the file name display */
+.file-upload-label .file-name {
+  color: var(--text-color-secondary);
+  font-style: italic;
+  max-width: 250px; /* Limit width for long names */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Visually hide the actual file input */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  clip-path: inset(100%);
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+}
+
+/* Process button */
+.process-btn {
+  width: 100%;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.process-btn:hover:not(:disabled) {
+  background-color: var(--primary-color-dark);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+.process-btn:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+/* Results Display Area */
+.results-panel {
+  margin-top: 2.5rem;
+  padding: 1.5rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Inner shadow for panel */
+}
+
+.results-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-color-primary);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.result-item {
+  text-align: center;
+  padding: 1.25rem;
+  border-radius: 8px;
+}
+.result-item .count {
+  display: block;
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.result-item .label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-color-secondary);
+  margin-top: 0.5rem;
+}
+
+.result-item.success {
+  background-color: #dcfce7; /* Green background */
+  border: 1px solid #bbf7d0;
+}
+.result-item.success .count {
+  color: #15803d; /* Darker green text */
+}
+
+.result-item.failed {
+  background-color: #fee2e2; /* Red background */
+  border: 1px solid #fecaca;
+}
+.result-item.failed .count {
+  color: #b91c1c; /* Darker red text */
+}
+
+.error-file-info {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-color-primary);
+}
+.error-file-info strong {
+  color: var(--text-color-secondary);
+  margin-right: 0.5rem;
+}
+.download-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  transition: text-decoration 0.2s;
+}
+.download-link:hover {
+  text-decoration: underline;
+}
