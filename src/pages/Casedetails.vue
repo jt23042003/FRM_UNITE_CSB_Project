@@ -55,13 +55,12 @@
           <tr v-for="caseItem in pagedCases" :key="caseItem.ack_no">
           <td>
             <router-link
-              :to="`/case-details/${caseItem.ack_no}`"
-              class="ack-link"
-            >
-              {{ caseItem.ack_no }}
-            </router-link>
+            :to="`/case-details/${caseItem.source_ack_no}`"
+            class="ack-link">
+            {{ caseItem.source_ack_no }}
+          </router-link>
           </td>
-          <td>{{ caseItem.complaint_type || '-' }}</td>
+          <td>{{ caseItem.case_type || '-' }}</td>
           <td>{{ caseItem.source || '-' }}</td>
           <td>{{ caseItem.match_type || '-' }}</td>
           <td>{{ caseItem.location || '-' }}</td>
@@ -108,6 +107,7 @@ const statuses = [
 const complaintTypes = [
   'VM',
   'BM',
+  'PMA',
   'NAB',
   'PSA',
   'ECBT',
@@ -135,7 +135,7 @@ const fetchCases = async () => {
       return;
     }
 
-    const res = await axios.get('http://34.47.219.225:9000/api/case-list', {
+    const res = await axios.get('http://34.47.219.225:9000/api/new-case-list', {
       headers: {
         'Authorization': `Bearer ${token}`
       },

@@ -173,20 +173,16 @@
             @change="handleFileSelection($event, docType)" 
             class="doc-file-input"
           />
-          <span v-if="filesToUpload[docType] && filesToUpload[docType].file" class="file-name-display">
-            {{ filesToUpload[docType].file.name }} 
-            <span v-if="filesToUpload[docType].comment" style="color: green; margin-left: 5px;">✓</span>
-          </span>
           </div>
       </div>
     </div>
 
-    <div class="action-buttons">
-      <button type="submit" class="submit-btn" :disabled="isUploading">
-        {{ isUploading ? 'Uploading...' : 'Upload Selected Files' }}
-      </button>
+    <div class="action-buttons" style="justify-content: flex-start; margin-top: 15px;">
+        <button type="button" class="submit-btn" @click="openCustomDocumentModal">
+            Add Custom Document
+        </button>
     </div>
-  </form>
+    </form>
 
   <div class="evidence-panel">
     <div class="evidence-header">Previously Uploaded Documents</div>
@@ -209,6 +205,29 @@
 <div class="modal-overlay" v-if="showCommentPopup">
   <div class="modal-content">
     <h3>Add Comment for {{ currentDocTypeForComment }}</h3>
+    
+    <div v-if="isCustomUpload" style="margin-bottom: 15px;">
+        <label for="customDocTypeInput" style="display: block; text-align: left; margin-bottom: 5px; font-weight: 500;">Document Type Name:</label>
+        <input 
+            type="text" 
+            id="customDocTypeInput"
+            v-model="customDocumentTypeName" 
+            placeholder="e.g., Bank Statement (Custom)" 
+            class="comment-modal-input" 
+        />
+    </div>
+    <div v-if="isCustomUpload" style="margin-bottom: 20px;">
+        <label for="customFileSelect" style="display: block; text-align: left; margin-bottom: 5px; font-weight: 500;">Select File:</label>
+        <input 
+            type="file" 
+            id="customFileSelect"
+            @change="handleCustomFileSelection" 
+            class="comment-modal-file-input" 
+        />
+         <span v-if="selectedFileForUpload" style="display: block; text-align: left; margin-top: 5px; color: #555;">
+            Selected: {{ selectedFileForUpload.name }}
+        </span>
+    </div>
     <textarea
       v-model="currentCommentText"
       placeholder="Enter your comment here..."
@@ -216,7 +235,13 @@
       class="comment-modal-textarea"
     ></textarea>
     <div class="modal-actions">
-      <button class="modal-btn-save" @click="saveCommentAndProceed">Save Comment</button>
+      <button 
+        class="modal-btn-save" 
+        @click="saveCommentAndUpload" 
+        :disabled="isUploadingSingle || (isCustomUpload && !customDocumentTypeName) || (isCustomUpload && !selectedFileForUpload)"
+      >
+        {{ isUploadingSingle ? 'Uploading...' : 'Save Comment and Upload' }}
+      </button>
       <button class="modal-btn-cancel" @click="cancelComment">Cancel</button>
     </div>
   </div>
@@ -511,127 +536,134 @@ const documentTypes = [
   'AOF (Account Opening Form)', 'KYC (Know Your Customer)', '65B Certificate', 'Photo'
 ];
 
-// Use a reactive object to hold the files staged for upload (File + Comment)
-// Keys are the document types, values are objects like { file: File, comment: string }
-const filesToUpload = reactive({});
-
 // Reactive state for the list of documents already on the server
 const existingDocuments = ref([]);
-const isUploading = ref(false);
+const isUploadingSingle = ref(false); // New state for individual upload loading
 
-// NEW: States for the comment popup
+// NEW States for the comment popup and custom upload
 const showCommentPopup = ref(false);
-const currentDocTypeForComment = ref(''); // Stores which docType the current popup is for
-const currentCommentText = ref('');      // Binds to the comment textarea in the popup
-const selectedFileForUpload = ref(null); // Temporarily holds the file until comment is saved
+const currentDocTypeForComment = ref(''); // For predefined types
+const currentCommentText = ref('');
+const selectedFileForUpload = ref(null);
+
+// NEW State for custom uploads specifically
+const isCustomUpload = ref(false); // Flag to know if it's a custom upload flow
+const customDocumentTypeName = ref(''); // Used only when isCustomUpload is true
 
 
-// MODIFIED: This function is now responsible for opening the popup
+// MODIFIED: handleFileSelection for predefined types
 function handleFileSelection(event, docType) {
   const file = event.target.files[0];
   if (file) {
-    selectedFileForUpload.value = file; // Store the file temporarily
-    currentDocTypeForComment.value = docType; // Store the document type
-    
-    // Pre-fill comment if user previously selected and then cancelled
-    currentCommentText.value = filesToUpload[docType]?.comment || ''; 
-
-    showCommentPopup.value = true; // Show the comment popup
-    // Clear the input so same file can be selected again after a cancel or save
-    event.target.value = null; 
-  } else {
-    // If user cancels file selection without opening popup, clear previous (if any)
-    delete filesToUpload[docType];
+    isCustomUpload.value = false; // It's not a custom upload if from a predefined type
+    selectedFileForUpload.value = file;
+    currentDocTypeForComment.value = docType; // Set the document type from the predefined list
+    currentCommentText.value = ''; // Clear previous comment
+    showCommentPopup.value = true;
+    event.target.value = null; // Clear input for re-selection
   }
 }
 
-// NEW: Function to save the comment and add file/comment to filesToUpload
-function saveCommentAndProceed() {
-  if (selectedFileForUpload.value && currentDocTypeForComment.value) {
-    filesToUpload[currentDocTypeForComment.value] = {
-      file: selectedFileForUpload.value,
-      comment: currentCommentText.value
-    };
-  }
-  // Reset popup states
-  showCommentPopup.value = false;
-  selectedFileForUpload.value = null;
-  currentDocTypeForComment.value = '';
-  currentCommentText.value = '';
+// NEW: Function to open the modal for custom document upload
+function openCustomDocumentModal() {
+  isCustomUpload.value = true; // Set flag for custom upload
+  selectedFileForUpload.value = null; // Clear any previously selected file
+  customDocumentTypeName.value = ''; // Clear custom type name
+  currentDocTypeForComment.value = 'Custom Document'; // Placeholder for modal title
+  currentCommentText.value = ''; // Clear comment
+  showCommentPopup.value = true;
 }
 
-// NEW: Function to cancel the comment process
-function cancelComment() {
-  // If a file was selected but comment process cancelled, ensure it's not staged
-  // You might want to keep the file if a previous comment existed for it
-  if (!filesToUpload[currentDocTypeForComment.value]?.file) {
-      delete filesToUpload[currentDocTypeForComment.value];
-  }
-
-  // Reset popup states
-  showCommentPopup.value = false;
-  selectedFileForUpload.value = null;
-  currentDocTypeForComment.value = '';
-  currentCommentText.value = '';
+// NEW: Handle file selection for the custom file input inside the modal
+function handleCustomFileSelection(event) {
+  selectedFileForUpload.value = event.target.files[0];
+  // No need to open modal here, it's already open
 }
 
+// MODIFIED: saveCommentAndUpload function
+async function saveCommentAndUpload() {
+  let docTypeToUpload = currentDocTypeForComment.value; // Default for predefined
+  let fileToUpload = selectedFileForUpload.value;
 
-// submitUploadedFiles: MODIFIED - The logic here remains mostly the same,
-// but it now correctly expects `filesToUpload` to contain `{ file, comment }` objects.
-async function submitUploadedFiles() {
-  // MODIFIED: Filter out entries where only a comment exists but no file
-  const filesToProcess = Object.keys(filesToUpload).filter(docType => filesToUpload[docType].file);
+  // If it's a custom upload, use the custom type and ensure a file is selected
+  if (isCustomUpload.value) {
+    if (!customDocumentTypeName.value.trim()) {
+      alert("Please enter a name for your custom document type.");
+      return;
+    }
+    if (!selectedFileForUpload.value) {
+      alert("Please select a file for your custom document.");
+      return;
+    }
+    docTypeToUpload = customDocumentTypeName.value.trim();
+  }
 
-  if (filesToProcess.length === 0) {
-    alert("Please select at least one file to upload.");
+  if (!fileToUpload) {
+    alert("No file selected for upload."); // Should be caught by earlier checks, but good to have
     return;
   }
   if (!ackno) {
-    alert("Could not determine the case ID.");
+    alert("Could not determine the case ID for upload.");
     return;
   }
 
-  isUploading.value = true;
+  isUploadingSingle.value = true;
   const formData = new FormData();
+  formData.append('file', fileToUpload);
+  formData.append('document_type', docTypeToUpload); // Use the resolved document type
+  formData.append('comment', currentCommentText.value || '');
 
-  for (const docType of filesToProcess) {
-    formData.append(docType, filesToUpload[docType].file);
-    // Ensure comment is sent even if empty string
-    formData.append(`${docType}_comment`, filesToUpload[docType].comment || ''); 
-  }
+  console.log('DEBUG FE: Preparing individual upload.');
+  console.log('DEBUG FE: File Name:', fileToUpload.name);
+  console.log('DEBUG FE: Document Type:', docTypeToUpload);
+  console.log('DEBUG FE: Comment:', currentCommentText.value);
 
   const url = `http://34.47.219.225:9000/api/case/${ackno}/upload-documents`;
 
   try {
     const response = await axios.post(url, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { /* Axios handles Content-Type for FormData */ }
     });
 
+    console.log('DEBUG FE: API Response:', response.data);
+
     if (response.data.success && response.data.documents) {
-      // Add the newly uploaded documents from the response directly to our list
-      existingDocuments.value.push(...response.data.documents);
-      alert('Files uploaded successfully!');
+      existingDocuments.value.push(response.data.documents);
+      alert('File uploaded successfully!');
     } else {
       alert('Upload failed: ' + (response.data.message || 'Unknown error.'));
     }
-
-    // Clear all staged files and comments
-    Object.keys(filesToUpload).forEach(key => delete filesToUpload[key]);
-    
   } catch (error) {
-    console.error('Error uploading files:', error);
-    alert('Failed to upload files.');
+    console.error('Error uploading file:', error);
+    const errorMessage = error.response?.data?.message || error.message || 'Failed to upload file due to a network error.';
+    alert(errorMessage);
   } finally {
-    isUploading.value = false;
+    isUploadingSingle.value = false;
+    // Reset all popup-related states
+    showCommentPopup.value = false;
+    selectedFileForUpload.value = null;
+    currentDocTypeForComment.value = '';
+    currentCommentText.value = '';
+    isCustomUpload.value = false; // Reset custom upload flag
+    customDocumentTypeName.value = ''; // Clear custom name
   }
 }
 
-// fetchExistingDocuments: (No changes here, assuming backend already returns `comment` field)
+// MODIFIED: cancelComment - ensure it resets custom upload states too
+function cancelComment() {
+  showCommentPopup.value = false;
+  selectedFileForUpload.value = null;
+  currentDocTypeForComment.value = '';
+  currentCommentText.value = '';
+  isCustomUpload.value = false; // Reset custom upload flag
+  customDocumentTypeName.value = ''; // Clear custom name
+}
+
+// ... fetchExistingDocuments and onMounted remain the same ...
 async function fetchExistingDocuments() {
     if (!ackno) return;
     try {
       const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/documents`);
-        // Assuming 'doc.comment' will be part of each document object returned by backend
         if (res.data.success) {
             existingDocuments.value = res.data.documents; 
         }
@@ -640,15 +672,9 @@ async function fetchExistingDocuments() {
     }
 }
 
-// --- Load existing documents when the component is first loaded ---
 onMounted(() => {
     fetchExistingDocuments();
 });
-
-
-// --- Your reactive object where data is stored ---
-// Ensure all these properties exist in your reactive object
-// and match the camelCase keys returned by the backend.
 
 // NEW: State for the new Case Management dropdown
 const userType = ref('');
@@ -661,7 +687,7 @@ const sentBackNotes = ref(''); // <--- ADD THIS LINE
 const operationsStatus = ref(false);
 // --- Reactive state for form data ---
 const decisionConsole = reactive({
-  // ackno: ackno, // REMOVE THIS LINE: ackno is a separate ref, don't nest it here unless truly needed
+  ackno: ackno, // REMOVE THIS LINE: ackno is a separate ref, don't nest it here unless truly needed
   riskScore: '',
   triggeringRules: '',
   comments: '',
@@ -669,8 +695,6 @@ const decisionConsole = reactive({
   auditTrail: '',
   systemRecommendation: '',
   systemExplanation: '',
-  // Add other reactive properties if your form has them and they should be updated
-  // e.g., lastUpdatedAt: null,
 });
 
 const sendBackCase = async () => {

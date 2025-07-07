@@ -221,7 +221,7 @@ body {
   box-shadow: 0 2px 5px rgba(16, 185, 129, 0.2);
 }
 
-/* Document Uploads */
+/* Document Uploads - Main Grid */
 .multi-upload-form {
   margin-bottom: 30px;
 }
@@ -250,8 +250,9 @@ body {
   width: 120px; /* Fixed width for labels */
 }
 
+/* Wrapper for the custom styled file inputs (Account Statement, KYC, etc.) */
 .file-input-wrapper {
-  position: relative;
+  position: relative; /* Essential for positioning the hidden input and pseudo-element */
   flex-grow: 1; /* Take remaining space */
   display: flex;
   align-items: center;
@@ -260,52 +261,63 @@ body {
   border-radius: 8px;
   background-color: #fff;
   cursor: pointer;
-  overflow: hidden; /* Hide default input styling */
+  overflow: hidden; /* CRITICAL: Hides the native "No file chosen" text */
 }
 
-.doc-file-input {
+/* The actual file input element for predefined types - HIDDEN */
+.file-input-wrapper .doc-file-input[type="file"] {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  opacity: 0; /* Hide the actual file input */
+  opacity: 0; /* HIDES THE NATIVE FILE INPUT AND ITS TEXT COMPLETELY */
   cursor: pointer;
-  z-index: 2; /* Ensure it's clickable */
+  z-index: 2; /* Ensures it's clickable above the ::before */
+  /* Reset any default browser appearance that might interfere */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
+/* The pseudo-element that creates the custom "Choose File..." button appearance for predefined types */
 .file-input-wrapper::before {
   content: 'Choose File...'; /* Custom text for the button */
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center the text within the pseudo-element */
   padding: 8px 12px;
   background-color: #e9eef6; /* Light blue background for 'Choose File' */
   color: #2563eb;
   border-right: 1px solid #dcdfe6;
   height: 100%;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  pointer-events: none; /* Prevent text from blocking clicks */
+  pointer-events: none; /* Prevents this element from capturing clicks, letting them pass to the hidden input */
   white-space: nowrap;
+  flex-shrink: 0; /* Prevent it from shrinking in flex context */
 }
 
+/* If you choose to re-implement filename display next to predefined buttons after selection */
+/*
 .file-name-display {
   padding-left: 15px;
   color: #555;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Truncate long filenames */
+  text-overflow: ellipsis;
   flex-grow: 1;
 }
+*/
 
+/* Action Buttons - Adjusted to match "Add Custom Document" placement */
 .action-buttons {
   display: flex;
-  justify-content: flex-end; /* Align to right */
-  margin-top: 20px;
+  justify-content: flex-start; /* Align to left for "Add Custom Document" button */
+  margin-top: 15px; /* Adjust spacing as needed */
   gap: 15px;
 }
 
-/* Upload Submit Button */
+/* Upload Submit Button (now repurposed for "Add Custom Document" button) */
 .submit-btn {
   padding: 12px 25px;
   border: none;
@@ -605,7 +617,7 @@ body {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   width: 90%;
   max-width: 500px;
-  text-align: center;
+  text-align: center; /* Center the content within the modal */
 }
 
 .modal-content h3 {
@@ -614,6 +626,81 @@ body {
   color: #333;
 }
 
+/* Text input for custom document type inside the modal */
+.comment-modal-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #c2c9d6;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #333;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box; /* Include padding in width */
+    background-color: #fff;
+    margin-top: 5px; /* Spacing below label */
+    /* Ensure it behaves like a standard text input, not a file input */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.comment-modal-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    outline: none;
+}
+
+/* File input for custom document type inside the modal */
+.comment-modal-file-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #c2c9d6;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #333;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box; /* Include padding in width */
+    background-color: #fff;
+    margin-top: 5px; /* Spacing below label */
+    /* Allow native appearance for the file input */
+    -webkit-appearance: initial;
+    -moz-appearance: initial;
+    appearance: initial;
+}
+
+.comment-modal-file-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    outline: none;
+}
+
+/* Style for the custom file input's "button" part within the modal */
+/* These target the *native* button provided by the browser for type="file" inputs */
+.comment-modal-file-input::-webkit-file-upload-button {
+    background-color: #e9eef6;
+    color: #2563eb;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    padding: 8px 15px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background-color 0.2s;
+}
+
+/* Standard for modern browsers */
+.comment-modal-file-input::file-selector-button {
+    background-color: #e9eef6;
+    color: #2563eb;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    padding: 8px 15px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background-color 0.2s;
+}
+
+
+/* Textarea for comments inside the modal */
 .comment-modal-textarea {
   width: calc(100% - 20px); /* Account for padding */
   padding: 10px;
@@ -660,8 +747,7 @@ body {
   background-color: #e0e0e0;
 }
 
-/* Existing styles for .doc-comment-display and list items should still apply
-   or be refined if the layout of previously uploaded documents needs adjustment. */
+/* Existing styles for .doc-comment-display and list items */
 .doc-comment-display {
   font-size: 0.85em;
   color: #555;
