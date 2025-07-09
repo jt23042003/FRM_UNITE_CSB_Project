@@ -93,13 +93,12 @@ body {
     outline: none;
 }
 
-.enhanced-status-select {
-    padding: 10px 15px;
-    padding-left: 15px; /* Reset original padding */
+/* Specific styling for select dropdowns to add custom arrow */
+.enhanced-status-select, .enhanced-type-select { /* Applied to both type and status select */
+    padding: 10px 15px; /* Adjust padding for selects, no left padding for icon */
     min-width: 180px; /* Slightly wider for better readability */
     background-color: #fff;
     cursor: pointer;
-    /* Add a custom dropdown arrow for consistency across browsers */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
@@ -170,7 +169,7 @@ body {
 .case-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 900px; /* Ensure table doesn't get too cramped */
+    min-width: 1000px; /* Ensure table doesn't get too cramped - adjusted for more columns */
 }
 
 .case-table th,
@@ -223,6 +222,26 @@ body {
     color: #fff; /* Default text color */
 }
 
+/* Operational/Non-Operational badge for `is_operational` */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 500;
+    color: #fff;
+    text-align: center;
+}
+
+.badge.operational {
+    background-color: #10b981; /* Green for Yes */
+}
+
+.badge.non-operational {
+    background-color: #ef4444; /* Red for No */
+}
+
+
 .status-badge.new {
     background-color: #f59e0b; /* Yellow-500 */
 }
@@ -231,15 +250,20 @@ body {
     background-color: #3b82f6; /* Blue-500 */
 }
 
-/* Add more status classes as needed */
+.status-badge.assigned {
+    background-color: #6366f1; /* Indigo-500 */
+}
+
 .status-badge.closed {
     background-color: #10b981; /* Green-500 */
 }
+
 .status-badge.pending {
-    background-color: #ef4444; /* Red-500 */
+    background-color: #f97316; /* Orange-500 for pending */
 }
-.status-badge.assigned {
-    background-color: #6366f1; /* Indigo-500 */
+
+.status-badge.resolved {
+    background-color: #0d9488; /* Teal-600 for resolved */
 }
 
 
@@ -310,7 +334,8 @@ body {
     }
 
     .search-bar-container,
-    .enhanced-status-select {
+    .enhanced-status-select,
+    .enhanced-type-select { /* Include enhanced-type-select */
         min-width: unset; /* Remove min-width to allow shrinking */
         width: 100%;
     }

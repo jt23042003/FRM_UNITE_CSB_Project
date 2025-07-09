@@ -9,14 +9,13 @@
   --error-color: #c53030;
   --error-bg-color: #fed7d7;
   
-  /* --- THIS IS THE CRITICAL FIX --- */
+  /* These are the correct centering rules for .login-bg itself */
   display: flex;
   justify-content: center; /* Horizontally center */
   align-items: center;     /* Vertically center */
   width: 100%;
   min-height: 100vh;       /* Force the container to be 100% of the viewport height */
-  /* --- END OF FIX --- */
-
+  
   background-color: var(--bg-color);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
@@ -32,6 +31,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  /* Add flex-shrink: 0; if it's shrinking too much, but likely not needed */
+  flex-shrink: 0;
 }
 
 /* Styling for the main "UniteHub Login" title */

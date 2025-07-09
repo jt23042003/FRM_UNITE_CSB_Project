@@ -20,15 +20,29 @@ const routes = [
     // Add a meta field to protect these routes
     meta: { requiresAuth: true }, 
     children: [
-      { path: '', redirect: '/dashboard' }, // Redirect root to dashboard
+      { path: '', redirect: '/dashboard' },
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'data-entry', name: 'DataEntry', component: I4CCaseEntry },
       { path: 'bulk-upload', name: 'BulkUpload', component: BulkFileUpload },
       { path: 'case-details', name: 'CaseDetails', component: CaseDetails },
       {
-        path: 'case-details/:ackno',
+        path: 'case-details/:case_id',
         name: 'CaseRiskReview',
-        component: CaseRiskReview,
+        component: () => import('@/pages/CaseRiskReview.vue'),
+        props: true,
+      },
+      {
+        path: 'operational-action/:case_id',
+        name: 'OperationalAction',
+        component: () => import('@/pages/OperationalAction.vue'),
+        props: true,
+      },
+      // --- ADD YOUR NEW ROUTE HERE ---
+      // In your routes array
+      {
+        path: 'beneficiary-action/:case_id',
+        name: 'BeneficiaryAction',
+        component: () => import('@/pages/BeneficiaryAction.vue'), // Your new page component
         props: true,
       },
     ],
