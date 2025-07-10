@@ -296,8 +296,8 @@ onMounted(async () => {
     const [combinedDataRes, documentListRes, savedActionRes] = await Promise.allSettled([
       axios.get(`http://34.47.219.225:9000/api/combined-case-data/${case_id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
       axios.get('http://34.47.219.225:9000/api/i4c-document-list', { headers: { 'Authorization': `Bearer ${token}` } }),
-      // 2. Assuming this is the new endpoint for previously saved action data
-      axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } })
+      // // 2. Assuming this is the new endpoint for previously saved action data
+      // axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
 
     // --- Process combined case data result ---
@@ -307,7 +307,7 @@ onMounted(async () => {
       const customerDetails = responseData.customer_details || {};
       
       riskEntity.i4c = { name: i4cData.customer_name, mobileNumber: i4cData.mobile, bankAc: i4cData.account_number, email: i4cData.email };
-      riskEntity.bank = { name: `${customerDetails.fname || ''} ${customerDetails.mname || ''} ${customerDetails.lname || ''}`.trim(), mobileNumber: customerDetails.mobile, bankAc: responseData.acc_num, email: customerDetails.email, customerId: customerDetails.cust_id, acStatus: responseData.account_details?.acc_status, aqb: responseData.account_details?.aqb, availBal: responseData.account_details?.availBal, productCode: responseData.account_details?.productCode, relValue: responseData.account_details?.relValue, mobVintage: responseData.account_details?.mobVintage };
+      riskEntity.bank = { name: `${customerDetails.fname || ''} ${customerDetails.mname || ''} ${customerDetails.lname || ''}`.trim(), mobileNumber: customerDetails.mobile, bankAc: responseData.acc_num, email: customerDetails.email, customerId: customerDetails.cust_id, acStatus: responseData.account_details?.acc_status, aqb: responseData.account_details?.aqb, availBal: responseData.account_details?.availBal, productCode: responseData.account_details?.productCode, relValue: customerDetails?.rel_value, mobVintage: customerDetails?.mob };
     } else {
       console.error('Failed to fetch combined case data:', combinedDataRes.reason);
       error.value = "Failed to load operational case data.";
@@ -324,26 +324,29 @@ onMounted(async () => {
       console.error('Failed to fetch I4C document list:', documentListRes.reason);
     }
 
-    // --- 3. Add the processing logic for the saved action data ---
-    if (savedActionRes.status === 'fulfilled' && savedActionRes.value.data.success) {
-      const savedData = savedActionRes.value.data.data;
-      if (savedData) {
-        // Pre-fill the form fields with the saved data
-        proofOfUploadRef.value = savedData.proof_of_upload_ref || '';
+    if (caseStatus.value === 'Closed') {
+      console.log('Case is closed, fetching action log...');
+      try {
+        const savedActionRes = await axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } });
         
-        // Pre-tick the checkboxes
-        const previouslyCheckedDocs = savedData.checked_documents || [];
-        i4cRequirements.value.forEach(req => {
-          if (previouslyCheckedDocs.includes(req.name)) {
-            req.checked = true;
+        if (savedActionRes.data && savedActionRes.data.success) {
+          const savedData = savedActionRes.data.data;
+          if (savedData) {
+            // Pre-fill the form fields with the saved data
+            proofOfUploadRef.value = savedData.proof_of_upload_ref || '';
+            const previouslyCheckedDocs = savedData.checked_documents || [];
+            i4cRequirements.value.forEach(req => {
+              if (previouslyCheckedDocs.includes(req.name)) {
+                req.checked = true;
+              }
+            });
+            savedActionData.value = savedData; 
           }
-        });
-        
-        // Store the full saved data object if you need to display other parts, like the filename
-        savedActionData.value = savedData; 
+        }
+      } catch (logErr) {
+        // This won't stop the page from loading, just log an error.
+        console.warn('Could not load saved action data:', logErr);
       }
-    } else {
-      console.error('Could not load saved action data:', savedActionRes.reason);
     }
 
   } catch (err) {
@@ -353,4 +356,4 @@ onMounted(async () => {
     loading.value = false;
   }
 });
-  </script>
+</script>
