@@ -462,27 +462,44 @@ const clearDynamicErrors = () => {
     });
 };
 
+// --- MODIFIED: parseBackendErrors function ---
 function parseBackendErrors(errorResponse) {
+  // Clear all previous errors
   for (const key in errors) {
     delete errors[key];
   }
   generalError.value = '';
 
-  if (errorResponse && errorResponse.detail) {
-    if (Array.isArray(errorResponse.detail)) {
-      errorResponse.detail.forEach(err => {
+  // Check if errorResponse has the new structured 'detail'
+  if (errorResponse && errorResponse.detail && typeof errorResponse.detail === 'object' && errorResponse.detail.error_code) {
+    const backendErrorDetail = errorResponse.detail;
+
+    generalError.value = backendErrorDetail.message || 'An unexpected error occurred.'; // Display overall message
+
+    // If there are specific validation_errors (from Pydantic's RequestValidationError)
+    if (backendErrorDetail.validation_errors && Array.isArray(backendErrorDetail.validation_errors)) {
+      backendErrorDetail.validation_errors.forEach(err => {
+        // Pydantic validation errors have loc: ['body', 'fieldName']
         if (err.loc && err.loc.length > 1 && typeof err.loc[1] === 'string') {
           const fieldName = err.loc[1];
-          const errorMessage = err.msg.charAt(0).toUpperCase() + err.msg.slice(1);
-          errors[fieldName] = errorMessage;
+          // Message might be "value is not a valid date (YYYY-MM-DD)" etc.
+          errors[fieldName] = err.msg.charAt(0).toUpperCase() + err.msg.slice(1);
         } else {
-          generalError.value += (generalError.value ? '; ' : '') + err.msg;
+          // Fallback for general Pydantic errors without specific fieldName
+          generalError.value += (generalError.value ? '; ' : '') + (err.msg || 'Validation failed for an unknown field.');
         }
       });
-    } else if (typeof errorResponse.detail === 'string') {
-      generalError.value = errorResponse.detail;
+    } else if (backendErrorDetail.message) {
+      // If it's a backend ValueError (e.g., from validate_numeric_field)
+      // The backend will send a message like "Validation Error: ... Details: ..."
+      // Extract the relevant part or display as is.
+      generalError.value = backendErrorDetail.message;
     }
+  } else if (typeof errorResponse.detail === 'string') {
+    // This handles older/simpler string-based error details
+    generalError.value = errorResponse.detail;
   } else {
+    // Fallback for completely unexpected error formats
     generalError.value = 'An unexpected error occurred. Please try again.';
   }
 }
@@ -1044,7 +1061,19 @@ label.has-error textarea {
     border-bottom-right-radius: 0;
 }
 
-
+.label.has-error input,
+.label.has-error select,
+.label.has-error textarea {
+  border-color: #E53E3E; /* Red border */
+  box-shadow: 0 0 0 5px rgba(229, 62, 62, 0.25); /* Red glow */
+}
+.error-message {
+  color: #E53E3E; /* Red text for error messages */
+  font-size: 0.95em;
+  margin-top: 6px;
+  display: block;
+  font-weight: 500;
+}
 
 /* ... (Remaining existing styles) ... */
 </style>

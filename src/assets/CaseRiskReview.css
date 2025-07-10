@@ -769,3 +769,127 @@ body {
 .doc-list-item > a {
   margin-bottom: 3px; /* Small space between lines */
 }
+
+.side-by-side-container {
+  display: flex;
+  gap: 20px;
+}
+
+.profile-column {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.column-header {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 1.1em;
+  color: #1e293b;
+}
+
+.display-grid-condensed {
+  display: grid;
+  grid-template-columns: 1fr; /* Each item on its own line */
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.display-grid-condensed > div {
+  padding: 4px;
+}
+
+
+/* This is the class that gets applied when info matches */
+.highlight-match {
+  background-color: #fefcbf; /* Bright yellow */
+  border-color: #fde047;
+}
+
+.separator-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+/*
+ * Find this existing class and change 'grid-template-columns'.
+ * This will create a 2-column layout inside each box.
+*/
+.display-grid-condensed {
+  display: grid;
+  /* CHANGE THIS LINE */
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* FROM: 1fr */
+  gap: 12px 20px; /* Vertical and horizontal gap */
+  font-size: 0.9em;
+}
+
+/* * NEW: The highlight class will now be on the div itself,
+ * so we apply padding and a border-radius directly.
+*/
+.highlight-match {
+  background-color: #fefcbf !important; /* Yellow background */
+  border-radius: 4px;
+  padding: 6px 8px;
+  border: 1px solid #fde047;
+}
+
+/* Make fields with separators take up the full width */
+.display-grid-condensed .separator-row {
+  grid-column: 1 / -1; /* Span all columns */
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+/* New styles for the table inside each column */
+.inner-details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.inner-details-table th,
+.inner-details-table td {
+  text-align: left;
+  padding: 8px 4px;
+  border: none; /* No borders for a cleaner look inside the card */
+}
+
+.inner-details-table th {
+  font-weight: bold;
+  font-size: 0.85em;
+  color: #475569;
+}
+
+.inner-details-table td {
+  font-size: 0.9em;
+  color: #1e293b;
+  padding-top: 2px;
+}
+
+/* New style for the full-width separator line */
+.separator-row-full {
+  width: 100%;
+  border-top: 1px dashed #cbd5e1;
+  margin: 16px 0;
+}
+
+/* Make sure your highlight class still targets TDs */
+.highlight-match {
+  background-color: #fefcbf !important;
+  border-radius: 4px;
+}
+
+.case-details-error {
+  background-color: #fee2e2; /* Light red */
+  color: #b91c1c; /* Dark red text */
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #fca5a5;
+  font-weight: bold;
+  text-align: center;
+}

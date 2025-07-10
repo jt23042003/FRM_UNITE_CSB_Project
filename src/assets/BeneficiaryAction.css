@@ -1,0 +1,51 @@
+/* You can copy the exact same CSS from OperationalAction.vue */
+.action-page-bg {
+    padding: 2rem;
+    background-color: #f1f5f9;
+  }
+  .screen-header {
+    color: #1e293b;
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-section {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    margin-bottom: 1.5rem;
+  }
+  .side-by-side-container {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .profile-column {
+    flex: 1;
+  }
+  .column-header {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #475569;
+  }
+  .inner-details-table {
+    width: 100%;
+  }
+  .inner-details-table th, .inner-details-table td {
+    text-align: left;
+    padding: 0.5rem 0.25rem;
+  }
+  .inner-details-table th {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #64748b;
+  }
+  td.highlight-match {
+    background-color: #fef9c3;
+    border-radius: 4px;
+  }
+  .separator-row-full {
+    width: 100%;
+    border-top: 1px dashed #cbd5e1;
+    margin: 1rem 0;
+  }
+  /* ... add all other necessary styles for the Action section ... */
