@@ -20,7 +20,8 @@ router = APIRouter()
 # Imports for authentication dependencies
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from keycloak import KeycloakOpenID
+#from keycloak import KeycloakOpenID
+from keycloak.keycloak_openid import KeycloakOpenID
 
 router = APIRouter()
 

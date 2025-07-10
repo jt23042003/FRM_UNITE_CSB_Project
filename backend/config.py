@@ -3,11 +3,11 @@ import os
 
 # --- Database Connection Parameters ---
 DB_CONNECTION_PARAMS = {
-    'host': 'localhost', # Use localhost for internal server connection
-    'dbname': 'unitedb',
-    'user': 'unitedb_user',
-    'password': 'password123',
-    'port': '5432'
+    "host": "34.47.219.225",
+    "database": "unitedb",
+    "user": "unitedb_user",
+    "password": "password123",
+    "port": "5432"
 }
 
 # --- Keycloak Configuration ---

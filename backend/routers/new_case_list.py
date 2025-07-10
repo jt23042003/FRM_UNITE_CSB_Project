@@ -7,7 +7,9 @@ import traceback
 from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from keycloak import KeycloakOpenID
+#from keycloak import KeycloakOpenID
+from keycloak.keycloak_openid import KeycloakOpenID
+
 from concurrent.futures import ThreadPoolExecutor
 
 from db.matcher import CaseEntryMatcher # CaseEntryMatcher is where fetch_new_cases_list resides

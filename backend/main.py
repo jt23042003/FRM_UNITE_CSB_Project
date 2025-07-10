@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 #from keycloak import KeycloakOpenID
 
+from keycloak.keycloak_openid import KeycloakOpenID
 from config import KEYCLOAK_CONFIG
 
 from services.anomaly import AnomalyDetector
@@ -27,7 +28,8 @@ from routers import (
     new_case_list,
     combined_data,
     manual_file_confirm,
-    ecb_cases
+    ecb_cases,
+    user_management
 )
 
 # --- FastAPI App Initialization ---
@@ -95,6 +97,7 @@ app.include_router(new_case_list.router, tags=["New Dashboard (Case List)"])
 app.include_router(combined_data.router, tags=["Combined Case Data"]) # This now serves all new detail needs
 app.include_router(manual_file_confirm.router, tags=["I4C Manual Confirmations"])
 app.include_router(ecb_cases.router, tags=["ECB/ECBNT Case Creation"])
+app.include_router(user_management.router, tags=["User Management"])
 
 # --- This is your existing root endpoint ---
 @app.get("/")

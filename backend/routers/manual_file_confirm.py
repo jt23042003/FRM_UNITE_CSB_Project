@@ -15,7 +15,8 @@ from db.matcher import CaseEntryMatcher # CaseEntryMatcher for db methods
 # Imports for authentication dependencies (reused)
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from keycloak import KeycloakOpenID
+#from keycloak import KeycloakOpenID
+from keycloak.keycloak_openid import KeycloakOpenID
 
 router = APIRouter()
 

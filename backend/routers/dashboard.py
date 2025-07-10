@@ -7,7 +7,8 @@ import traceback
 
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from keycloak import KeycloakOpenID
+#from keycloak import KeycloakOpenID
+from keycloak.keycloak_openid import KeycloakOpenID
 
 from db.matcher import CaseEntryMatcher # Make sure this is imported
 

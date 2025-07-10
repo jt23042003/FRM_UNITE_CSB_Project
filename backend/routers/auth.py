@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 #from keycloak import KeycloakOpenID
 from config import KEYCLOAK_CONFIG
 from models.base_models import LoginRequest
+from keycloak.keycloak_openid import KeycloakOpenID
 
 # Imports for CaseEntryMatcher and ThreadPoolExecutor (for matcher dependency)
 from db.matcher import CaseEntryMatcher # Import CaseEntryMatcher

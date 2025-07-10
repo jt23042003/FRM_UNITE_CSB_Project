@@ -1065,37 +1065,61 @@ class CaseEntryMatcher:
                         raise CaseNotFoundError(f"Case with ID {case_id} not found in case_main.")
                     combined_case_data.update(case_main_data)
 
-                    source_ack_no = case_main_data.get('source_ack_no')
+                    source_ack_no_from_case_main = case_main_data.get('source_ack_no')
                     main_cust_id = case_main_data.get('cust_id')
                     main_acc_num = case_main_data.get('acc_num')
                     source_bene_accno = case_main_data.get('source_bene_accno')
 
                     # 2. Fetch I4C data from case_entry_form (linked by source_ack_no)
-                    if source_ack_no:
+                    original_ack_no_for_i4c = None
+                    if source_ack_no_from_case_main:
+                        # FIX: Derive the original ACK No by stripping suffixes like _VM or _BM
+                        if source_ack_no_from_case_main.endswith('_VM') or source_ack_no_from_case_main.endswith('_BM'):
+                            original_ack_no_for_i4c = source_ack_no_from_case_main[:-3] # Remove '_VM' or '_BM'
+                        else:
+                            original_ack_no_for_i4c = source_ack_no_from_case_main # Use as is if no suffix
+
+                        print(f"DEBUG: Combined Data - Derived original ACK for i4c_data: '{original_ack_no_for_i4c}' from source_ack_no: '{source_ack_no_from_case_main}'", flush=True)
+
                         cur.execute("""
                             SELECT
                                 ack_no, customer_name, sub_category, transaction_date, complaint_date, report_datetime,
                                 state, district, policestation, payment_mode, account_number, card_number,
                                 transaction_id, layers, transaction_amount, disputed_amount, action,
                                 to_bank, to_account, ifsc, to_transaction_id, to_amount, action_taken_date,
-                                additional_info, to_upi_id
+                                to_upi_id
                             FROM case_entry_form
                             WHERE ack_no = %s
-                        """, (source_ack_no,))
+                        """, (original_ack_no_for_i4c,))  # Use the derived original ACK No
                         i4c_data = cur.fetchone()
                         if i4c_data:
                             combined_case_data['i4c_data'] = i4c_data
                         else:
                             combined_case_data['i4c_data'] = None
+                            print(f"DEBUG: Combined Data - No i4c_data found in case_entry_form for original ACK: '{original_ack_no_for_i4c}'", flush=True)
 
                     # 3. Fetch customer details (victim/primary)
                     customer_data = None
                     if main_cust_id:
                         cur.execute("""
-                            SELECT cust_id, fname, mname, lname, mobile, email, pan, nat_id, dob, citizen, occupation, seg, cust_type, risk_prof, kyc_status
+                            SELECT cust_id, fname, mname, lname, mobile, email, pan, nat_id, dob, citizen, occupation, seg, cust_type, risk_prof, kyc_status, cust_creation_date, rel_value
                             FROM customer WHERE cust_id = %s
                         """, (main_cust_id,))
                         customer_data = cur.fetchone()
+
+                    # NEW: Calculate MOB if customer_data is available
+                    if customer_data and customer_data.get('cust_creation_date'):
+                        today = date.today()
+                        creation_date = customer_data.get('cust_creation_date')
+                        delta = today - creation_date
+                        mob_value = round(delta.days / 30) # Calculate months
+                        customer_data['mob'] = mob_value
+                    else:
+                        if customer_data: # If customer_data exists but date is missing, add mob as None
+                            customer_data['mob'] = None
+                        else: # If customer_data is None entirely, initialize it to add mob
+                            customer_data = {'mob': None}
+
                     combined_case_data['customer_details'] = customer_data
 
                     # 4. Fetch account details (primary account from case_main)
@@ -1180,6 +1204,21 @@ class CaseEntryMatcher:
         def _sync_fetch_case_customer_details():
             with get_db_connection() as conn:
                 with get_db_cursor(conn) as cur:
+                    # First, get the case_main record by case_id (int) or source_ack_no (str)
+                    case_main_query = """
+                        SELECT case_id, source_ack_no, cust_id, acc_num
+                        FROM public.case_main
+                        WHERE case_id = %s OR source_ack_no = %s
+                    """
+                    cur.execute(case_main_query, (case_id_or_ack_no, case_id_or_ack_no))
+                    cm_data = cur.fetchone()
+
+                    if not cm_data:
+                        raise CaseNotFoundError(f"Case {case_id_or_ack_no} not found in case_main.")
+
+                    main_cust_id = cm_data.get('cust_id')
+                    main_acc_num = cm_data.get('acc_num')
+
                     # Join case_main with customer table to get full customer details for the primary customer ID
                     cur.execute("""
                         SELECT
@@ -1208,17 +1247,29 @@ class CaseEntryMatcher:
                             c.seg,
                             c.cust_type AS customer_db_type, -- Alias to avoid conflict with cm.case_type
                             c.risk_prof,
-                            c.kyc_status
+                            c.kyc_status,
+                            c.cust_creation_date,
+                            c.rel_value
                         FROM public.case_main AS cm
                         LEFT JOIN public.customer AS c ON cm.cust_id = c.cust_id
-                        WHERE cm.source_ack_no = %s
-                    """, (ack_no,))
+                        WHERE cm.case_id = %s
+                    """, (cm_data.get('case_id'),))
                     
                     case_data = cur.fetchone() 
                     
                     if not case_data:
-                        raise CaseNotFoundError(f"Case with ACK No '{ack_no}' not found in case_main.")
-                    
+                        raise CaseNotFoundError(f"Case data for case_id {cm_data.get('case_id')} not retrieved after join.")
+
+                    # NEW: Calculate MOB (Months On Book)
+                    if case_data.get('cust_creation_date'):
+                        today = date.today()
+                        creation_date = case_data.get('cust_creation_date')
+                        delta = today - creation_date
+                        mob_value = round(delta.days / 30) # Calculate months
+                        case_data['mob'] = mob_value
+                    else:
+                        case_data['mob'] = None # Set to None if cust_creation_date is missing
+
                     return case_data # This will be a dictionary with combined data
         
         try:
@@ -1490,6 +1541,42 @@ class CaseEntryMatcher:
     #        print(f"UNEXPECTED ERROR in insert_operational_confirmation_summary wrapper for case_id {case_id}: {e}", flush=True)
     #        raise
 
+
+    # NEW METHOD: Fetch list of backend users for the API
+    async def fetch_backend_users(self) -> List[Dict[str, str]]:
+        def _sync_fetch_users():
+            with get_db_connection() as conn:
+                with get_db_cursor(conn) as cur:
+                    # Select all necessary columns from user_table
+                    cur.execute("SELECT user_id, user_name, user_type FROM public.user_table ORDER BY user_name;")
+                    raw_users = cur.fetchall() # Fetches results as RealDictRow objects
+                    
+                    formatted_users = []
+                    for user_row in raw_users: # Iterate through each user record
+                        # Get user_id (convert to string as requested for 'id' field)
+                        user_id_str = str(user_row.get('user_id')) 
+                        
+                        # Get user_name and user_type for formatting 'name'
+                        user_name_display = user_row.get('user_name', 'Unknown User')
+                        user_type_db = user_row.get('user_type')
+                        
+                        # Format 'name' as "user_name - UserType" (e.g., "John Doe - Fraud Dept")
+                        formatted_name = user_name_display
+                        if user_type_db:
+                            # Capitalize first letter of each word and replace underscores
+                            formatted_user_type = user_type_db.replace('_', ' ').title()
+                            formatted_name = f"{user_name_display} - {formatted_user_type}"
+
+                        formatted_users.append({
+                            "id": user_id_str,
+                            "name": formatted_name
+                        })
+                    return formatted_users
+        try:
+            return await self._execute_sync_db_op(_sync_fetch_users)
+        except Exception as e:
+            print(f"Error fetching backend users: {e}", flush=True)
+            raise 
 
     # NEW METHOD: Insert I4C manual file confirmation into i4c_manual_file_list
     async def insert_i4c_manual_file_confirmation(self, executor: ThreadPoolExecutor, seq_id: int, file_name: str, file_description: Optional[str], sent_by_user: str) -> Dict[str, Any]:

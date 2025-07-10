@@ -132,6 +132,10 @@ class CaseActionRequest(BaseModel):
     assigned_to: Optional[str] = None
     remarks: Optional[str] = None
 
+class UserResponse(BaseModel):
+    id: str
+    name: str
+
 # --- New Customer Request Model (for screening) ---
 class NewCustomer(BaseModel):
     customerId: str
