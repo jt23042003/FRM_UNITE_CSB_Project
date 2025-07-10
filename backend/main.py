@@ -7,7 +7,7 @@ import traceback
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from keycloak import KeycloakOpenID
+#from keycloak import KeycloakOpenID
 
 from config import KEYCLOAK_CONFIG
 

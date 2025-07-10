@@ -2,7 +2,7 @@
 import requests
 from fastapi import APIRouter, HTTPException, Depends, status, Request # Import Request
 from fastapi.responses import JSONResponse
-from keycloak import KeycloakOpenID
+#from keycloak import KeycloakOpenID
 from config import KEYCLOAK_CONFIG
 from models.base_models import LoginRequest
 
