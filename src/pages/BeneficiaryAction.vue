@@ -132,7 +132,7 @@
     
     <select v-model="reassignment.dept" class="form-input">
       <option value="">-- Select Department --</option>
-      <option v-for="dept in deptOptions" :key="dept.id" :value="dept.id">
+      <option v-for="dept in deptOptions" :key="dept.name" :value="dept.name">
         {{ dept.name }}
       </option>
     </select>
@@ -202,10 +202,10 @@
       </table>
     <div class="final-closure-grid">
       </div>
-    <div class="action-buttons">
+    <!-- <div class="action-buttons">
       <button @click="saveActionData" class="save-btn">Save</button>
       <button @click="submitFinalClosure" class="submit-btn">Submit</button>
-    </div>
+    </div> -->
   </div>
 
   <div v-else>
@@ -258,9 +258,10 @@ import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import '../assets/OperationalAction.css';
+import '../assets/BeneficiaryAction.css';
 
 const route = useRoute();
-const router = useRouter();
+// const router = useRouter();
 const case_id = route.params.case_id;
 const caseStatus = computed(() => route.query.status);
 
@@ -276,15 +277,17 @@ const initialFeedbackText = ref('');
 const reassignments = ref([
   { id: 1, userId: '', dept: '', userList: [] }
 ]);
+const deptOptions = ref([]);
 const finalClosureRemarksLOV = ref('');
 const finalClosureRemarksText = ref('');
 const confirmedMule = ref('');
 const digitalChannelBlocked = ref('');
 const accountBlocked = ref('');
-const userOptions = ref([]); // This will be populated on demand
-const deptOptions = ref([]); // This will be populated on mount
-const feedbackOptions = ref([]);
+// const userOptions = ref([]); // This will be populated on demand
+// const feedbackOptions = ref([]);
 const submittedAction = ref(null);
+
+const departmentSelections = computed(() => reassignments.value.map(r => r.dept));
 
 // --- Helper Functions & Watchers ---
 async function fetchUsersForDepartment(reassignment) {
@@ -294,7 +297,7 @@ async function fetchUsersForDepartment(reassignment) {
     return;
   }
   try {
-    const res = await axios.get(`http://34.47.219.225:9000/api/users?department_id=${reassignment.dept}`, {
+    const res = await axios.get(`http://34.47.219.225:9000/api/users?department_name=${reassignment.dept}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt')}` }
     });
     reassignment.userList = res.data;
@@ -304,16 +307,17 @@ async function fetchUsersForDepartment(reassignment) {
   }
 }
 
-watch(reassignments, (newReassignments, oldReassignments) => {
-  for (let i = 0; i < newReassignments.length; i++) {
-    const oldDept = oldReassignments && oldReassignments[i] ? oldReassignments[i].dept : null;
-    if (newReassignments[i].dept !== oldDept) {
-      fetchUsersForDepartment(newReassignments[i]);
+watch(departmentSelections, (newDepts, oldDepts) => {
+  // Find which department changed
+  for (let i = 0; i < newDepts.length; i++) {
+    if (newDepts[i] !== oldDepts[i]) {
+      console.log(`Department changed for row ${i} to ${newDepts[i]}. Fetching users...`);
+      // Use the index 'i' to get the correct reassignment object
+      fetchUsersForDepartment(reassignments.value[i]);
     }
   }
-}, { deep: true });
+});
 
-// CORRECTED: Ensure new rows have the `userList` property
 function addReassignment() {
   reassignments.value.push({
     id: Date.now(),
@@ -321,7 +325,7 @@ function addReassignment() {
     dept: '',
     lov: '',
     freeFlow: '',
-    userList: [] // This was the missing piece
+    userList: []
   });
 }
 
@@ -379,7 +383,7 @@ onMounted(async () => {
     }
     if (caseStatus.value === 'Closed') {
       try {
-        const actionLogRes = await axios.get(`http://.../api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const actionLogRes = await axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (actionLogRes.data && actionLogRes.data.success) {
           // Store the fetched history data
           submittedAction.value = actionLogRes.data.data;
@@ -397,81 +401,3 @@ onMounted(async () => {
   }
 });
   </script>
-  <style scoped>
-  /* Main Page Layout */
-  .action-page-bg { padding: 2rem; background-color: #f1f5f9; min-height: 100vh; }
-  .screen-header { color: #1e293b; font-size: 2rem; margin-bottom: 1.5rem; }
-  .content-wrapper { display: flex; flex-direction: column; gap: 1.5rem; }
-  .card-section { background-color: #ffffff; border-radius: 12px; padding: 1.5rem 2rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-  .card-section h2 { margin-top: 0; font-size: 1.5rem; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem; margin-bottom: 1.5rem; }
-  
-  /* Action Table for layout */
-  .action-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
-  .action-table td { padding: 0.75rem; vertical-align: top; }
-  .action-label { font-weight: 600; color: #475569; width: 25%; text-align: right; padding-right: 1.5rem; }
-  
-  /* Row styling for inputs */
-  .action-row, .reassignment-row { display: flex; gap: 1rem; align-items: center; }
-  .reassignment-row { margin-bottom: 0.75rem; }
-  .form-input { flex-grow: 1; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; }
-  .add-btn { background: none; border: 1px dashed #94a3b8; color: #475569; padding: 0.25rem 0.75rem; border-radius: 6px; cursor: pointer; }
-  .remove-btn { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-weight: bold; }
-  
-  /* Final Closure Grid */
-  .final-closure-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 1rem 1.5rem;
-    align-items: center;
-    border-top: 1px solid #e2e8f0;
-    padding-top: 1.5rem;
-    max-width: 800px;
-  }
-  .final-closure-grid label { font-weight: 600; color: #475569; text-align: right; }
-  .radio-group { display: flex; gap: 1.5rem; }
-  .radio-group label { font-weight: normal; display: flex; align-items: center; gap: 0.5rem; }
-  
-  /* Buttons */
-  .action-buttons { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
-  .save-btn, .submit-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-  .save-btn { background-color: #e2e8f0; color: #334155; }
-  .submit-btn { background-color: #2563eb; color: white; }
-  .history-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 0.5rem;
-  font-size: 0.9em;
-}
-
-.history-table th,
-.history-table td {
-  padding: 0.75rem;
-  text-align: left;
-  border: 1px solid #e2e8f0;
-}
-
-.history-table th {
-  background-color: #f8fafc;
-  font-weight: 600;
-}
-
-.history-item {
-  margin-top: 1.5rem;
-  padding-bottom: 0.5rem;
-}
-
-.history-item strong {
-  display: block;
-  margin-bottom: 0.25rem;
-  color: #475569;
-}
-
-.closed-case-notice {
-  padding: 1rem;
-  text-align: center;
-  font-weight: 500;
-  color: #475569;
-  background-color: #f1f5f9;
-  border-radius: 8px;
-}
-  </style>

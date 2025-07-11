@@ -191,7 +191,7 @@ const showActionSection = computed(() => {
     }
   }
   
-  async function saveActionData() {
+  async function submitActionData() {
   isSavingAction.value = true;
 
   // 1. Get the list of checked document names
@@ -224,7 +224,8 @@ const showActionSection = computed(() => {
     );
 
     if (response.data.success) {
-      alert('Progress Saved!');
+      alert('Case submited successfully!');
+      router.push('/case-details');
     } else {
       alert(`Save failed: ${response.data.message || 'Unknown error'}`);
     }
@@ -237,7 +238,7 @@ const showActionSection = computed(() => {
   }
 }
 
-async function submitActionData() {
+async function saveActionData() {
   isSavingAction.value = true;
   const formData = new FormData();
 
@@ -268,8 +269,8 @@ async function submitActionData() {
     );
 
     if (response.data.success) {
-      alert('Case submitted successfully!');
-      router.push('/case-details');
+      alert('Case saved successfully!');
+      // router.push('/case-details');
     } else {
       alert(`Submission failed: ${response.data.message || 'Unknown error'}`);
     }
