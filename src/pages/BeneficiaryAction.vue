@@ -246,6 +246,30 @@
         <span>{{ submittedAction.final_remarks?.text || 'No final remarks.' }}</span>
       </div>
 
+      <div class="history-item">
+        <strong>Uploaded Screenshot:</strong>
+        <a
+          v-if="submittedAction.screenshot_filename"
+          :href="`http://34.47.219.225:9000/api/case-document/download/${submittedAction.screenshot_filename}`"
+          target="_blank"
+          rel="noopener"
+        >
+          {{ submittedAction.screenshot_filename }}
+        </a>
+        <span v-else>No screenshot uploaded.</span>
+      </div>
+
+      <div v-if="submittedAction.uploaded_documents && submittedAction.uploaded_documents.length > 0">
+        <strong>Uploaded Documents:</strong>
+        <ul>
+          <li v-for="doc in submittedAction.uploaded_documents" :key="doc.id">
+            <a :href="`http://34.47.219.225:9000/api/case-document/download/${doc.original_filename}`" target="_blank">
+              {{ doc.original_filename }}
+            </a>
+          </li>
+        </ul>
+      </div>
+
     </div>
     <div v-else class="closed-case-notice">
       Loading action history...
@@ -367,7 +391,13 @@ onMounted(async () => {
 
     // Process main case data
     if (combinedDataRes.status === 'fulfilled' && combinedDataRes.value.data) {
-        // ... your existing mapping logic for riskEntity goes here ...
+      const responseData = combinedDataRes.value.data;
+      const i4cData = responseData.i4c_data || {};
+      const customerDetails = responseData.customer_details || {};
+      
+      riskEntity.i4c = { name: i4cData.customer_name, mobileNumber: i4cData.mobile, bankAc: i4cData.account_number, email: i4cData.email };
+      riskEntity.bank = { name: `${customerDetails.fname || ''} ${customerDetails.mname || ''} ${customerDetails.lname || ''}`.trim(), mobileNumber: customerDetails.mobile, bankAc: responseData.acc_num, email: customerDetails.email, pan: customerDetails.pan, aadhaar: customerDetails.nat_id, customerId: customerDetails.cust_id, acStatus: responseData.account_details?.acc_status, aqb: responseData.account_details?.aqb, availBal: responseData.account_details?.availBal, productCode: responseData.account_details?.productCode, relValue: customerDetails?.rel_value, mobVintage: customerDetails?.mob };
+ 
     } else {
       console.error('CRITICAL: Failed to fetch combined case data:', combinedDataRes.reason);
       error.value = "Failed to load the main case data.";

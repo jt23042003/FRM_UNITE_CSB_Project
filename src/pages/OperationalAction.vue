@@ -91,58 +91,84 @@
           </div>
         </section>
   
-        <section class="card-section" v-if="showActionSection">
+        <section class="card-section">
   <h2>Action</h2>
-  <div class="i4c-requirements-table-container">
-    <h4>I4C Requirements</h4>
-    <table class="details-table">
-      <thead>
-        <tr>
-          <th style="width: 10%;">S.No.</th>
-          <th>Documents</th>
-          <th style="width: 20%; text-align: center;">Check Box</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(doc, index) in i4cRequirements" :key="doc.id">
-          <td>{{ index + 1 }}</td>
-          <td>{{ doc.name }}</td>
-          <td style="text-align: center;">
-            <input type="checkbox" v-model="doc.checked" :disabled="caseStatus === 'Closed'" class="action-checkbox"/>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  
-  <div class="action-form-grid">
-    <label for="proof-upload">Proof of upload:</label>
-    <input 
-      id="proof-upload" 
-      type="text" 
-      v-model="proofOfUploadRef" 
-      placeholder="Enter Ref Number" 
-      :disabled="caseStatus === 'Closed'"
-      class="form-input" 
-    />
+
+  <div v-if="caseStatus !== 'Closed'">
+    <div class="i4c-requirements-table-container">
+      <h4>I4C Requirements</h4>
+      <table class="details-table">
+        <thead>
+          <tr>
+            <th style="width: 10%;">S.No.</th>
+            <th>Documents</th>
+            <th style="width: 20%; text-align: center;">Check Box</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(doc, index) in i4cRequirements" :key="doc.id">
+            <td>{{ index + 1 }}</td>
+            <td>{{ doc.name }}</td>
+            <td style="text-align: center;">
+              <input type="checkbox" v-model="doc.checked" class="action-checkbox"/>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     
-    <label for="screenshot-upload">Screen Shot:</label>
-    <div>
-      <div v-if="caseStatus === 'Closed' && savedActionData?.screenshot_filename">
-        <a :href="`/path/to/download/${savedActionData.screenshot_filename}`" target="_blank">{{ savedActionData.screenshot_filename }}</a>
-      </div>
-      <input v-else id="screenshot-upload" type="file" @change="handleScreenshotUpload" class="form-input-file" />
+    <div class="action-form-grid">
+      <label for="proof-upload">Proof of upload:</label>
+      <input 
+        id="proof-upload" 
+        type="text" 
+        v-model="proofOfUploadRef" 
+        placeholder="Enter Ref Number" 
+        class="form-input" 
+      />
+      
+      <label for="screenshot-upload">Screen Shot:</label>
+      <input id="screenshot-upload" type="file" @change="handleScreenshotUpload" class="form-input-file" />
+    </div>
+
+    <div class="action-buttons">
+      <button @click="saveActionData" class="save-btn" :disabled="isSavingAction">Save</button>
+      <button @click="submitActionData" class="submit-btn" :disabled="isSavingAction">Submit</button>
     </div>
   </div>
 
-  <div class="action-buttons" v-if="caseStatus !== 'Closed'">
-    <button @click="saveActionData" class="save-btn" :disabled="isSavingAction">Save</button>
-    <button @click="submitActionData" class="submit-btn" :disabled="isSavingAction">Submit</button>
+  <div v-else>
+    <div v-if="savedActionData">
+      <p class="section-subtitle">This case was closed on {{ new Date(savedActionData.submitted_at).toLocaleString() }} by {{ savedActionData.submitted_by }}.</p>
+      
+      <div class="history-grid">
+          <strong>Documents Confirmed:</strong>
+          <ul class="history-doc-list">
+            <li v-for="doc in savedActionData.checked_documents" :key="doc">{{ doc }}</li>
+            <li v-if="!savedActionData.checked_documents || savedActionData.checked_documents.length === 0">None</li>
+          </ul>
+
+          <strong>Proof of Upload Ref:</strong>
+          <span>{{ savedActionData.proof_of_upload_ref || 'N/A' }}</span>
+
+          <strong>Uploaded Screenshot:</strong>
+          <span v-if="savedActionData.screenshot_filename">
+            <a
+              :href="`http://34.47.219.225:9000/api/case-document/download/${savedActionData.screenshot_filename}`"
+              target="_blank"
+              rel="noopener"
+            >
+              {{ savedActionData.screenshot_filename }}
+            </a>
+          </span>
+          <span v-else>None</span>
+      </div>
+    </div>
+    <div v-else class="closed-case-notice">
+      Loading action history...
+    </div>
   </div>
 
-  <div class="closed-case-notice" v-else>
-    This case has been closed and is now read-only.
-  </div>
 </section>
       </div>
     </div>
@@ -160,12 +186,6 @@ const case_id = route.params.case_id;
 const caseStatus = computed(() => route.query.status);
 // Add this new state variable to your <script setup>
 const savedActionData = ref(null);
-
-// NEW: A computed property to decide if the "Action" section should be shown
-const showActionSection = computed(() => {
-  // Hide the section only if the case status is 'Closed'
-  return caseStatus.value !== 'Closed';
-});
   
   // --- State Management ---
   const loading = ref(true);

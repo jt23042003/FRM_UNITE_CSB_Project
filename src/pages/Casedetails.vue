@@ -129,9 +129,23 @@ function getCaseLink(caseItem) {
 
   // If the case type is 'BM', go to the new beneficiary page
   if (caseItem.case_type === 'BM') {
-    return { name: 'BeneficiaryAction', params: { case_id: caseItem.case_id },  };
+    return { name: 'BeneficiaryAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
   }
-
+  if (caseItem.case_type === 'PMA') {
+    return { name: 'PMAAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
+  }
+  if (caseItem.case_type === 'PSA') {
+    return { name: 'PSAAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
+  }
+  if (caseItem.case_type === 'ECBT') {
+    return { name: 'ECBTAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
+  }
+  if (caseItem.case_type === 'ECBNT') {
+    return { name: 'ECBNTAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
+  }
+  if (caseItem.case_type === 'NAB') {
+    return { name: 'NABAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
+  }
   // Fallback for all other case types
   return { name: 'CaseRiskReview', params: { case_id: caseItem.case_id }, query: { status: caseItem.status } };
 }

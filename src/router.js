@@ -3,12 +3,11 @@ import MainLayout from '@/pages/MainLayout.vue'
 import Dashboard from './pages/Dashboard.vue'
 import I4CCaseEntry from '@/pages/I4CCaseEntry.vue'
 import CaseDetails from '@/pages/CaseDetails.vue'
-import CaseRiskReview from './pages/CaseRiskReview.vue'
+// import CaseRiskReview from './pages/CaseRiskReview.vue'
 import Login from '@/pages/Login.vue' // <-- 1. Import the new Login page
 import BulkFileUpload from '@/pages/BulkFileUpload.vue' // Import BulkUpload if needed
 
 const routes = [
-  // 2. Add a route for the Login page
   {
     path: '/login',
     name: 'Login',
@@ -17,7 +16,6 @@ const routes = [
   {
     path: '/',
     component: MainLayout,
-    // Add a meta field to protect these routes
     meta: { requiresAuth: true }, 
     children: [
       { path: '', redirect: '/dashboard' },
@@ -25,24 +23,55 @@ const routes = [
       { path: 'data-entry', name: 'DataEntry', component: I4CCaseEntry },
       { path: 'bulk-upload', name: 'BulkUpload', component: BulkFileUpload },
       { path: 'case-details', name: 'CaseDetails', component: CaseDetails },
+      
+      // --- All your case detail pages ---
       {
         path: 'case-details/:case_id',
-        name: 'CaseRiskReview',
+        name: 'CaseRiskReview', // Fallback/Default
         component: () => import('@/pages/CaseRiskReview.vue'),
         props: true,
       },
       {
         path: 'operational-action/:case_id',
-        name: 'OperationalAction',
+        name: 'OperationalAction', // For VM cases
         component: () => import('@/pages/OperationalAction.vue'),
         props: true,
       },
-      // --- ADD YOUR NEW ROUTE HERE ---
-      // In your routes array
       {
         path: 'beneficiary-action/:case_id',
-        name: 'BeneficiaryAction',
-        component: () => import('@/pages/BeneficiaryAction.vue'), // Your new page component
+        name: 'BeneficiaryAction', // For BM cases
+        component: () => import('@/pages/BeneficiaryAction.vue'),
+        props: true,
+      },
+      // --- NEWLY ADDED ROUTES ---
+      {
+        path: 'pma-action/:case_id',
+        name: 'PMAAction',
+        component: () => import('@/pages/PMAAction.vue'),
+        props: true,
+      },
+      {
+        path: 'psa-action/:case_id',
+        name: 'PSAAction',
+        component: () => import('@/pages/PSAAction.vue'),
+        props: true,
+      },
+      {
+        path: 'ecbt-action/:case_id',
+        name: 'ECBTAction',
+        component: () => import('@/pages/ECBTAction.vue'),
+        props: true,
+      },
+      {
+        path: 'ecbnt-action/:case_id',
+        name: 'ECBNTAction',
+        component: () => import('@/pages/ECBNTAction.vue'),
+        props: true,
+      },
+      {
+        path: 'nab-action/:case_id',
+        name: 'NABAction',
+        component: () => import('@/pages/NABAction.vue'),
         props: true,
       },
     ],
