@@ -317,8 +317,6 @@ onMounted(async () => {
     const [combinedDataRes, documentListRes, savedActionRes] = await Promise.allSettled([
       axios.get(`http://34.47.219.225:9000/api/combined-case-data/${case_id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
       axios.get('http://34.47.219.225:9000/api/i4c-document-list', { headers: { 'Authorization': `Bearer ${token}` } }),
-      // // 2. Assuming this is the new endpoint for previously saved action data
-      // axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } })
     ]);
 
     // --- Process combined case data result ---
