@@ -106,12 +106,12 @@
             </thead>
             <tbody>
               <tr v-for="bene in beneficiaryDetails" :key="bene.id">
-                <td>{{ bene.date || '-' }}</td>
-                <td>{{ bene.time || '-' }}</td>
-                <td>{{ bene.beneficiary || '-' }}</td>
-                <td>{{ bene.mode || '-' }}</td>
-                <td>{{ bene.refNo || '-' }}</td>
-                <td>{{ bene.description || '-' }}</td>
+                <td>{{ bene.txn_date || '-' }}</td>
+                <td>{{ bene.txn_time || '-' }}</td>
+                <td>{{ bene.bene_acct_num || '-' }}</td>
+                <td>{{ bene.channel || '-' }}</td>
+                <td>{{ bene.txn_ref || '-' }}</td>
+                <td>{{ bene.descr || '-' }}</td>
               </tr>
               <tr v-if="!beneficiaryDetails.length"><td colspan="6" style="text-align:center;">No beneficiary details found.</td></tr>
             </tbody>

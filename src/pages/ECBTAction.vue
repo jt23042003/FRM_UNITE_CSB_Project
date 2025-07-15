@@ -117,13 +117,13 @@
             </thead>
             <tbody>
               <tr v-for="txn in transactionDetails" :key="txn.id">
-                <td>{{ txn.date || '-' }}</td>
-                <td>{{ txn.time || '-' }}</td>
-                <td>{{ txn.beneficiary || '-' }}</td>
+                <td>{{ txn.txn_date || '-' }}</td>
+                <td>{{ txn.txn_time || '-' }}</td>
+                <td>{{ txn.bene_acct_num || '-' }}</td>
                 <td>{{ txn.amount ? '₹' + Number(txn.amount).toLocaleString('en-IN') : '-' }}</td>
-                <td>{{ txn.mode || '-' }}</td>
-                <td>{{ txn.refNo || '-' }}</td>
-                <td>{{ txn.description || '-' }}</td>
+                <td>{{ txn.channel || '-' }}</td>
+                <td>{{ txn.txn_ref || '-' }}</td>
+                <td>{{ txn.descr || '-' }}</td>
               </tr>
               <tr v-if="!transactionDetails.length"><td colspan="7" style="text-align:center;">No transactions found.</td></tr>
             </tbody>
