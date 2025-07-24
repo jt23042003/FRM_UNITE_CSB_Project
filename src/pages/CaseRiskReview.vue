@@ -370,6 +370,7 @@ import { reactive, ref, computed, onMounted, watch } from 'vue'
 // Add useRouter to the import from vue-router
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import { API_ENDPOINTS } from '@/config/api'
 
 
 const route = useRoute()
@@ -425,7 +426,7 @@ onMounted(async () => {
   error.value = ''
   try {
     // Fetch Complaint Details
-    const complaintRes = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/customer-details`)
+    const complaintRes = await axios.get(API_ENDPOINTS.CASE_DETAILS(ackno))
     const apiToFrontendMap = {
       ackNo: "Acknowledgement No.",
       subCategory: "Sub Category of Complaint",
@@ -460,7 +461,7 @@ onMounted(async () => {
 
     // Fetch Risk Entity Data (no mapping needed)
     riskEntityLoading.value = true
-    const riskRes = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/risk-profile`)
+    const riskRes = await axios.get(API_ENDPOINTS.CASE_RISK_PROFILE(ackno))
     Object.assign(riskEntity, riskRes.data)
     
   } catch (e) {
@@ -491,7 +492,7 @@ watch(
       loadingTransactions.value = true
       transactionError.value = ''
       try {
-        const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/transactions`, {
+        const res = await axios.get(API_ENDPOINTS.CASE_TRANSACTIONS(ackno), {
           params: { from, to, type: tab }
         })
         if (tab === 'victim') {
@@ -618,7 +619,7 @@ async function saveCommentAndUpload() {
   console.log('DEBUG FE: Document Type:', docTypeToUpload);
   console.log('DEBUG FE: Comment:', currentCommentText.value);
 
-  const url = `http://34.47.219.225:9000/api/case/${ackno}/upload-documents`;
+  const url = API_ENDPOINTS.CASE_UPLOAD_DOCUMENTS(ackno);
 
   try {
     const response = await axios.post(url, formData, {
@@ -663,7 +664,7 @@ function cancelComment() {
 async function fetchExistingDocuments() {
     if (!ackno) return;
     try {
-      const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/documents`);
+      const res = await axios.get(API_ENDPOINTS.CASE_DOCUMENTS(ackno));
         if (res.data.success) {
             existingDocuments.value = res.data.documents; 
         }
@@ -716,7 +717,7 @@ const sendBackCase = async () => {
     };
 
     // IMPORTANT: Confirm this API endpoint with your backend.
-    const res = await axios.post(`http://34.47.219.225:9000/api/case/${ackno}/send-back`, payload);
+    const res = await axios.post(API_ENDPOINTS.CASE_SEND_BACK(ackno), payload);
 
     if (res.data.success) {
       alert(`Case ${ackno} sent back successfully with notes.`);
@@ -742,7 +743,7 @@ const fetchOperationsStatus = async () => {
   }
   try {
     // NOTE: You must replace this URL with your actual API endpoint
-    const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/operations-status`);
+    const res = await axios.get(API_ENDPOINTS.CASE_OPERATIONS_STATUS(ackno));
     
     // Assuming the API returns a boolean in `res.data.status`
     if (res.data && typeof res.data.status === 'boolean') {
@@ -770,7 +771,7 @@ const fetchDecisionData = async () => {
   }
 
   try {
-    const res = await axios.get(`http://34.47.219.225:9000/api/case/${ackno}/decision`);
+    const res = await axios.get(API_ENDPOINTS.CASE_DECISION(ackno));
     
     if (res.data.success && res.data.data) {
       const backendData = res.data.data;
@@ -838,7 +839,7 @@ const assignCase = async () => {
     };
 
     const res = await axios.post(
-      `http://34.47.219.225:9000/api/case/${ackno}/assign`,
+      API_ENDPOINTS.CASE_ASSIGN(ackno),
       payload
     );
 
@@ -886,7 +887,7 @@ const submitDecisioningConsole = async () => {
     };
     
     // axios.post for the main decision data (save_decision_api)
-    const res = await axios.post(`http://34.47.219.225:9000/api/case/${ackno}/decision`, payload);
+    const res = await axios.post(API_ENDPOINTS.CASE_DECISION(ackno), payload);
     
     if (res.data.success) {
       alert('Decision submitted successfully!');

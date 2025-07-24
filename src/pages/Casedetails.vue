@@ -2,10 +2,10 @@
   <div class="dashboard-bg">
     <div class="dashboard-header">
       <h2>Case View Dashboard</h2>
-      <div class="filters-row enhanced-search-row">
+      <div class="filters-row">
         <div class="search-bar-container">
           <span class="search-icon">
-            <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="7"/>
               <line x1="16.5" y1="16.5" x2="21" y2="21"/>
             </svg>
@@ -24,8 +24,8 @@
           <option value="">All Types</option>
           <option v-for="type in complaintTypes" :key="type">{{ type }}</option>
         </select>
-        <button @click="fetchCases" class="search-btn enhanced-search-btn">Search</button>
-        <button @click="clearFilters" class="reset-btn enhanced-reset-btn">Clear</button>
+        <button @click="fetchCases" class="search-btn">Search</button>
+        <button @click="clearFilters" class="reset-btn">Clear</button>
       </div>
     </div>
     <div class="dashboard-table-card">
@@ -50,11 +50,11 @@
           <tr v-for="caseItem in pagedCases" :key="caseItem.case_id">
             <td>
               <router-link
-  :to="getCaseLink(caseItem)"
-  class="ack-link"
->
-  {{ caseItem.case_id }}
-</router-link>
+                :to="getCaseLink(caseItem)"
+                class="ack-link"
+              >
+                {{ caseItem.case_id }}
+              </router-link>
             </td>
             <td>{{ caseItem.source_ack_no || '-' }}</td>
             <td>{{ caseItem.case_type || '-' }}</td>
@@ -85,9 +85,22 @@
         </tbody>
       </table>
       <div class="pagination-row">
-        <button @click="prevPage" :disabled="page === 1">Prev</button>
-        <span>Page {{ page }} of {{ totalPages }}</span>
-        <button @click="nextPage" :disabled="page === totalPages">Next</button>
+        <div>
+          <span>Rows per page: {{ pageSize }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span>{{ startIndex }}-{{ endIndex }} of {{ totalItems }}</span>
+          <button @click="prevPage" :disabled="page === 1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M15 18l-6-6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button @click="nextPage" :disabled="page === totalPages">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M9 18l6-6-6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -95,16 +108,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import '../assets/CaseDetails.css'
+import { API_ENDPOINTS } from '../config/api.js'
+
+const router = useRouter()
 
 const statuses = [
   'New',
   'Open',
   'Assigned',
   'Closed',
-  'Pending', // Added based on CSS
-  'Resolved' // Example: if you have more statuses
+  'Pending',
+  'Resolved'
 ]
 
 const complaintTypes = [
@@ -113,123 +130,113 @@ const complaintTypes = [
 
 const cases = ref([])
 const page = ref(1)
-const pageSize = 25
+const pageSize = 13 // Changed to match the reference design
+const loading = ref(false)
+const error = ref(null)
 
 const filters = ref({
-  ackNo: '', // Renamed from caseId to ackNo for clarity
+  ackNo: '',
   status: '',
   complaintType: ''
 })
 
+// Computed properties for pagination display
+const totalItems = computed(() => filteredCases.value.length)
+const startIndex = computed(() => ((page.value - 1) * pageSize) + 1)
+const endIndex = computed(() => Math.min(page.value * pageSize, totalItems.value))
+
 function getCaseLink(caseItem) {
-  // If the case type is 'VM', go to the operational page
-  if (caseItem.case_type === 'VM') {
-    return { name: 'OperationalAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status } };
+  const routeMap = {
+    'VM': 'OperationalAction',
+    'BM': 'BeneficiaryAction',
+    'PMA': 'PMAAction',
+    'PSA': 'PSAAction',
+    'ECBT': 'ECBTAction',
+    'ECBNT': 'ECBNTAction',
+    'NAB': 'NABAction'
   }
 
-  // If the case type is 'BM', go to the new beneficiary page
-  if (caseItem.case_type === 'BM') {
-    return { name: 'BeneficiaryAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
+  const routeName = routeMap[caseItem.case_type] || 'CaseRiskReview'
+  return {
+    name: routeName,
+    params: { case_id: caseItem.case_id },
+    query: { status: caseItem.status }
   }
-  if (caseItem.case_type === 'PMA') {
-    return { name: 'PMAAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
-  }
-  if (caseItem.case_type === 'PSA') {
-    return { name: 'PSAAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
-  }
-  if (caseItem.case_type === 'ECBT') {
-    return { name: 'ECBTAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
-  }
-  if (caseItem.case_type === 'ECBNT') {
-    return { name: 'ECBNTAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
-  }
-  if (caseItem.case_type === 'NAB') {
-    return { name: 'NABAction', params: { case_id: caseItem.case_id }, query: { status: caseItem.status }  };
-  }
-  // Fallback for all other case types
-  return { name: 'CaseRiskReview', params: { case_id: caseItem.case_id }, query: { status: caseItem.status } };
 }
 
 const fetchCases = async () => {
+  loading.value = true
+  error.value = null
   try {
-    const token = localStorage.getItem('jwt');
-
+    const token = localStorage.getItem('jwt')
     if (!token) {
-      console.error("Authentication token not found. Please log in.");
-      alert("You are not logged in or your session has expired. Please log in.");
-      return;
+      throw new Error("Authentication token not found")
     }
 
-    // Backend URL: ensure this is correct
-    const apiUrl = 'http://34.47.219.225:9000/api/new-case-list';
-
-    // If your backend supports filtering, you would pass parameters here.
-    // For now, we are relying on frontend filtering as per your initial setup.
-    // Example if backend filtering was enabled:
-    // const params = {};
-    // if (filters.value.ackNo) params.ack_no = filters.value.ackNo;
-    // if (filters.value.status) params.status = filters.value.status;
-    // if (filters.value.complaintType) params.compl_type = filters.value.complaintType; // Adjust param name as per your backend API spec
-
-    const res = await axios.get(apiUrl, {
+    const response = await axios.get(API_ENDPOINTS.NEW_CASE_LIST, {
       headers: {
         'Authorization': `Bearer ${token}`
       },
-      // params: params // Uncomment this line if you enable backend filtering
-    });
+      params: {
+        ack_no: filters.value.ackNo,
+        status: filters.value.status,
+        case_type: filters.value.complaintType
+      }
+    })
 
-    // Ensure res.data.cases is an array before assigning
-    cases.value = Array.isArray(res.data.cases) ? res.data.cases : [];
-    page.value = 1; // Reset to first page on new data fetch
-    console.log("Cases fetched successfully:", cases.value);
-
-  } catch (err) {
-    console.error('Failed to fetch data:', err.response?.data || err.message);
-    if (err.response && err.response.status === 401) {
-      alert("Unauthorized: Please log in again.");
-      // Optionally redirect to login page
-      router.push('/login');
+    if (response.data && Array.isArray(response.data.cases)) {
+      cases.value = response.data.cases
+      page.value = 1 // Reset to first page on new data
     } else {
-      alert("Failed to load cases. Check console for details.");
+      throw new Error("Invalid response format")
     }
-    cases.value = []; // Clear cases on error
+  } catch (err) {
+    error.value = err.response?.data?.message || err.message
+    if (err.response?.status === 401) {
+      router.push('/login')
+    }
+    cases.value = []
+  } finally {
+    loading.value = false
   }
-};
+}
 
 onMounted(fetchCases)
 
 const filteredCases = computed(() => {
   return cases.value.filter(c => {
     const matchesAckNo = !filters.value.ackNo ||
-                         (c.source_ack_no && c.source_ack_no.toLowerCase().includes(filters.value.ackNo.trim().toLowerCase()));
+                         (c.source_ack_no && c.source_ack_no.toLowerCase().includes(filters.value.ackNo.trim().toLowerCase()))
 
     const matchesStatus = !filters.value.status ||
-                          (c.status && c.status.toLowerCase() === filters.value.status.toLowerCase());
+                          (c.status && c.status.toLowerCase() === filters.value.status.toLowerCase())
 
     const matchesComplaintType = !filters.value.complaintType ||
-                                 (c.case_type && c.case_type.toLowerCase() === filters.value.complaintType.toLowerCase());
+                                 (c.case_type && c.case_type.toLowerCase() === filters.value.complaintType.toLowerCase())
 
-    return matchesAckNo && matchesStatus && matchesComplaintType;
-  });
-});
+    return matchesAckNo && matchesStatus && matchesComplaintType
+  })
+})
 
-
-const totalPages = computed(() =>
-  Math.ceil(filteredCases.value.length / pageSize)
-)
+const totalPages = computed(() => Math.ceil(filteredCases.value.length / pageSize))
 
 const pagedCases = computed(() =>
   filteredCases.value.slice((page.value - 1) * pageSize, page.value * pageSize)
 )
 
-const prevPage = () => { if (page.value > 1) page.value-- }
-const nextPage = () => { if (page.value < totalPages.value) page.value++ }
+const prevPage = () => {
+  if (page.value > 1) page.value--
+}
+
+const nextPage = () => {
+  if (page.value < totalPages.value) page.value++
+}
 
 const clearFilters = () => {
-  filters.value.ackNo = ''; // Clear ackNo filter
-  filters.value.status = '';
-  filters.value.complaintType = ''; // Clear complaintType filter
-  page.value = 1;
-  fetchCases(); // Re-fetch all cases after clearing filters
+  filters.value.ackNo = ''
+  filters.value.status = ''
+  filters.value.complaintType = ''
+  page.value = 1
+  fetchCases()
 }
 </script>

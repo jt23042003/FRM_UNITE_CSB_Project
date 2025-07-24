@@ -1,139 +1,322 @@
 <template>
-  <div class="form-bg">
-    <form class="entry-card grouped-form" @submit.prevent="onSubmit">
-      <h2 class="form-title">I4C Fraud Complaint Entry</h2>
-      
-      <div v-if="generalError" class="error-message general-error span-all">
-        {{ generalError }}
+  <div class="i4c-form-container">
+    <!-- Progress Bar -->
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" :style="{ width: `${(currentStep / 4) * 100}%` }"></div>
+      </div>
+      <div class="step-indicators">
+        <div 
+          v-for="step in 4" 
+          :key="step"
+          class="step-indicator"
+          :class="{ 
+            'active': step === currentStep,
+            'completed': step < currentStep 
+          }"
+        >
+          <div class="step-number">{{ step }}</div>
+          <span class="step-title">{{ getStepTitle(step) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Container -->
+    <div class="form-wrapper">
+      <div v-if="generalError" class="error-banner">
+        <i class="fa fa-exclamation-triangle"></i>
+        <span>{{ generalError }}</span>
       </div>
 
-      <div class="section-grid">
-        <span class="section-heading span-all">Complaint related information</span> 
-        <label :class="{ 'has-error': errors.ackNo }">
-          <span class="label-text-wrapper">Acknowledgement No.<span class="required-star">*</span></span>
-          <input v-model="form.ackNo" type="text" required />
-          <span v-if="errors.ackNo" class="error-message">{{ errors.ackNo }}</span>
-        </label>
+      <!-- Step 1: Basic Information -->
+      <div v-if="currentStep === 1" class="step-content">
+        <div class="step-header">
+          <h2>Basic Information</h2>
+          <p>Enter complaint and customer details</p>
+        </div>
 
-        <label :class="{ 'has-error': errors.customerName }">
-          <span class="label-text-wrapper">Customer Name<span class="required-star">*</span></span> 
-          <input v-model="form.customerName" type="text" required />
-          <span v-if="errors.customerName" class="error-message">{{ errors.customerName }}</span>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">
+              Acknowledgement No. <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.subCategory }">
-          <span class="label-text-wrapper">Complaint Category<span class="required-star">*</span></span>
-          <select v-model="form.subCategory" required>
-            <option disabled value="">Select Sub Category</option>
-            <option v-for="option in subCategoryOptions" :key="option" :value="option">{{ option }}</option>
+            <input 
+              v-model="form.ackNo" 
+              type="text" 
+              class="form-input"
+              :class="{ 'error': errors.ackNo }"
+              placeholder="e.g., ACK202506120001"
+            />
+            <span v-if="errors.ackNo" class="error-text">{{ errors.ackNo }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Customer Name <span class="required">*</span>
+        </label>
+            <input 
+              v-model="form.customerName" 
+              type="text" 
+              class="form-input"
+              :class="{ 'error': errors.customerName }"
+              placeholder="Enter customer name"
+            />
+            <span v-if="errors.customerName" class="error-text">{{ errors.customerName }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Complaint Category <span class="required">*</span>
+            </label>
+            <select 
+              v-model="form.subCategory" 
+              class="form-select"
+              :class="{ 'error': errors.subCategory }"
+            >
+              <option value="">Select complaint category</option>
+              <option v-for="option in subCategoryOptions" :key="option" :value="option">
+                {{ option }}
+              </option>
           </select>
-          <span v-if="errors.subCategory" class="error-message">{{ errors.subCategory }}</span>
+            <span v-if="errors.subCategory" class="error-text">{{ errors.subCategory }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Transaction Date <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.complaintDate }">
-          <span class="label-text-wrapper">Complaint Date<span class="required-star">*</span></span>
-          <input v-model="form.complaintDate" type="date" :max="currentDate" required />
-          <span v-if="errors.complaintDate" class="error-message">{{ errors.complaintDate }}</span>
+            <input 
+              v-model="form.transactionDate" 
+              type="date" 
+              class="form-input"
+              :class="{ 'error': errors.transactionDate }"
+              :max="currentDate"
+            />
+            <span v-if="errors.transactionDate" class="error-text">{{ errors.transactionDate }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Complaint Date <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.reportDateTime }">
-          <span class="label-text-wrapper">Date & Time of Reporting / Escalation<span class="required-star">*</span></span>
-          <input v-model="form.reportDateTime" type="datetime-local" :max="currentDateTime" required />
-          <span v-if="errors.reportDateTime" class="error-message">{{ errors.reportDateTime }}</span>
+            <input 
+              v-model="form.complaintDate" 
+              type="date" 
+              class="form-input"
+              :class="{ 'error': errors.complaintDate }"
+              :max="currentDate"
+            />
+            <span v-if="errors.complaintDate" class="error-text">{{ errors.complaintDate }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Date & Time of Reporting <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.state }">
-  <span class="label-text-wrapper">State<span class="required-star">*</span></span>
-  <select v-model="form.state" required>
-    <option disabled value="">Select State</option>
+            <input 
+              v-model="form.reportDateTime" 
+              type="datetime-local" 
+              class="form-input"
+              :class="{ 'error': errors.reportDateTime }"
+              :max="currentDateTime"
+            />
+            <span v-if="errors.reportDateTime" class="error-text">{{ errors.reportDateTime }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              State <span class="required">*</span>
+            </label>
+            <select 
+              v-model="form.state" 
+              class="form-select"
+              :class="{ 'error': errors.state }"
+            >
+              <option value="">Select state</option>
     <option v-for="st in stateOptions" :key="st" :value="st">{{ st }}</option>
   </select>
-  <span v-if="errors.state" class="error-message">{{ errors.state }}</span>
-</label>
-<label :class="{ 'has-error': errors.district }">
-  <span class="label-text-wrapper">District<span class="required-star">*</span></span>
-  <select v-model="form.district" required>
-    <option disabled value="">Select District</option>
-    <option v-for="districtName in districtOptions" :key="districtName" :value="districtName">{{ districtName }}</option>
-  </select>
-  <span v-if="errors.district" class="error-message">{{ errors.district }}</span>
-</label>
-        <label :class="{ 'has-error': errors.policestation }">
-          <span class="label-text-wrapper">Policestation<span class="required-star">*</span></span>
-          <input v-model="form.policestation" type="text" required />
-          <span v-if="errors.policestation" class="error-message">{{ errors.policestation }}</span>
-        </label>
+            <span v-if="errors.state" class="error-text">{{ errors.state }}</span>
+          </div>
 
-        <span class="section-heading span-all">Transaction Related Information</span> 
-        <label :class="{ 'has-error': errors.paymentMode }">
-          <span class="label-text-wrapper">Mode of Payment<span class="required-star">*</span></span>
-          <select v-model="form.paymentMode" required @change="clearDynamicErrors">
-            <option disabled value="">Select Mode of Payment</option>
+          <div class="form-group">
+            <label class="form-label">
+              District <span class="required">*</span>
+</label>
+            <select 
+              v-model="form.district" 
+              class="form-select"
+              :class="{ 'error': errors.district }"
+            >
+              <option value="">Select district</option>
+              <option v-for="districtName in districtOptions" :key="districtName" :value="districtName">
+                {{ districtName }}
+              </option>
+  </select>
+            <span v-if="errors.district" class="error-text">{{ errors.district }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Police Station <span class="required">*</span>
+</label>
+            <input 
+              v-model="form.policestation" 
+              type="text" 
+              class="form-input"
+              :class="{ 'error': errors.policestation }"
+              placeholder="Enter police station name"
+            />
+            <span v-if="errors.policestation" class="error-text">{{ errors.policestation }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Transaction Details -->
+      <div v-if="currentStep === 2" class="step-content">
+        <div class="step-header">
+          <h2>Transaction Details</h2>
+          <p>Enter payment and transaction information</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">
+              Mode of Payment <span class="required">*</span>
+            </label>
+            <select 
+              v-model="form.paymentMode" 
+              class="form-select"
+              :class="{ 'error': errors.paymentMode }"
+              @change="clearDynamicErrors"
+            >
+              <option value="">Select payment mode</option>
             <option v-for="mode in paymentModeOptions" :key="mode" :value="mode">{{ mode }}</option>
           </select>
-          <span v-if="errors.paymentMode" class="error-message">{{ errors.paymentMode }}</span>
-        </label>
+            <span v-if="errors.paymentMode" class="error-text">{{ errors.paymentMode }}</span>
+          </div>
 
-        <label :class="{ 'has-error': errors.transactionDate }">
-          <span class="label-text-wrapper">Transaction Date<span class="required-star">*</span></span>
-          <input v-model="form.transactionDate" type="date" :max="currentDate" required />
-          <span v-if="errors.transactionDate" class="error-message">{{ errors.transactionDate }}</span>
+          <div class="form-group">
+            <label class="form-label">
+              Transaction ID / UTR Number <span class="required">*</span>
         </label>
-        
-        <label :class="{ 'has-error': errors.transactionId }">
-          <span class="label-text-wrapper">Transaction Id / UTR Number<span class="required-star">*</span></span>
-          <input v-model="form.transactionId" type="text" required />
-          <span v-if="errors.transactionId" class="error-message">{{ errors.transactionId }}</span>
-        </label>
+            <input 
+              v-model="form.transactionId" 
+              type="text" 
+              class="form-input"
+              :class="{ 'error': errors.transactionId }"
+              placeholder="e.g., TXN987654321"
+            />
+            <span v-if="errors.transactionId" class="error-text">{{ errors.transactionId }}</span>
+          </div>
 
-        <label :class="{ 'has-error': errors.accountNumber }">
-          <span class="label-text-wrapper">Victim Account Number<span v-if="isFieldRequired('accountNumber')" class="required-star">*</span></span>
+          <div class="form-group">
+            <label class="form-label">
+              Victim Account Number <span v-if="isFieldRequired('accountNumber')" class="required">*</span>
+        </label>
           <input
             v-model="form.accountNumber"
             type="number"
-            pattern="\d*"
-            title="Please enter only numbers"
+              class="form-input"
+              :class="{ 'error': errors.accountNumber }"
+              placeholder="Enter account number"
             :required="isFieldRequired('accountNumber')"
             minlength="9"
             maxlength="18"
           />
-          <span v-if="errors.accountNumber" class="error-message">{{ errors.accountNumber }}</span>
+            <span v-if="errors.accountNumber" class="error-text">{{ errors.accountNumber }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Victim Card Number <span v-if="isFieldRequired('cardNumber')" class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.cardNumber }">
-          <span class="label-text-wrapper">Victim Card Number<span v-if="isFieldRequired('cardNumber')" class="required-star">*</span></span>
           <input
             v-model="form.cardNumber"
             type="number"
-            pattern="\d*"
-            title="Please enter only numbers"
+              class="form-input"
+              :class="{ 'error': errors.cardNumber }"
+              placeholder="Enter card number"
             :required="isFieldRequired('cardNumber')"
             minlength="12"
             maxlength="19"
           />
-          <span v-if="errors.cardNumber" class="error-message">{{ errors.cardNumber }}</span>
+            <span v-if="errors.cardNumber" class="error-text">{{ errors.cardNumber }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Layers <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.transactionAmount }">
-          <span class="label-text-wrapper">Transaction Amount<span class="required-star">*</span></span>
-          <input v-model.number="form.transactionAmount" type="number" min="0" step="any" required />
-          <span v-if="errors.transactionAmount" class="error-message">{{ errors.transactionAmount }}</span>
-        </label>
-        <label :class="{ 'has-error': errors.disputedAmount }">
-          <span class="label-text-wrapper">Disputed Amount<span class="required-star">*</span></span>
-          <input v-model.number="form.disputedAmount" type="number" min="0" step="any" required />
-          <span v-if="errors.disputedAmount" class="error-message">{{ errors.disputedAmount }}</span>
-        </label>
-        <label :class="{ 'has-error': errors.layers }">
-          <span class="label-text-wrapper">Layers<span class="required-star">*</span></span>
-          <select v-model="form.layers" required>
-            <option value="">Select Layer</option>
+            <select 
+              v-model="form.layers" 
+              class="form-select"
+              :class="{ 'error': errors.layers }"
+            >
+              <option value="">Select layer</option>
             <option v-for="n in 30" :key="n" :value="`Layer ${n}`">Layer {{ n }}</option>
           </select>
-          <span v-if="errors.layers" class="error-message">{{ errors.layers }}</span>
-        </label>
+            <span v-if="errors.layers" class="error-text">{{ errors.layers }}</span>
+          </div>
 
-        <span class="section-heading span-all">Beneficiary Details</span> 
-        <label :class="{ 'has-error': errors.toBank }">
-          <span class="label-text-wrapper">Beneficiary Bank Details<span class="required-star">*</span></span>
-          <div class="autocomplete-container"> <input
+          <div class="form-group">
+            <label class="form-label">
+              Transaction Amount <span class="required">*</span>
+        </label>
+            <div class="amount-input-wrapper">
+              <span class="currency-symbol">₹</span>
+              <input 
+                v-model.number="form.transactionAmount" 
+                type="number" 
+                class="form-input amount-input"
+                :class="{ 'error': errors.transactionAmount }"
+                placeholder="0.00"
+                min="0" 
+                step="any"
+              />
+            </div>
+            <span v-if="errors.transactionAmount" class="error-text">{{ errors.transactionAmount }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Disputed Amount <span class="required">*</span>
+            </label>
+            <div class="amount-input-wrapper">
+              <span class="currency-symbol">₹</span>
+              <input 
+                v-model.number="form.disputedAmount" 
+                type="number" 
+                class="form-input amount-input"
+                :class="{ 'error': errors.disputedAmount }"
+                placeholder="0.00"
+                min="0" 
+                step="any"
+              />
+            </div>
+            <span v-if="errors.disputedAmount" class="error-text">{{ errors.disputedAmount }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Beneficiary Details -->
+      <div v-if="currentStep === 3" class="step-content">
+        <div class="step-header">
+          <h2>Beneficiary Details</h2>
+          <p>Enter recipient bank and account information</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label">
+              Beneficiary Bank Details <span class="required">*</span>
+            </label>
+            <div class="autocomplete-container">
+              <input 
               v-model="form.toBank"
               type="text"
-              required
+                class="form-input"
+                :class="{ 'error': errors.toBank }"
+                placeholder="Start typing bank name..."
               @focus="onBankInputFocus"
               @blur="onBankInputBlur"
               @keydown="onBankInputKeydown"
@@ -149,62 +332,162 @@
               </li>
             </ul>
           </div>
-          <span v-if="errors.toBank" class="error-message">{{ errors.toBank }}</span>
-        </label>
+            <span v-if="errors.toBank" class="error-text">{{ errors.toBank }}</span>
+          </div>
 
-        <label :class="{ 'has-error': errors.toAccount }">
-          <span class="label-text-wrapper">Beneficiary Account Number<span v-if="isFieldRequired('toAccount')" class="required-star">*</span></span>
-          <input v-model="form.toAccount" type="number" pattern="\d*" title="Please enter only numbers" :required="isFieldRequired('toAccount')" />
-          <span v-if="errors.toAccount" class="error-message">{{ errors.toAccount }}</span>
+          <div class="form-group">
+            <label class="form-label">
+              Beneficiary Account Number <span v-if="isFieldRequired('toAccount')" class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.ifsc }">
-          <span class="label-text-wrapper">IFSC Code <span v-if="isFieldRequired('ifsc')" class="required-star">*</span></span>
+            <input 
+              v-model="form.toAccount" 
+              type="number" 
+              class="form-input"
+              :class="{ 'error': errors.toAccount }"
+              placeholder="Enter account number"
+              :required="isFieldRequired('toAccount')"
+            />
+            <span v-if="errors.toAccount" class="error-text">{{ errors.toAccount }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              IFSC Code <span v-if="isFieldRequired('ifsc')" class="required">*</span>
+        </label>
           <input
             v-model="form.ifsc"
             type="text"
+              class="form-input"
+              :class="{ 'error': errors.ifsc }"
+              placeholder="e.g., ICIC0000001"
             :required="isFieldRequired('ifsc')"
-            :disabled="!form.toBank" placeholder="e.g., ICIC0000001"
-          />
-          <span v-if="errors.ifsc" class="error-message">{{ errors.ifsc }}</span>
+              :disabled="!form.toBank"
+            />
+            <span v-if="errors.ifsc" class="error-text">{{ errors.ifsc }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Beneficiary Transaction ID <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.toTransactionId }">
-          <span class="label-text-wrapper">Transaction Id / UTR Number<span class="required-star">*</span></span>
-          <input v-model="form.toTransactionId" type="text" required/>
-          <span v-if="errors.toTransactionId" class="error-message">{{ errors.toTransactionId }}</span>
+            <input 
+              v-model="form.toTransactionId" 
+              type="text" 
+              class="form-input"
+              :class="{ 'error': errors.toTransactionId }"
+              placeholder="e.g., TXN765432109"
+            />
+            <span v-if="errors.toTransactionId" class="error-text">{{ errors.toTransactionId }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Transaction Amount <span class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.toAmount }">
-          <span class="label-text-wrapper">Transaction Amount<span class="required-star">*</span></span>
-          <input v-model.number="form.toAmount" type="number" min="0" step="any" required/>
-          <span v-if="errors.toAmount" class="error-message">{{ errors.toAmount }}</span>
+            <div class="amount-input-wrapper">
+              <span class="currency-symbol">₹</span>
+              <input 
+                v-model.number="form.toAmount" 
+                type="number" 
+                class="form-input amount-input"
+                :class="{ 'error': errors.toAmount }"
+                placeholder="0.00"
+                min="0" 
+                step="any"
+              />
+            </div>
+            <span v-if="errors.toAmount" class="error-text">{{ errors.toAmount }}</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              UPI ID <span v-if="isFieldRequired('toUpiId')" class="required">*</span>
         </label>
-        <label :class="{ 'has-error': errors.toUpiId }">
-          <span class="label-text-wrapper">UPI Id<span v-if="isFieldRequired('toUpiId')" class="required-star">*</span></span>
-          <input v-model="form.toUpiId" type="text" :required="isFieldRequired('toUpiId')" />
-          <span v-if="errors.toUpiId" class="error-message">{{ errors.toUpiId }}</span>
-        </label>
-        
-        <span class="section-heading span-all">Action</span> 
-        <label :class="{ 'has-error': errors.action }">
+            <input 
+              v-model="form.toUpiId" 
+              type="text" 
+              class="form-input"
+              :class="{ 'error': errors.toUpiId }"
+              placeholder="e.g., user@upi"
+              :required="isFieldRequired('toUpiId')"
+            />
+            <span v-if="errors.toUpiId" class="error-text">{{ errors.toUpiId }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Action Details -->
+      <div v-if="currentStep === 4" class="step-content">
+        <div class="step-header">
+          <h2>Action Details</h2>
+          <p>Enter action taken and follow-up information</p>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">
           Action
-          <select v-model="form.action">
-            <option value="">Select Action</option>
+            </label>
+            <select 
+              v-model="form.action" 
+              class="form-select"
+              :class="{ 'error': errors.action }"
+            >
+              <option value="">Select action</option>
             <option v-for="opt in actionOptions" :key="opt" :value="opt">{{ opt }}</option>
           </select>
-          <span v-if="errors.action" class="error-message">{{ errors.action }}</span>
-        </label>
-        
-        <label :class="{ 'has-error': errors.actionTakenDate }">
-          <span class="label-text-wrapper">Action Taken Date<span class="required-star">*</span></span>
-          <input v-model="form.actionTakenDate" type="date" :max="currentDate" required/>
-          <span v-if="errors.actionTakenDate" class="error-message">{{ errors.actionTakenDate }}</span>
-        </label>
+            <span v-if="errors.action" class="error-text">{{ errors.action }}</span>
+          </div>
 
+          <div class="form-group">
+            <label class="form-label">
+              Action Taken Date <span class="required">*</span>
+        </label>
+            <input 
+              v-model="form.actionTakenDate" 
+              type="date" 
+              class="form-input"
+              :class="{ 'error': errors.actionTakenDate }"
+              :max="currentDate"
+            />
+            <span v-if="errors.actionTakenDate" class="error-text">{{ errors.actionTakenDate }}</span>
+          </div>
+        </div>
       </div>
-      <div class="action-buttons span-all">
-        <button class="submit-btn" type="submit">Submit/Save</button>
-        <button class="reset-btn" type="button" @click="onReset">Reset/Clear</button>
+
+      <!-- Navigation Buttons -->
+      <div class="form-navigation">
+        <button 
+          v-if="currentStep > 1" 
+          type="button" 
+          class="nav-button prev" 
+          @click="previousStep"
+        >
+          <i class="fa fa-arrow-left"></i>
+          Previous
+        </button>
+        
+        <button 
+          v-if="currentStep < 4" 
+          type="button" 
+          class="nav-button next" 
+          @click="nextStep"
+        >
+          Next
+          <i class="fa fa-arrow-right"></i>
+        </button>
+        
+        <button 
+          v-if="currentStep === 4" 
+          type="button" 
+          class="nav-button next" 
+          @click="onSubmit"
+        >
+          <i class="fa fa-paper-plane"></i>
+          Submit Case
+        </button>
       </div>
-    </form>
+      </div>
   </div>
 </template>
 
@@ -304,7 +587,30 @@ const currentDateTime = computed(() => {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 });
 
+// --- Step Navigation ---
+const currentStep = ref(1);
 
+const getStepTitle = (step) => {
+  const titles = {
+    1: 'Basic Info',
+    2: 'Transaction',
+    3: 'Beneficiary',
+    4: 'Action'
+  };
+  return titles[step] || '';
+};
+
+const nextStep = () => {
+  if (currentStep.value < 4) {
+    currentStep.value++;
+  }
+};
+
+const previousStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--;
+  }
+};
 
 // --- Fetch states on component mount ---
 onMounted(async () => {
@@ -687,393 +993,527 @@ const onReset = () => {
 </script>
 
 <style scoped>
-/* Main Form Container */
-.form-bg {
+/* Full Screen Form Container */
+.i4c-form-container {
+  height: 100vh;
+  width: calc(100vw - 250px); /* Account for sidebar width */
+  margin-left: 250px; /* Shift content to the right of sidebar */
+  background: #f8f9fa;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   display: flex;
-  justify-content: center;
-  align-items: flex-start; /* Align to start to prevent form from being too high */
-  min-height: 100vh;
-  padding: 40px 20px; /* More vertical padding */
-  background: linear-gradient(135deg, #f0f2f5 0%, #e0e6ed 100%); /* Lighter, subtle gradient */
-}
-
-.entry-card {
-  background-color: #ffffff;
-  padding: 60px; /* More generous padding */
-  border-radius: 20px; /* Even softer corners */
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1); /* More diffused shadow */
-  width: 100%;
-  max-width: 1300px; /* Keep max-width same */
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 35px; /* Increased gap */
-  border: 1px solid #e9eef2; /* Very subtle border */
-  margin-top: 40px; /* Push it down slightly from the top */
-  margin-bottom: 40px; /* Ensure space at bottom */
-}
-
-/* Form Title */
-.form-title {
-  grid-column: 1 / -1;
-  text-align: center;
-  color: #2F5892; /* Slightly darker primary blue for title */
-  margin-bottom: 50px; /* More space below title */
-  font-size: 2.8em; /* Larger font size */
-  font-weight: 800;
-  padding-bottom: 25px;
+  flex-direction: column;
+  align-items: flex-start; /* Align to left for full width usage */
+  justify-content: flex-start;
+  overflow: auto; /* Allow scrolling if content overflows */
   position: relative;
-  letter-spacing: -0.8px;
-}
-.form-title::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0; 
-  transform: translateX(-50%);
-  width: 100px; /* A more prominent underline effect */
-  height: 4px; /* Thicker underline */
-  background-color: #3F72AF; /* Primary blue */
-  border-radius: 2px;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
-/* Section Headings */
-.section-heading {
-  grid-column: 1 / -1;
-  font-size: 1.5em; /* Larger section heading */
-  font-weight: 700;
-  color: #4A5568; 
-  margin-top: 45px; 
-  margin-bottom: 25px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #E0E0E0; /* Slightly thicker border */
+/* Progress Bar Container */
+.progress-container {
+  position: fixed;
+  top: 0;
+  left: 250px;
+  right: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+  z-index: 100;
+  padding: 0.75rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: 12px;
-  position: relative;
-}
-.section-heading::before {
-    content: '';
-    position: absolute;
-    left: -20px; /* Adjust as needed for alignment */
-    top: 50%;
-    transform: translateY(-50%);
-    width: 8px; /* Vertical accent bar */
-    height: 100%;
-    background-color: #3F72AF; /* Primary blue accent */
-    border-radius: 4px;
+  gap: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Progress Bar */
+.progress-bar {
+  flex-grow: 1;
+  height: 4px;
+  background: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+  max-width: 300px;
+}
 
-/* Form Labels and Inputs */
-.grouped-form label {
-  display: flex; /* Keeps label as a flex container */
-  flex-direction: column; /* Stacks the label content (text+star) above the input */
+.progress-fill {
+  height: 100%;
+  background: #212529;
+  border-radius: 2px;
+  transition: width 0.3s ease-in-out;
+}
+
+.step-indicators {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.step-indicator.active {
+  opacity: 1;
+}
+
+.step-indicator.completed {
+  opacity: 0.8;
+}
+
+.step-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #212529;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 4px rgba(33, 37, 41, 0.2);
+}
+
+.step-indicator.completed .step-number {
+  background: #6c757d;
+}
+
+.step-title {
+  font-size: 0.7rem;
   font-weight: 500;
-  color: #555;
-  gap: 8px; /* Space between the label text/star block and the input field */
-  position: relative; 
+  color: #495057;
+  text-align: center;
+  white-space: nowrap;
 }
 
-/* New rule for the label-text-wrapper to ensure inline flow */
-.grouped-form label .label-text-wrapper {
-    display: inline; /* Crucial: Ensures text and asterisk stay on the same line */
-    white-space: nowrap; /* Prevents line breaks within the label text and star */
+/* Adjust when sidebar is collapsed */
+.sidebar-ui.collapsed ~ .i4c-form-container {
+  margin-left: 70px;
 }
 
-.grouped-form input[type="text"],
-.grouped-form input[type="date"],
-.grouped-form input[type="datetime-local"],
-.grouped-form input[type="number"],
-.grouped-form select,
-.grouped-form textarea {
-  width: 100%;
-  padding: 16px; /* More padding */
-  border: 1px solid #D1D5DB; /* Lighter border color */
-  border-radius: 10px; /* Softer corners */
-  font-size: 1.05rem; /* Slightly larger font */
-  color: #333;
-  background-color: #F8F9FA; /* Slightly more noticeable off-white background */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+.sidebar-ui.collapsed ~ .i4c-form-container .progress-container {
+  left: 70px;
+}
+
+/* Form Container */
+.i4c-form-container {
+  margin-left: 0px;
+  height: 100vh;
+  background: #f8f9fa;
+  padding-top: 80px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
-.grouped-form input[type="text"]:focus,
-.grouped-form input[type="date"]:focus,
-.grouped-form input[type="datetime-local"]:focus,
-.grouped-form input[type="number"]:focus,
-.grouped-form select:focus,
-.grouped-form textarea:focus {
-  border-color: #3F72AF; 
-  box-shadow: 0 0 0 5px rgba(63, 114, 175, 0.25); /* Stronger, softer blue glow */
+/* Form Wrapper */
+.form-wrapper {
+  flex: 1;
+  padding: 3rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Error Banner */
+.error-banner {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #721c24;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+}
+
+.error-banner i {
+  font-size: 1.1rem;
+}
+
+/* Step Content */
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+/* Step Header */
+.step-header {
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+.step-header h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 0.25rem;
+}
+
+.step-header p {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Form Grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  padding: 0 0.5rem;
+  align-content: start;
+}
+
+/* Form Groups */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Labels */
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.required {
+  color: #dc3545;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Inputs */
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+  background: #fff;
+  height: 36px;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: #212529;
   outline: none;
 }
 
-.grouped-form textarea {
-  min-height: 100px; /* Taller textarea */
-  resize: vertical;
+.form-input.error,
+.form-select.error {
+  border-color: #dc3545;
 }
 
-/* Section Grid (nested within entry-card) */
-.section-grid {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px; /* Consistent gap */
+.form-input::placeholder {
+  color: #6c757d;
 }
 
-.span-all {
-  grid-column: 1 / -1;
-}
-
-/* Action Buttons */
-.action-buttons {
+/* Amount Input */
+.amount-input-wrapper {
+  position: relative;
   display: flex;
-  justify-content: center; /* Center buttons */
-  gap: 25px; /* More space between buttons */
-  margin-top: 50px; 
-  padding-top: 30px;
-  border-top: 1px solid #E0E0E0;
+  align-items: center;
 }
 
-.submit-btn,
-.reset-btn {
-  padding: 18px 40px; /* Larger buttons */
-  border: none;
-  border-radius: 10px; /* Softer corners */
-  font-size: 1.15rem; /* Larger font */
+.currency-symbol {
+  position: absolute;
+  left: 1rem;
+  color: #495057;
   font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* Clearer shadow */
+  z-index: 1;
 }
 
-.submit-btn {
-  background-color: #3F72AF; 
-  color: white;
+.amount-input {
+  padding-left: 2.5rem;
 }
 
-.submit-btn:hover {
-  background-color: #2F5892; /* Darker blue on hover */
-  transform: translateY(-3px); /* More pronounced lift */
-  box-shadow: 0 8px 20px rgba(63, 114, 175, 0.35); /* Stronger shadow on hover */
-}
-
-.reset-btn {
-  background-color: #E2E8F0; /* Lighter gray for reset */
-  color: #4A5568; /* Darker text for reset button */
-}
-
-.reset-btn:hover {
-  background-color: #CBD5E0; /* Darker gray on hover */
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(160, 174, 192, 0.35);
-}
-
-/* Error and Required Star Styles */
-.error-message {
-  color: #E53E3E; 
-  font-size: 0.95em; /* Slightly larger error text */
-  margin-top: 6px; 
-  display: block;
+/* Error Text */
+.error-text {
+  color: #dc3545;
+  font-size: 0.85rem;
   font-weight: 500;
+  margin-top: 0.25rem;
 }
 
-.general-error {
-  text-align: center;
-  font-weight: 600;
-  padding: 18px; /* More padding */
-  background-color: #FEF2F2; /* Very light red background */
-  border: 1px solid #FC8181; /* Slightly darker red border */
-  border-radius: 8px;
-  margin-bottom: 30px; /* More space */
-  color: #C53030; /* Darker red text */
-}
-
-/* The critical correction for the red star */
-.required-star {
-  color: #E53E3E; 
-  font-weight: bold;
-  font-size: 1.1em; 
-  margin-left: 0px; /* Crucial: No margin-left for it to touch the text */
-  vertical-align: top; /* Align it slightly higher with the text for a superscript effect */
-  display: inline; /* Ensure it behaves as inline text */
-}
-
-
-label.has-error input,
-label.has-error select,
-label.has-error textarea {
-  border-color: #E53E3E; 
-  box-shadow: 0 0 0 5px rgba(229, 62, 62, 0.25); 
-}
-
-/* Responsive adjustments */
-@media (max-width: 1200px) {
-  .entry-card {
-    padding: 40px;
-    max-width: 900px;
-  }
-  .form-title {
-    font-size: 2.4em;
-  }
-  .section-heading::before {
-    left: -15px; 
-  }
-}
-
-@media (max-width: 768px) {
-  .entry-card {
-    padding: 25px;
-    grid-template-columns: 1fr; /* Stack columns on smaller screens */
-    gap: 25px;
-  }
-
-  .form-title {
-    font-size: 2em;
-    margin-bottom: 35px;
-    padding-bottom: 20px;
-  }
-  .form-title::after {
-      width: 80px;
-      height: 3px;
-  }
-
-  .section-heading {
-    font-size: 1.3em;
-    margin-top: 30px;
-    margin-bottom: 20px;
-  }
-  .section-heading::before {
-    width: 6px;
-    left: -10px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 18px;
-    margin-top: 35px;
-  }
-
-  .submit-btn,
-  .reset-btn {
-    width: 100%;
-    padding: 15px 30px;
-    font-size: 1.05rem;
-  }
-
-  /* No specific required-star adjustments needed for responsiveness in this setup */
-}
-
-@media (max-width: 480px) {
-    .entry-card {
-        padding: 20px;
-        border-radius: 15px;
-    }
-    .form-title {
-        font-size: 1.8em;
-        margin-bottom: 25px;
-        padding-bottom: 15px;
-    }
-    .form-title::after {
-        width: 60px;
-        height: 2px;
-    }
-    .section-heading {
-        font-size: 1.2em;
-        margin-top: 25px;
-        margin-bottom: 15px;
-    }
-    .section-heading::before {
-        width: 4px;
-        left: -8px;
-    }
-    .grouped-form input,
-    .grouped-form select,
-    .grouped-form textarea {
-        padding: 12px;
-        font-size: 0.95rem;
-        border-radius: 8px;
-    }
-    .error-message {
-        font-size: 0.85em;
-    }
-    .submit-btn, .reset-btn {
-        padding: 12px 25px;
-        font-size: 1rem;
-        border-radius: 8px;
-    }
-}
-/* ... (Existing styles for form-bg, entry-card, form-title, section-heading, labels, inputs, etc.) ... */
-
-/* NEW: Autocomplete Styles */
+/* Autocomplete */
 .autocomplete-container {
-  position: relative; /* Crucial for positioning the suggestion list */
-  width: 100%;
+  position: relative;
 }
 
 .suggestions-list {
   position: absolute;
-  top: 100%; /* Position below the input field */
+  top: 100%;
   left: 0;
   right: 0;
-  z-index: 100; /* Ensure it appears above other elements */
-  background-color: #fff;
-  border: 1px solid #D1D5DB;
-  border-top: none; /* Optical trick: makes it look connected to the input */
-  border-radius: 0 0 10px 10px; /* Rounded bottom corners */
-  max-height: 200px; /* Limit height and make it scrollable */
+  z-index: 1000;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 200px;
   overflow-y: auto;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-  list-style: none; /* Remove bullet points */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  list-style: none;
   padding: 0;
   margin: 0;
 }
 
 .suggestions-list li {
-  padding: 12px 16px;
+  padding: 0.875rem 1rem;
   cursor: pointer;
   font-size: 1rem;
-  color: #333;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  color: #212529;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.suggestions-list li:last-child {
+  border-bottom: none;
 }
 
 .suggestions-list li:hover,
 .suggestions-list li.active {
-  background-color: #F0F8FF; /* Light blue background for hover/active */
-  color: #3F72AF; /* Primary blue text for hover/active */
+  background: #212529;
+  color: white;
 }
 
-/* Ensure border-radius for input is maintained */
-.autocomplete-container input {
-    border-radius: 10px; /* Keep consistent rounding for input */
+/* Navigation Buttons */
+.form-navigation {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 1rem 0;
+  margin-top: 1rem;
+  border-top: 1px solid #e9ecef;
 }
 
-/* Adjust input border if suggestions are shown to make it look connected */
-.autocomplete-container input:focus + .suggestions-list {
-    border-top: 1px solid #3F72AF; /* Add top border on focus if list is shown */
-}
-
-/* When suggestions are visible, sometimes you want to flatten the bottom border of the input */
-.autocomplete-container input:focus:not(:placeholder-shown),
-.autocomplete-container input.has-suggestions { /* Add a class 'has-suggestions' via JS if needed, or rely on v-if */
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.label.has-error input,
-.label.has-error select,
-.label.has-error textarea {
-  border-color: #E53E3E; /* Red border */
-  box-shadow: 0 0 0 5px rgba(229, 62, 62, 0.25); /* Red glow */
-}
-.error-message {
-  color: #E53E3E; /* Red text for error messages */
-  font-size: 0.95em;
-  margin-top: 6px;
-  display: block;
+.nav-button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
   font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 100px;
+  justify-content: center;
 }
 
-/* ... (Remaining existing styles) ... */
+.nav-button.prev {
+  background: #e9ecef;
+  color: #495057;
+  border: none;
+}
+
+.nav-button.next {
+  background: #212529;
+  color: #fff;
+  border: none;
+}
+
+.nav-button:hover {
+  transform: translateY(-1px);
+}
+
+.nav-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .form-wrapper {
+    width: 95%;
+    padding: 1.5rem;
+  }
+  
+  .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .i4c-form-container {
+    padding: 0;
+  }
+  
+  .progress-container {
+    padding: 0.75rem 1rem;
+    gap: 1rem;
+  }
+  
+  .step-indicators {
+    gap: 1rem;
+  }
+  
+  .step-number {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+  
+  .step-title {
+    font-size: 0.65rem;
+  }
+  
+  .form-wrapper {
+    width: 98%;
+    padding: 1rem;
+    margin-top: 70px;
+    height: calc(100vh - 100px);
+  }
+  
+  .step-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .step-header p {
+    font-size: 0.9rem;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .navigation-buttons {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .progress-container {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .step-indicators {
+    gap: 0.5rem;
+  }
+  
+  .step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+  }
+  
+  .step-title {
+    font-size: 0.6rem;
+  }
+  
+  .form-wrapper {
+    width: 100%;
+    padding: 1rem;
+    margin-top: 60px;
+    border-radius: 0;
+    height: calc(100vh - 80px);
+  }
+  
+  .step-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .step-header p {
+    font-size: 0.8rem;
+  }
+  
+  .form-input,
+  .form-select {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.9rem;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation for step transitions */
+.step-content {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover effects */
+.form-group:hover .form-label {
+  color: #212529;
+}
+
+.form-input:hover:not(:focus) {
+  border-color: #adb5bd;
+  background: #f8f9fa;
+}
+
+.form-select:hover:not(:focus) {
+  border-color: #adb5bd;
+  background: #f8f9fa;
+}
+
+/* Custom scrollbar for step content */
+.step-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.step-content::-webkit-scrollbar-track {
+  background: #f1f3f4;
+  border-radius: 3px;
+}
+
+.step-content::-webkit-scrollbar-thumb {
+  background: #c1c7cd;
+  border-radius: 3px;
+}
+
+.step-content::-webkit-scrollbar-thumb:hover {
+  background: #a8b0b8;
+}
 </style>

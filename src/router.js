@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/pages/MainLayout.vue'
-import Dashboard from './pages/Dashboard.vue'
+import Dashboard from '@/pages/Dashboard.vue'
 import I4CCaseEntry from '@/pages/I4CCaseEntry.vue'
 import CaseDetails from '@/pages/CaseDetails.vue'
-// import CaseRiskReview from './pages/CaseRiskReview.vue'
-import Login from '@/pages/Login.vue' // <-- 1. Import the new Login page
-import BulkFileUpload from '@/pages/BulkFileUpload.vue' // Import BulkUpload if needed
+// import CaseRiskReview from '@/pages/CaseRiskReview.vue'
+import Login from '@/pages/Login.vue'
+import BulkFileUpload from '@/pages/BulkFileUpload.vue'
 
 const routes = [
   {
@@ -48,6 +48,12 @@ const routes = [
         path: 'pma-action/:case_id',
         name: 'PMAAction',
         component: () => import('@/pages/PMAAction.vue'),
+        props: true,
+      },
+      {
+        path: 'pva-action/:case_id',
+        name: 'PVAAction',
+        component: () => import('@/pages/PVAAction.vue'),
         props: true,
       },
       {

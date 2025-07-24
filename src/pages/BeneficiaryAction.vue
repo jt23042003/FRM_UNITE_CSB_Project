@@ -1,433 +1,981 @@
 <template>
-    <div class="action-page-bg">
-      <h1 class="screen-header">Alert - Potential Mule Account</h1>
-  
-      <div v-if="loading" class="loading-container">Loading Case Data...</div>
-      <div v-else-if="error" class="error-container">{{ error }}</div>
-  
-      <div v-else class="content-wrapper">
-        <section class="card-section">
-          <div class="side-by-side-container">
-            <div class="profile-column">
-              <h3 class="column-header">Customer Details - I4C</h3>
-              <table class="inner-details-table">
-                <thead>
-                  <tr><th>Name</th><th>Mobile Number</th><th>Email</th><th>PAN</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{{ riskEntity.i4c.name || '-' }}</td>
-                    <td>{{ riskEntity.i4c.mobileNumber || '-' }}</td>
-                    <td>{{ riskEntity.i4c.email || '-' }}</td>
-                    <td>{{ riskEntity.i4c.pan || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="separator-row-full"></div>
-              <table class="inner-details-table">
-                <thead>
-                  <tr><th>Aadhaar</th><th>GST</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{{ riskEntity.i4c.aadhaar || '-' }}</td>
-                    <td>{{ riskEntity.i4c.gst || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
+  <div class="pma-container">
+    <div class="steps-header">
+      <div class="steps-container">
+        <div
+          v-for="(step, index) in steps"
+          :key="index"
+          :class="['step', { active: currentStep === index + 1, completed: currentStep > index + 1 }]"
+          @click="goToStep(index + 1)"
+        >
+          <div class="step-number">{{ index + 1 }}</div>
+          <div class="step-title">{{ step.title }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-content">
+      <div v-if="currentStep === 1" class="step-panel">
+        <h3>Alert - Potential Mule Account</h3>
+
+        <div v-if="isLoading" class="loading-indicator">Loading Case Details...</div>
+        <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
+
+        <div v-else class="comparison-grid">
+          <div class="details-section">
+            <h4>Customer Details - I4C</h4>
+            <div class="details-row">
+              <div class="field-group">
+                <label>Name</label>
+                <input type="text" v-model="i4cDetails.name" readonly />
+              </div>
+              <div class="field-group">
+                <label>Mobile</label>
+                <input type="text" v-model="i4cDetails.mobile" readonly />
+              </div>
+               <div class="field-group">
+                <label>Email</label>
+                <input type="text" v-model="i4cDetails.email" readonly />
+              </div>
             </div>
-  
-            <div class="profile-column">
-               <h3 class="column-header">Customer Details - Bank</h3>
-                <table class="inner-details-table">
-                  <thead>
-                    <tr><th>Name</th><th>Mobile Number</th><th>Email</th><th>PAN</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td :class="{ 'highlight-match': isMatched('name') }">{{ riskEntity.bank.name || '-' }}</td>
-                      <td :class="{ 'highlight-match': isMatched('mobileNumber') }">{{ riskEntity.bank.mobileNumber || '-' }}</td>
-                      <td :class="{ 'highlight-match': isMatched('email') }">{{ riskEntity.bank.email || '-' }}</td>
-                      <td :class="{ 'highlight-match': isMatched('pan') }">{{ riskEntity.bank.pan || '-' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="separator-row-full"></div>
-                <table class="inner-details-table">
-                   <thead>
-                    <tr><th>Aadhaar</th><th>GST</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td :class="{ 'highlight-match': isMatched('aadhaar') }">{{ riskEntity.bank.aadhaar || '-' }}</td>
-                      <td :class="{ 'highlight-match': isMatched('gst') }">{{ riskEntity.bank.gst || '-' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="separator-row-full"></div>
-                <table class="inner-details-table">
-                  <thead>
-                    <tr><th>Customer ID</th><th>AQB</th><th>Avail. Bal.</th><th>Product Code</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{{ riskEntity.bank.customerId || '-' }}</td>
-                      <td>{{ riskEntity.bank.aqb || '-' }}</td>
-                      <td>{{ riskEntity.bank.availBal || '-' }}</td>
-                      <td>{{ riskEntity.bank.productCode || '-' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="separator-row-full"></div>
-                <table class="inner-details-table">
-                  <thead>
-                    <tr><th>Rel. Value</th><th>MOB / Vintage</th><th>A/c Status</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{{ riskEntity.bank.relValue || '-' }}</td>
-                      <td>{{ riskEntity.bank.mobVintage || '-' }}</td>
-                      <td>{{ riskEntity.bank.acStatus || '-' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div class="separator-row-full"></div>
-                <table class="inner-details-table">
-                    <thead>
-                      <tr><th>Addl field1</th><th>Addl field2</th><th>Addl field4</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>{{ riskEntity.bank.addl1 || '-' }}</td>
-                        <td>{{ riskEntity.bank.addl2 || '-' }}</td>
-                        <td>{{ riskEntity.bank.addl4 || '-' }}</td>
-                      </tr>
-                    </tbody>
-                </table>
+            <div class="details-row">
+              <div class="field-group">
+                <label>Bank Account</label>
+                <input type="text" v-model="i4cDetails.bankAc" readonly />
+              </div>
             </div>
           </div>
-        </section>
-  
-        <section class="card-section">
-        <h2>Action</h2>
 
-        <div v-if="!submittedAction">
-          <table class="action-table">
-            <tr>
-              <td class="action-label">Analysis / Investigation Update</td>
-              <td colspan="3">
-                <div class="action-row">
-                  <select v-model="initialFeedbackLOV" class="form-input">
-                    <option value="">-- Select Feedback --</option>
-                  </select>
-                  <input type="text" v-model="initialFeedbackText" placeholder="Update text..." class="form-input"/>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="action-label" :rowspan="reassignments.length + 1">Reassignment if required</td>
-              <td colspan="4">
-  <div v-for="reassignment in reassignments" :key="reassignment.id" class="reassignment-row">
-    <span>Forward to:</span>
-    
-    <select v-model="reassignment.dept" class="form-input">
-      <option value="">-- Select Department --</option>
-      <option v-for="dept in deptOptions" :key="dept.name" :value="dept.name">
-        {{ dept.name }}
-      </option>
-    </select>
-    
-    <select v-model="reassignment.userId" class="form-input" :disabled="!reassignment.dept || reassignment.userList.length === 0">
-      <option value="">-- Select User --</option>
-      <option v-for="user in reassignment.userList" :key="user.id" :value="user.id">
-        {{ user.name }}
-      </option>
-    </select>
-
-    <input type="text" v-model="reassignment.freeFlow" placeholder="Update..." class="form-input"/>
-    <button @click="removeReassignment(reassignment.id)" class="remove-btn" v-if="reassignments.length > 1">×</button>
-  </div>
-  <button @click="addReassignment" class="add-btn">+ Add Assignment</button>
-</td>
-            </tr>
-            <tr>
-              <td class="action-label">Alert Final Closure remarks</td>
-              <td colspan="4">
-                <div class="action-row">
-                  <select v-model="finalClosureRemarksLOV" class="form-input"><option value="">-- Select Remark --</option></select>
-                  <input type="text" v-model="finalClosureRemarksText" placeholder="Update text..." class="form-input"/>
-                </div>
-              </td>
-            </tr>
-          </table>
-
-          <div class="final-closure-grid">
-              <label>Confirmed Mule</label>
-              <div class="radio-group">
-                <label><input type="radio" v-model="confirmedMule" value="yes"> Yes</label>
-                <label><input type="radio" v-model="confirmedMule" value="no"> No</label>
+          <div class="details-section">
+            <h4>Customer Details - Bank</h4>
+            <div class="details-row">
+              <div class="field-group highlight">
+                <label>Name</label>
+                <input type="text" v-model="bankDetails.name" readonly />
               </div>
-
-              <label>Digital Channel blocked</label>
-              <div class="radio-group">
-                <label><input type="radio" v-model="digitalChannelBlocked" value="yes"> Yes</label>
-                <label><input type="radio" v-model="digitalChannelBlocked" value="no"> No</label>
+              <div class="field-group highlight">
+                <label>Mobile</label>
+                <input type="text" v-model="bankDetails.mobile" readonly />
               </div>
-
-              <label>A/c fully blocked and closed</label>
-              <div class="radio-group">
-                <label><input type="radio" v-model="accountBlocked" value="yes"> Yes</label>
-                <label><input type="radio" v-model="accountBlocked" value="no"> No</label>
+              <div class="field-group highlight">
+                <label>Email</label>
+                <input type="text" v-model="bankDetails.email" readonly />
               </div>
-          </div>
-
-          <div class="action-buttons">
-            <button @click="saveActionData" class="save-btn" :disabled="isSaving">
-              {{ isSaving ? 'Saving...' : 'Save' }}
-            </button>
-            <button @click="submitFinalClosure" class="submit-btn" :disabled="isSaving">
-              {{ isSaving ? 'Submitting...' : 'Submit' }}
-            </button>
+            </div>
+            <div class="details-row">
+               <div class="field-group">
+                <label>Customer ID</label>
+                <input type="text" v-model="bankDetails.customerId" readonly />
+              </div>
+              <div class="field-group">
+                <label>Bank Account</label>
+                <input type="text" v-model="bankDetails.bankAc" readonly />
+              </div>
+              <div class="field-group">
+                <label>Account Status</label>
+                <input type="text" v-model="bankDetails.acStatus" readonly />
+              </div>
+            </div>
+             <div class="details-row">
+              <div class="field-group">
+                <label>PAN</label>
+                <input type="text" v-model="bankDetails.pan" readonly />
+              </div>
+              <div class="field-group">
+                <label>Aadhaar</label>
+                <input type="text" v-model="bankDetails.aadhaar" readonly />
+              </div>
+              <div class="field-group">
+                <label>Product Code</label>
+                <input type="text" v-model="bankDetails.productCode" readonly />
+              </div>
+            </div>
+             <div class="details-row">
+              <div class="field-group">
+                <label>AQB</label>
+                <input type="text" v-model="bankDetails.aqb" readonly />
+              </div>
+               <div class="field-group">
+                <label>Balance</label>
+                <input type="text" v-model="bankDetails.availBal" readonly />
+              </div>
+              <div class="field-group">
+                <label>Relationship Value</label>
+                <input type="text" v-model="bankDetails.relValue" readonly />
+              </div>
+            </div>
+             <div class="details-row">
+              <div class="field-group">
+                <label>Vintage (MoB)</label>
+                <input type="text" v-model="bankDetails.mobVintage" readonly />
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div v-else class="submitted-info">
-            <h4>Action Submitted</h4>
+      <div v-if="currentStep === 2" class="step-panel">
+        <h3>Analysis & Investigation</h3>
+        <div class="form-grid">
+          <div class="form-section">
+            <div class="field-group">
+              <label>Analysis Update</label>
+              <div class="input-row">
+                <select v-model="action.analysisLOV" class="compact-select">
+                  <option value="">Select Reason</option>
+                  <option v-for="item in analysisReasons" :key="item.reason" :value="item.reason">{{ item.reason }}</option>
+                </select>
+                <textarea v-model="action.analysisUpdate" placeholder="Update details" class="compact-textarea"></textarea>
+              </div>
             </div>
-      </section>
+            
+            <div class="field-group">
+              <label>Data Uploads</label>
+              
+              <div v-for="(uploadBlock, blockIndex) in action.dataUploads" :key="uploadBlock.id" class="data-upload-block">
+                
+                <button @click="removeDataUploadBlock(blockIndex)" v-if="action.dataUploads.length > 1" class="btn-remove-row" title="Remove Upload Section">×</button>
+
+                <textarea v-model="uploadBlock.comment" placeholder="Add comments for your uploads..." class="compact-textarea data-uploads-textarea"></textarea>
+                
+                <div class="file-upload-container">
+                  <div
+                    class="file-drop-zone"
+                    :class="{ 'drag-over': uploadBlock.isDragOver, 'has-files': uploadBlock.files.length > 0 }"
+                    @dragover.prevent="onDragOver(blockIndex)"
+                    @dragleave.prevent="onDragLeave(blockIndex)"
+                    @drop.prevent="onFileDrop($event, blockIndex)"
+                    @click="triggerFileInput(blockIndex)"
+                  >
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">
+                      <strong>Drop files here or click to browse</strong>
+                      <p>Supports: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (Max 10MB each)</p>
+                    </div>
+                    <input
+                      :ref="el => { if (el) fileInputRefs[blockIndex] = el }"
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                      @change="onFileSelect($event, blockIndex)"
+                      class="hidden-file-input"
+                    />
+                  </div>
+                  <div v-if="uploadBlock.files.length > 0" class="uploaded-files-list">
+                    <div class="files-header">
+                      <span>Uploaded Files ({{ uploadBlock.files.length }})</span>
+                    </div>
+                    <div
+                      v-for="(file, fileIndex) in uploadBlock.files"
+                      :key="fileIndex"
+                      class="file-item"
+                    >
+                      <div class="file-info">
+                        <div class="file-icon">{{ getFileIcon(file.type) }}</div>
+                        <div class="file-details">
+                          <div class="file-name-container">
+                            <input
+                              v-if="file.isRenaming"
+                              v-model="file.newName"
+                              @blur="saveFileName(blockIndex, fileIndex)"
+                              @keyup.enter="saveFileName(blockIndex, fileIndex)"
+                              @keyup.escape="cancelRename(blockIndex, fileIndex)"
+                              class="file-name-input"
+                              placeholder="Enter new name"
+                            />
+                            <span v-else class="file-name">{{ file.displayName }}</span>
+                          </div>
+                          <div class="file-meta">
+                            {{ formatFileSize(file.size) }} • {{ file.type.split('/')[1].toUpperCase() }}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="file-actions">
+                         <button
+                          v-if="!file.isRenaming"
+                          @click="startRename(blockIndex, fileIndex)"
+                          class="btn-file-action btn-rename"
+                          title="Rename file"
+                        >✏️</button>
+                        <button
+                          v-if="file.isRenaming"
+                          @click="saveFileName(blockIndex, fileIndex)"
+                          class="btn-file-action btn-save"
+                          title="Save name"
+                        >✅</button>
+                        <button
+                          v-if="file.isRenaming"
+                          @click="cancelRename(blockIndex, fileIndex)"
+                          class="btn-file-action btn-cancel"
+                          title="Cancel rename"
+                        >❌</button>
+                        <button
+                          @click="removeFile(blockIndex, fileIndex)"
+                          class="btn-file-action btn-remove"
+                          title="Remove file"
+                        >🗑️</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button @click="addDataUploadBlock" class="btn-add-row">+ Add Upload Section</button>
+            </div>
+            </div>
+
+          <div class="form-section">
+            <div class="field-group">
+              <label>Review Comments</label>
+              <div v-for="(review, index) in action.reviews" :key="review.id" class="review-comment-row">
+                 <div class="comment-user-selection-row">
+                    <select v-model="review.selectedDepartment" class="compact-select" @change="handleDepartmentChange(review)">
+                      <option value="">Select Department</option>
+                      <option v-for="dept in departments" :key="dept.id" :value="dept.name">
+                        {{ dept.name }}
+                      </option>
+                    </select>
+                    <select v-model="review.userId" class="compact-select" :disabled="!review.selectedDepartment">
+                      <option value="">Select User</option>
+                      <option v-for="user in review.userList" :key="user.id" :value="user.id">
+                        {{ user.name }}
+                      </option>
+                    </select>
+                 </div>
+                 <textarea v-model="review.text" placeholder="Add comments..." class="compact-textarea"></textarea>
+                 <button @click="removeReviewCommentRow(index)" v-if="action.reviews.length > 1" class="btn-remove-row" title="Remove Assignment">×</button>
+              </div>
+              <button @click="addReviewCommentRow" class="btn-add-row">+ Add Assignment</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="currentStep === 3" class="step-panel">
+        <h3>Final Closure</h3>
+        <div class="form-grid">
+          <div class="form-section">
+            <div class="field-group">
+              <label>Closure Remarks</label>
+              <div class="input-row">
+                <select v-model="action.closureLOV" class="compact-select">
+                  <option value="">Select Reason</option>
+                  <option v-for="item in closureReasons" :key="item.reason" :value="item.reason">
+                    {{ item.reason }}
+                  </option>
+                </select>
+                <textarea v-model="action.closureRemarks" placeholder="Closure remarks" class="compact-textarea"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="currentStep === 4" class="step-panel">
+        <h3>Confirmation</h3>
+        <div class="confirmation-grid">
+          <div class="confirm-section">
+            <div class="confirm-row">
+              <label>Confirmed Mule</label>
+              <div class="radio-group">
+                <label><input type="radio" v-model="action.confirmedMule" value="Yes" name="confirmedMule" /> Yes</label>
+                <label><input type="radio" v-model="action.confirmedMule" value="No" name="confirmedMule" /> No</label>
+              </div>
+            </div>
+            <div class="confirm-row">
+              <label>Funds Saved</label>
+              <input
+                type="number"
+                v-model="action.fundsSaved"
+                :disabled="action.confirmedMule !== 'Yes'"
+                class="compact-input"
+                placeholder="Amount"
+              />
+            </div>
+          </div>
+          <div class="confirm-section">
+            <div class="confirm-row">
+              <label>Digital Channel Blocked</label>
+              <div class="radio-group">
+                <label><input type="radio" v-model="action.digitalBlocked" value="Yes" name="digitalBlocked" /> Yes</label>
+                <label><input type="radio" v-model="action.digitalBlocked" value="No" name="digitalBlocked" /> No</label>
+              </div>
+            </div>
+            <div class="confirm-row">
+              <label>Account Blocked</label>
+              <div class="radio-group">
+                <label><input type="radio" v-model="action.accountBlocked" value="Yes" name="accountBlocked" /> Yes</label>
+                <label><input type="radio" v-model="action.accountBlocked" value="No" name="accountBlocked" /> No</label>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div v-if="caseStatus !== 'Closed'">
-    <table class="action-table">
-      </table>
-    <div class="final-closure-grid">
-      </div>
-    <!-- <div class="action-buttons">
-      <button @click="saveActionData" class="save-btn">Save</button>
-      <button @click="submitFinalClosure" class="submit-btn">Submit</button>
-    </div> -->
-  </div>
 
-  <div v-else>
-    <div v-if="submittedAction">
-      <p class="section-subtitle">This case has been closed. The following actions were recorded:</p>
-      
-      <div class="history-item">
-        <strong>Initial Review Feedback:</strong>
-        <span>{{ submittedAction.initial_feedback?.text || 'No comment provided.' }}</span>
-      </div>
-      
-      <div class="history-item">
-        <strong>Review / Feedback from other functions (Reassignments):</strong>
-      </div>
-      <table class="history-table">
-        <thead>
-          <tr>
-            <th>User ID / Dept</th>
-            <th>Update - LOV</th>
-            <th>Update - Text box</th>
-            <th>Date/Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in submittedAction.reassignments" :key="item.id">
-            <td>{{ item.userId }}</td>
-            <td>{{ item.lov }}</td>
-            <td>{{ item.freeFlow }}</td>
-            <td>{{ new Date(item.timestamp).toLocaleString() }}</td> </tr>
-          <tr v-if="!submittedAction.reassignments || submittedAction.reassignments.length === 0">
-            <td colspan="4">No reassignments were made.</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="history-item">
-        <strong>Final Closure Remarks:</strong>
-        <span>{{ submittedAction.final_remarks?.text || 'No final remarks.' }}</span>
-      </div>
-
-      <div class="history-item">
-        <strong>Uploaded Screenshot:</strong>
-        <a
-          v-if="submittedAction.screenshot_filename"
-          :href="`http://34.47.219.225:9000/api/case-document/download/${submittedAction.screenshot_filename}`"
-          target="_blank"
-          rel="noopener"
+    <div class="bottom-navigation">
+      <div class="nav-buttons">
+        <button
+          @click="previousStep"
+          :disabled="currentStep === 1"
+          class="btn-nav btn-prev"
         >
-          {{ submittedAction.screenshot_filename }}
-        </a>
-        <span v-else>No screenshot uploaded.</span>
+          Previous
+        </button>
+        <button
+          @click="nextStep"
+          v-if="currentStep < steps.length"
+          class="btn-nav btn-next"
+        >
+          Next
+        </button>
       </div>
-
-      <div v-if="submittedAction.uploaded_documents && submittedAction.uploaded_documents.length > 0">
-        <strong>Uploaded Documents:</strong>
-        <ul>
-          <li v-for="doc in submittedAction.uploaded_documents" :key="doc.id">
-            <a :href="`http://34.47.219.225:9000/api/case-document/download/${doc.original_filename}`" target="_blank">
-              {{ doc.original_filename }}
-            </a>
-          </li>
-        </ul>
+      <div class="action-buttons">
+        <button @click="saveAction" class="btn-save">Save</button>
+        <button @click="submitAction" class="btn-submit">Submit</button>
       </div>
-
-    </div>
-    <div v-else class="closed-case-notice">
-      Loading action history...
     </div>
   </div>
-  </template>
-  
-  <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
-import '../assets/OperationalAction.css';
-import '../assets/BeneficiaryAction.css';
 
 const route = useRoute();
-// const router = useRouter();
-const case_id = route.params.case_id;
-const caseStatus = computed(() => route.query.status);
 
 // --- State Management ---
-const loading = ref(true);
-const error = ref('');
-const riskEntity = reactive({ i4c: {}, bank: {} });
-const isSaving = ref(false);
+const isLoading = ref(true);
+const fetchError = ref(null);
+const currentStep = ref(1);
 
-// Action Form State
-const initialFeedbackLOV = ref('');
-const initialFeedbackText = ref('');
-const reassignments = ref([
-  { id: 1, userId: '', dept: '', userList: [] }
+// --- Dropdown Data ---
+const analysisReasons = ref([]);
+const departments = ref([]);
+const closureReasons = ref([]);
+
+// --- Stepper Logic ---
+const steps = ref([
+  { title: 'Alert Details' },
+  { title: 'Analysis' },
+  { title: 'Closure' },
+  { title: 'Confirmation' }
 ]);
-const deptOptions = ref([]);
-const finalClosureRemarksLOV = ref('');
-const finalClosureRemarksText = ref('');
-const confirmedMule = ref('');
-const digitalChannelBlocked = ref('');
-const accountBlocked = ref('');
-// const userOptions = ref([]); // This will be populated on demand
-// const feedbackOptions = ref([]);
-const submittedAction = ref(null);
+const goToStep = (step) => { if (!isLoading.value || step === 1) currentStep.value = step; };
+const nextStep = () => { if (currentStep.value < steps.value.length) currentStep.value++; };
+const previousStep = () => { if (currentStep.value > 1) currentStep.value--; };
 
-const departmentSelections = computed(() => reassignments.value.map(r => r.dept));
-
-// --- Helper Functions & Watchers ---
-async function fetchUsersForDepartment(reassignment) {
-  if (!reassignment.dept) {
-    reassignment.userList = [];
-    reassignment.userId = '';
-    return;
-  }
-  try {
-    const res = await axios.get(`http://34.47.219.225:9000/api/users?department_name=${reassignment.dept}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt')}` }
-    });
-    reassignment.userList = res.data;
-  } catch (err) {
-    console.error("Failed to fetch users for department:", err);
-    reassignment.userList = [];
-  }
-}
-
-watch(departmentSelections, (newDepts, oldDepts) => {
-  // Find which department changed
-  for (let i = 0; i < newDepts.length; i++) {
-    if (newDepts[i] !== oldDepts[i]) {
-      console.log(`Department changed for row ${i} to ${newDepts[i]}. Fetching users...`);
-      // Use the index 'i' to get the correct reassignment object
-      fetchUsersForDepartment(reassignments.value[i]);
-    }
-  }
+// --- Data Models ---
+const i4cDetails = ref({});
+const bankDetails = ref({});
+const action = ref({
+  analysisLOV: '',
+  analysisUpdate: '',
+  // dataUploads is an array of objects for dynamic sections
+  dataUploads: [{ id: Date.now(), comment: '', files: [], isDragOver: false }],
+  reviews: [{ id: Date.now(), selectedDepartment: '', userId: '', text: '', userList: [] }],
+  closureLOV: '',
+  closureRemarks: '',
+  confirmedMule: 'No',
+  fundsSaved: null,
+  digitalBlocked: 'No',
+  accountBlocked: 'No',
 });
 
-function addReassignment() {
-  reassignments.value.push({
+// --- Dynamic Row Logic (Reviews) ---
+const addReviewCommentRow = () => {
+  action.value.reviews.push({
     id: Date.now(),
+    selectedDepartment: '',
     userId: '',
-    dept: '',
-    lov: '',
-    freeFlow: '',
+    text: '',
     userList: []
   });
-}
+};
+const removeReviewCommentRow = (index) => {
+  if (action.value.reviews.length > 1) {
+    action.value.reviews.splice(index, 1);
+  }
+};
+const handleDepartmentChange = async (review) => {
+  review.userId = '';
+  review.userList = [];
+  if (review.selectedDepartment) {
+    try {
+      const response = await axios.get(`/api/users?department_name=${review.selectedDepartment}`);
+      if (response.data && Array.isArray(response.data)) {
+        review.userList = response.data;
+      }
+    } catch (err) {
+      console.error(`Failed to fetch users for department ${review.selectedDepartment}:`, err);
+    }
+  }
+};
 
-function removeReassignment(id) {
-  reassignments.value = reassignments.value.filter(r => r.id !== id);
-}
+// --- Dynamic Upload Block Logic ---
+const addDataUploadBlock = () => {
+  action.value.dataUploads.push({
+    id: Date.now(),
+    comment: '',
+    files: [],
+    isDragOver: false
+  });
+};
+const removeDataUploadBlock = (blockIndex) => {
+  if (action.value.dataUploads.length > 1) {
+    action.value.dataUploads.splice(blockIndex, 1);
+  }
+};
 
-// --- Action Functions ---
-async function saveActionData() {
-  // ... your save logic ...
-}
+// --- File Upload Logic ---
+const fileInputRefs = ref([]); // Use an array of refs for file inputs
 
-async function submitFinalClosure() {
-  // ... your submit logic ...
-}
+const getFileIcon = (type) => {
+  if (type.startsWith('image/')) return '📸';
+  if (type.startsWith('application/pdf')) return '📄';
+  if (type.startsWith('application/msword') || type.startsWith('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) return '📝';
+  if (type.startsWith('application/vnd.ms-excel') || type.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) return '📊';
+  return '📁';
+};
 
-function isMatched(key) {
-  const i4cValue = riskEntity.i4c ? riskEntity.i4c[key] : undefined;
-  const bankValue = riskEntity.bank ? riskEntity.bank[key] : undefined;
-  return i4cValue && bankValue && String(i4cValue).trim() === String(bankValue).trim();
-}
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
-// --- Data Fetching on Mount ---
-onMounted(async () => {
-  loading.value = true;
+const triggerFileInput = (blockIndex) => {
+  if(fileInputRefs.value[blockIndex]) {
+    fileInputRefs.value[blockIndex].click();
+  }
+};
+
+const addFiles = (files, blockIndex) => {
+  const uploadBlock = action.value.dataUploads[blockIndex];
+  files.forEach(file => {
+    uploadBlock.files.push({ file, displayName: file.name, newName: file.name, size: file.size, type: file.type, isRenaming: false });
+  });
+};
+
+const onFileSelect = (event, blockIndex) => {
+  addFiles(Array.from(event.target.files), blockIndex);
+  event.target.value = '';
+};
+
+const onDragOver = (blockIndex) => action.value.dataUploads[blockIndex].isDragOver = true;
+const onDragLeave = (blockIndex) => action.value.dataUploads[blockIndex].isDragOver = false;
+const onFileDrop = (event, blockIndex) => {
+  action.value.dataUploads[blockIndex].isDragOver = false;
+  addFiles(Array.from(event.dataTransfer.files), blockIndex);
+};
+
+const startRename = (blockIndex, fileIndex) => action.value.dataUploads[blockIndex].files[fileIndex].isRenaming = true;
+const saveFileName = (blockIndex, fileIndex) => {
+  const file = action.value.dataUploads[blockIndex].files[fileIndex];
+  file.displayName = file.newName;
+  file.isRenaming = false;
+};
+const cancelRename = (blockIndex, fileIndex) => {
+  const file = action.value.dataUploads[blockIndex].files[fileIndex];
+  file.newName = file.displayName;
+  file.isRenaming = false;
+};
+const removeFile = (blockIndex, fileIndex) => {
+  action.value.dataUploads[blockIndex].files.splice(fileIndex, 1);
+};
+
+
+// --- API Integration ---
+const fetchAnalysisReasons = async () => {
   try {
-    const token = localStorage.getItem('jwt');
-    if (!token) {
-      error.value = "Authentication token not found.";
-      loading.value = false;
-      return;
-    }
+    const response = await axios.get('http://34.47.219.225:9000/reasons/api/investigation-review');
+    if (response.data) analysisReasons.value = response.data;
+  } catch (err) { console.error("Failed to fetch analysis reasons:", err); }
+};
 
-    // CORRECTED: Fetch only the required data on page load
-    const [combinedDataRes, deptListRes] = await Promise.allSettled([
-      axios.get(`http://34.47.219.225:9000/api/combined-case-data/${case_id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-      axios.get(`http://34.47.219.225:9000/api/departments`, { headers: { 'Authorization': `Bearer ${token}` } })
-    ]);
+const fetchDepartments = async () => {
+  try {
+    const response = await axios.get('/api/departments');
+    if (response.data) departments.value = response.data;
+  } catch (err) { console.error("Failed to fetch departments:", err); }
+};
 
-    // Process main case data
-    if (combinedDataRes.status === 'fulfilled' && combinedDataRes.value.data) {
-      const responseData = combinedDataRes.value.data;
-      const i4cData = responseData.i4c_data || {};
-      const customerDetails = responseData.customer_details || {};
-      
-      riskEntity.i4c = { name: i4cData.customer_name, mobileNumber: i4cData.mobile, bankAc: i4cData.account_number, email: i4cData.email };
-      riskEntity.bank = { name: `${customerDetails.fname || ''} ${customerDetails.mname || ''} ${customerDetails.lname || ''}`.trim(), mobileNumber: customerDetails.mobile, bankAc: responseData.acc_num, email: customerDetails.email, pan: customerDetails.pan, aadhaar: customerDetails.nat_id, customerId: customerDetails.cust_id, acStatus: responseData.account_details?.acc_status, aqb: responseData.account_details?.aqb, availBal: responseData.account_details?.availBal, productCode: responseData.account_details?.productCode, relValue: customerDetails?.rel_value, mobVintage: customerDetails?.mob };
- 
-    } else {
-      console.error('CRITICAL: Failed to fetch combined case data:', combinedDataRes.reason);
-      error.value = "Failed to load the main case data.";
-      loading.value = false;
-      return; 
-    }
+const fetchClosureReasons = async () => {
+  try {
+    const response = await axios.get('http://34.47.219.225:9000/reasons/api/final-closure');
+    if (response.data) closureReasons.value = response.data;
+  } catch (err) { console.error("Failed to fetch closure reasons:", err); }
+};
 
-    // Process department list for the dropdown
-    if (deptListRes.status === 'fulfilled' && deptListRes.value.data) {
-      deptOptions.value = deptListRes.value.data;
-    } else {
-      console.warn('Could not fetch department list:', deptListRes.reason);
-    }
-    if (caseStatus.value === 'Closed') {
-      try {
-        const actionLogRes = await axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (actionLogRes.data && actionLogRes.data.success) {
-          // Store the fetched history data
-          submittedAction.value = actionLogRes.data.data;
-        }
-      } catch (logErr) {
-        console.warn('Could not load action history:', logErr);
+const fetchCaseDetails = async () => {
+  const caseId = route.params.case_id;
+  const token = localStorage.getItem('jwt');
+  if (!token) throw new Error('No authentication token found');
+
+  const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  
+  if (response.data) {
+    const { i4c_data = {}, customer_details = {}, account_details, acc_num, action_details } = response.data;
+    i4cDetails.value = { 
+      name: i4c_data.customer_name || 'N/A', 
+      mobile: i4c_data.mobile || 'N/A', 
+      email: i4c_data.email || 'N/A', 
+      bankAc: i4c_data.account_number || 'N/A' 
+    };
+    bankDetails.value = { 
+      name: `${customer_details.fname || ''} ${customer_details.mname || ''} ${customer_details.lname || ''}`.trim() || 'N/A', 
+      mobile: customer_details.mobile || 'N/A', 
+      email: customer_details.email || 'N/A', 
+      customerId: customer_details.cust_id || 'N/A', 
+      bankAc: acc_num || 'N/A', 
+      acStatus: account_details?.acc_status || 'N/A', 
+      pan: customer_details.pan || 'N/A', 
+      aadhaar: customer_details.nat_id || 'N/A', 
+      productCode: account_details?.productCode || 'N/A', 
+      aqb: account_details?.aqb || 'N/A', 
+      availBal: account_details?.availBal || 'N/A', 
+      relValue: customer_details.rel_value || 'N/A', 
+      mobVintage: customer_details.mob || 'N/A' 
+    };
+    if (action_details) {
+      Object.assign(action.value, action_details);
+       // Ensure dataUploads is an array, if loading saved data
+      if (!Array.isArray(action.value.dataUploads) || action.value.dataUploads.length === 0) {
+        action.value.dataUploads = [{ id: Date.now(), comment: '', files: [], isDragOver: false }];
       }
     }
+  } else { 
+    throw new Error('Received no data for this case.'); 
+  }
+};
 
-  } catch (err) {
-    console.error("A critical error occurred during page setup:", err);
-    error.value = "An unexpected error occurred.";
+onMounted(async () => {
+  isLoading.value = true;
+  fetchError.value = null;
+  try {
+    await Promise.all([
+      fetchCaseDetails(),
+      fetchAnalysisReasons(),
+      fetchDepartments(),
+      fetchClosureReasons()
+    ]);
+  } catch (error) {
+    console.error('Error during component mount:', error);
+    fetchError.value = 'Failed to load case details. Please try again later.';
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 });
-  </script>
+
+// --- Action Buttons ---
+const saveAction = async () => {
+  console.log('Saving action:', action.value);
+};
+
+const submitAction = async () => {
+  console.log('Submitting action:', action.value);
+};
+</script>
+
+<style scoped>
+/* Main Container */
+.pma-container {
+  height: 100vh;
+  overflow: hidden;
+  margin-left: 0px;
+  padding: 16px;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Progress Steps Header */
+.steps-header {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.steps-container {
+  display: flex;
+  justify-content: space-between;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  justify-content: center;
+}
+.step:hover {
+  background: #f8f9fa;
+}
+.step.active {
+  background: #0d6efd;
+  color: white;
+}
+.step.completed {
+  background: #28a745;
+  color: white;
+}
+.step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+.step.active .step-number, .step.completed .step-number {
+  background: rgba(255,255,255,0.3);
+}
+.step-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Step Content Panel */
+.step-content {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
+}
+.step-panel h3 {
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 20px;
+  font-weight: 600;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* Loading and Error Indicators */
+.loading-indicator, .error-indicator {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #6c757d;
+}
+.error-indicator {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
+
+/* Grids for Layout */
+.comparison-grid, .form-grid, .confirmation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.details-section {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+}
+.details-section h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+.details-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.details-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Form Elements */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.field-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 6px;
+}
+.field-group input[type="text"], .field-group input[type="number"] {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #e9ecef;
+  height: 32px;
+  box-sizing: border-box;
+}
+.field-group.highlight input {
+  background: #fff3cd;
+  border-color: #ffc107;
+  font-weight: 500;
+}
+.input-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.compact-select, .compact-input, .compact-textarea {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #fff;
+  height: 32px;
+  box-sizing: border-box;
+}
+.compact-input {
+  background: #fff;
+}
+.compact-textarea {
+  min-height: 60px;
+  max-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+.data-uploads-textarea {
+  margin-bottom: 12px;
+}
+
+/* Dynamic Upload Block Style */
+.data-upload-block {
+  position: relative;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #fdfdfd;
+}
+
+/* Comment/Assignment Rows */
+.comment-user-selection-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.review-comment-row {
+  position: relative;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.btn-add-row {
+  width: 100%;
+  padding: 8px;
+  background-color: #e7f3ff;
+  color: #0d6efd;
+  border: 1px dashed #0d6efd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+.btn-add-row:hover {
+  background-color: #d1e7ff;
+}
+.btn-remove-row {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #dc3545;
+  background-color: #fff;
+  color: #dc3545;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 10;
+}
+
+/* Confirmation Screen Styles */
+.confirm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.confirm-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.confirm-row label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+.radio-group {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  height: 100%;
+}
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+}
+.radio-group input[type="radio"] {
+  accent-color: #0d6efd;
+}
+
+/* File Upload Styles */
+.file-upload-container {
+  border: 2px dashed #ced4da;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f8f9fa;
+}
+.file-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.file-drop-zone.drag-over {
+  border-color: #0d6efd;
+  background: #e9ecef;
+}
+.upload-icon {
+  font-size: 48px;
+  color: #0d6efd;
+  margin-bottom: 10px;
+}
+.upload-text {
+  font-size: 14px;
+  color: #6c757d;
+}
+.hidden-file-input { display: none; }
+.uploaded-files-list {
+  margin-top: 15px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+  text-align: left;
+}
+.files-header {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dee2e6;
+}
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+.file-item:last-child { border-bottom: none; }
+.file-info { display: flex; align-items: center; gap: 10px; }
+.file-icon { font-size: 24px; }
+.file-details { display: flex; flex-direction: column; }
+.file-name-container { display: flex; align-items: center; gap: 5px; }
+.file-name-input { padding: 4px 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px; }
+.file-meta { font-size: 12px; color: #6c757d; }
+.file-actions { display: flex; gap: 5px; }
+.btn-file-action { background: none; border: none; cursor: pointer; padding: 4px; font-size: 16px;}
+
+/* Bottom Navigation */
+.bottom-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+  margin-top: auto;
+}
+.nav-buttons, .action-buttons {
+  display: flex;
+  gap: 12px;
+}
+.btn-nav, .btn-save, .btn-submit {
+  padding: 8px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-nav:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-prev { background: #fff; color: #495057; }
+.btn-next { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+.btn-save { background: #6c757d; color: #fff; border-color: #6c757d; }
+.btn-submit { background: #28a745; color: #fff; border-color: #28a745; }
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .comparison-grid, .form-grid, .confirmation-grid { grid-template-columns: 1fr; }
+  .details-row { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .input-row, .comment-user-selection-row { grid-template-columns: 1fr; gap: 8px; }
+}
+@media (max-width: 768px) {
+  .pma-container { padding: 12px; }
+  .steps-container { flex-direction: column; gap: 8px; }
+  .step { justify-content: flex-start; }
+  .details-row, .confirm-row { grid-template-columns: 1fr; }
+  .bottom-navigation { flex-direction: column; gap: 12px; }
+  .nav-buttons, .action-buttons { width: 100%; justify-content: center; }
+}
+
+/* Custom Scrollbar */
+.step-content::-webkit-scrollbar { width: 6px; }
+.step-content::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.step-content::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+.step-content::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+</style>

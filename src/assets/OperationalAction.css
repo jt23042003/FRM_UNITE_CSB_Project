@@ -1,169 +1,169 @@
 /* Main Page Layout */
 .action-page-bg {
-    padding: 2rem;
-    background-color: #f1f5f9;
-    min-height: 100vh;
-  }
-  .screen-header {
-    color: #1e293b;
-    font-size: 2rem;
-    margin-bottom: 1.5rem;
-  }
-  .content-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  
-  /* Card Section Styling */
-  .card-section {
-    background-color: #ffffff;
-    border-radius: 12px;
-    padding: 1.5rem 2rem;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  }
-  .card-section h2 {
-    margin-top: 0;
-    font-size: 1.5rem;
-    color: #334155;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-  .card-section h4 {
-    margin-top: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-  }
-  
-  /* Side-by-Side Profile Layout */
-  .side-by-side-container {
-    display: flex;
-    gap: 1.5rem;
-  }
-  .profile-column {
-    flex: 1;
-  }
-  .column-header {
-    margin-top: 0;
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    color: #475569;
-  }
-  .inner-details-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .inner-details-table th, .inner-details-table td {
-    text-align: left;
-    padding: 0.5rem 0.25rem;
-    border: none;
-  }
-  .inner-details-table th {
-    font-weight: 600;
-    font-size: 0.9em;
-    color: #64748b;
-  }
-  td.highlight-match {
-    background-color: #fef9c3;
-    border-radius: 4px;
-  }
-  
-  /* I4C Requirements Table */
-  .details-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 1.5rem;
-  }
-  .details-table th, .details-table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  .details-table th {
-    background-color: #f8fafc;
-  }
-  .action-checkbox {
-    width: 18px;
-    height: 18px;
-  }
-  
-  /* Action Form Grid Layout */
-  .action-form-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 1rem;
-    align-items: center;
-    max-width: 800px;
-    margin-top: 1.5rem;
-  }
-  .action-form-grid label {
-    font-weight: 600;
-    text-align: right;
-    color: #475569;
-  }
-  .form-input, .form-input-file {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
-  }
-  
-  /* Buttons */
-  .action-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #e2e8f0;
-  }
-  .save-btn, .submit-btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  .save-btn {
-    background-color: #e2e8f0;
-    color: #334155;
-  }
-  .save-btn:hover {
-    background-color: #cbd5e1;
-  }
-  .submit-btn {
-    background-color: #2563eb;
-    color: white;
-  }
-  .submit-btn:hover {
-    background-color: #1d4ed8;
-  }
+  padding: 2rem;
+  background-color: #f1f5f9;
+  min-height: 100vh;
+}
+.screen-header {
+  color: #1e293b;
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+}
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 
-  .closed-case-notice {
-    margin-top: 2rem;
-    padding: 1rem;
-    text-align: center;
-    font-weight: 500;
-    color: #475569;
-    background-color: #f1f5f9;
-    border-radius: 8px;
-  }
+/* Card Section Styling */
+.card-section {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+.card-section h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.card-section h4 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
 
-  .history-grid {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 1rem;
-    margin-top: 1.5rem;
-    font-size: 0.9em;
-  }
-  .history-grid strong {
-    font-weight: 600;
-    color: #475569;
-  }
-  .history-doc-list {
-    margin: 0;
-    padding-left: 1.2rem;
-  }
+/* Side-by-Side Profile Layout */
+.side-by-side-container {
+  display: flex;
+  gap: 1.5rem;
+}
+.profile-column {
+  flex: 1;
+}
+.column-header {
+  margin-top: 0;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: #475569;
+}
+.inner-details-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.inner-details-table th, .inner-details-table td {
+  text-align: left;
+  padding: 0.5rem 0.25rem;
+  border: none;
+}
+.inner-details-table th {
+  font-weight: 600;
+  font-size: 0.9em;
+  color: #64748b;
+}
+td.highlight-match {
+  background-color: #fef9c3;
+  border-radius: 4px;
+}
+
+/* I4C Requirements Table */
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+.details-table th, .details-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+.details-table th {
+  background-color: #f8fafc;
+}
+.action-checkbox {
+  width: 18px;
+  height: 18px;
+}
+
+/* Action Form Grid Layout */
+.action-form-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  max-width: 800px;
+  margin-top: 1.5rem;
+}
+.action-form-grid label {
+  font-weight: 600;
+  text-align: right;
+  color: #475569;
+}
+.form-input, .form-input-file {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+/* Buttons */
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+.save-btn, .submit-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.save-btn {
+  background-color: #e2e8f0;
+  color: #334155;
+}
+.save-btn:hover {
+  background-color: #cbd5e1;
+}
+.submit-btn {
+  background-color: #2563eb;
+  color: white;
+}
+.submit-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.closed-case-notice {
+  margin-top: 2rem;
+  padding: 1rem;
+  text-align: center;
+  font-weight: 500;
+  color: #475569;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.9em;
+}
+.history-grid strong {
+  font-weight: 600;
+  color: #475569;
+}
+.history-doc-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
