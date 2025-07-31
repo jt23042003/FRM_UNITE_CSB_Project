@@ -234,7 +234,7 @@ const payload = {
 // 4. Make the POST request to the API
 try {
   const response = await axios.post(
-    'http://34.47.219.225:9000/api/i4c-manual-file-confirm',
+    '/api/i4c-manual-file-confirm',
     payload, // Sending the JSON payload directly
     {
       headers: {
@@ -279,7 +279,7 @@ if (screenshotFile.value) {
 
 try {
   const response = await axios.post(
-    'http://34.47.219.225:9000/api/operational-confirm',
+    '/api/operational-confirm',
     formData,
     {
       headers: {
@@ -315,8 +315,8 @@ try {
 
   // 1. Correctly destructure all three results from the API calls
   const [combinedDataRes, documentListRes, savedActionRes] = await Promise.allSettled([
-    axios.get(`http://34.47.219.225:9000/api/combined-case-data/${case_id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-    axios.get('http://34.47.219.225:9000/api/i4c-document-list', { headers: { 'Authorization': `Bearer ${token}` } }),
+    axios.get(`/api/combined-case-data/${case_id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+    axios.get('/api/i4c-document-list', { headers: { 'Authorization': `Bearer ${token}` } }),
   ]);
 
   // --- Process combined case data result ---

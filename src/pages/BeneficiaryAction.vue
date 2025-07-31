@@ -1,5 +1,8 @@
 <template>
   <div class="pma-container">
+    <div v-if="isReadOnly" class="readonly-banner">
+      <span>This case is closed. Editing is disabled.</span>
+    </div>
     <div class="steps-header">
       <div class="steps-container">
         <div
@@ -27,21 +30,21 @@
             <div class="details-row">
               <div class="field-group">
                 <label>Name</label>
-                <input type="text" v-model="i4cDetails.name" readonly />
+                <input type="text" v-model="i4cDetails.name" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Mobile</label>
-                <input type="text" v-model="i4cDetails.mobile" readonly />
+                <input type="text" v-model="i4cDetails.mobile" :readonly="isReadOnly" />
               </div>
                <div class="field-group">
                 <label>Email</label>
-                <input type="text" v-model="i4cDetails.email" readonly />
+                <input type="text" v-model="i4cDetails.email" :readonly="isReadOnly" />
               </div>
             </div>
             <div class="details-row">
               <div class="field-group">
                 <label>Bank Account</label>
-                <input type="text" v-model="i4cDetails.bankAc" readonly />
+                <input type="text" v-model="i4cDetails.bankAc" :readonly="isReadOnly" />
               </div>
             </div>
           </div>
@@ -51,63 +54,63 @@
             <div class="details-row">
               <div class="field-group highlight">
                 <label>Name</label>
-                <input type="text" v-model="bankDetails.name" readonly />
+                <input type="text" v-model="bankDetails.name" :readonly="isReadOnly" />
               </div>
               <div class="field-group highlight">
                 <label>Mobile</label>
-                <input type="text" v-model="bankDetails.mobile" readonly />
+                <input type="text" v-model="bankDetails.mobile" :readonly="isReadOnly" />
               </div>
               <div class="field-group highlight">
                 <label>Email</label>
-                <input type="text" v-model="bankDetails.email" readonly />
+                <input type="text" v-model="bankDetails.email" :readonly="isReadOnly" />
               </div>
             </div>
             <div class="details-row">
                <div class="field-group">
                 <label>Customer ID</label>
-                <input type="text" v-model="bankDetails.customerId" readonly />
+                <input type="text" v-model="bankDetails.customerId" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Bank Account</label>
-                <input type="text" v-model="bankDetails.bankAc" readonly />
+                <input type="text" v-model="bankDetails.bankAc" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Account Status</label>
-                <input type="text" v-model="bankDetails.acStatus" readonly />
+                <input type="text" v-model="bankDetails.acStatus" :readonly="isReadOnly" />
               </div>
             </div>
              <div class="details-row">
               <div class="field-group">
                 <label>PAN</label>
-                <input type="text" v-model="bankDetails.pan" readonly />
+                <input type="text" v-model="bankDetails.pan" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Aadhaar</label>
-                <input type="text" v-model="bankDetails.aadhaar" readonly />
+                <input type="text" v-model="bankDetails.aadhaar" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Product Code</label>
-                <input type="text" v-model="bankDetails.productCode" readonly />
+                <input type="text" v-model="bankDetails.productCode" :readonly="isReadOnly" />
               </div>
             </div>
              <div class="details-row">
               <div class="field-group">
                 <label>AQB</label>
-                <input type="text" v-model="bankDetails.aqb" readonly />
+                <input type="text" v-model="bankDetails.aqb" :readonly="isReadOnly" />
               </div>
                <div class="field-group">
                 <label>Balance</label>
-                <input type="text" v-model="bankDetails.availBal" readonly />
+                <input type="text" v-model="bankDetails.availBal" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Relationship Value</label>
-                <input type="text" v-model="bankDetails.relValue" readonly />
+                <input type="text" v-model="bankDetails.relValue" :readonly="isReadOnly" />
               </div>
             </div>
              <div class="details-row">
               <div class="field-group">
                 <label>Vintage (MoB)</label>
-                <input type="text" v-model="bankDetails.mobVintage" readonly />
+                <input type="text" v-model="bankDetails.mobVintage" :readonly="isReadOnly" />
               </div>
             </div>
           </div>
@@ -116,36 +119,36 @@
 
       <div v-if="currentStep === 2" class="step-panel">
         <h3>Analysis & Investigation</h3>
+        <div class="form-section compact-analysis">
+          <div class="field-group">
+            <label>Analysis Update</label>
+            <div class="input-row">
+              <select v-model="action.analysisLOV" :disabled="isReadOnly" class="compact-select">
+                <option value="">Select Reason</option>
+                <option v-for="item in analysisReasons" :key="item.reason" :value="item.reason">{{ item.reason }}</option>
+              </select>
+              <textarea v-model="action.analysisUpdate" :disabled="isReadOnly" placeholder="Update details" class="compact-textarea analysis-textarea"></textarea>
+            </div>
+          </div>
+        </div>
+
         <div class="form-grid">
           <div class="form-section">
-            <div class="field-group">
-              <label>Analysis Update</label>
-              <div class="input-row">
-                <select v-model="action.analysisLOV" class="compact-select">
-                  <option value="">Select Reason</option>
-                  <option v-for="item in analysisReasons" :key="item.reason" :value="item.reason">{{ item.reason }}</option>
-                </select>
-                <textarea v-model="action.analysisUpdate" placeholder="Update details" class="compact-textarea"></textarea>
-              </div>
-            </div>
-            
             <div class="field-group">
               <label>Data Uploads</label>
               
               <div v-for="(uploadBlock, blockIndex) in action.dataUploads" :key="uploadBlock.id" class="data-upload-block">
                 
-                <button @click="removeDataUploadBlock(blockIndex)" v-if="action.dataUploads.length > 1" class="btn-remove-row" title="Remove Upload Section">×</button>
+                <button @click="removeDataUploadBlock(blockIndex)" v-if="action.dataUploads.length > 1" :disabled="isReadOnly" class="btn-remove-row" title="Remove Upload Section">×</button>
 
-                <textarea v-model="uploadBlock.comment" placeholder="Add comments for your uploads..." class="compact-textarea data-uploads-textarea"></textarea>
-                
-                <div class="file-upload-container">
-                  <div
-                    class="file-drop-zone"
+                <div class="upload-comment-row">
+                  <div class="file-drop-zone"
                     :class="{ 'drag-over': uploadBlock.isDragOver, 'has-files': uploadBlock.files.length > 0 }"
                     @dragover.prevent="onDragOver(blockIndex)"
                     @dragleave.prevent="onDragLeave(blockIndex)"
                     @drop.prevent="onFileDrop($event, blockIndex)"
                     @click="triggerFileInput(blockIndex)"
+                    :disabled="isReadOnly"
                   >
                     <div class="upload-icon">📁</div>
                     <div class="upload-text">
@@ -159,126 +162,149 @@
                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                       @change="onFileSelect($event, blockIndex)"
                       class="hidden-file-input"
+                      :disabled="isReadOnly"
                     />
                   </div>
-                  <div v-if="uploadBlock.files.length > 0" class="uploaded-files-list">
-                    <div class="files-header">
-                      <span>Uploaded Files ({{ uploadBlock.files.length }})</span>
-                    </div>
-                    <div
-                      v-for="(file, fileIndex) in uploadBlock.files"
-                      :key="fileIndex"
-                      class="file-item"
-                    >
-                      <div class="file-info">
-                        <div class="file-icon">{{ getFileIcon(file.type) }}</div>
-                        <div class="file-details">
-                          <div class="file-name-container">
-                            <input
-                              v-if="file.isRenaming"
-                              v-model="file.newName"
-                              @blur="saveFileName(blockIndex, fileIndex)"
-                              @keyup.enter="saveFileName(blockIndex, fileIndex)"
-                              @keyup.escape="cancelRename(blockIndex, fileIndex)"
-                              class="file-name-input"
-                              placeholder="Enter new name"
-                            />
-                            <span v-else class="file-name">{{ file.displayName }}</span>
-                          </div>
-                          <div class="file-meta">
-                            {{ formatFileSize(file.size) }} • {{ file.type.split('/')[1].toUpperCase() }}
-                          </div>
+                  
+                  <textarea v-model="uploadBlock.comment" :disabled="isReadOnly" placeholder="Add comments for your uploads..." class="compact-textarea data-uploads-textarea"></textarea>
+                </div>
+                
+                <div v-if="uploadBlock.files.length > 0" class="uploaded-files-list">
+                  <div class="files-header">
+                    <span>Uploaded Files ({{ uploadBlock.files.length }})</span>
+                  </div>
+                  <div
+                    v-for="(file, fileIndex) in uploadBlock.files"
+                    :key="fileIndex"
+                    class="file-item"
+                  >
+                    <div class="file-info">
+                      <div class="file-icon">{{ getFileIcon(file.type) }}</div>
+                      <div class="file-details">
+                        <div class="file-name-container">
+                          <input
+                            v-if="file.isRenaming"
+                            v-model="file.newName"
+                            @blur="saveFileName(blockIndex, fileIndex)"
+                            @keyup.enter="saveFileName(blockIndex, fileIndex)"
+                            @keyup.escape="cancelRename(blockIndex, fileIndex)"
+                            class="file-name-input"
+                            placeholder="Enter new name"
+                            :disabled="isReadOnly"
+                          />
+                          <span v-else class="file-name">{{ file.displayName }}</span>
+                        </div>
+                        <div class="file-meta">
+                          {{ formatFileSize(file.size) }} • {{ file.type.split('/')[1].toUpperCase() }}
                         </div>
                       </div>
-                      <div class="file-actions">
-                         <button
-                          v-if="!file.isRenaming"
-                          @click="startRename(blockIndex, fileIndex)"
-                          class="btn-file-action btn-rename"
-                          title="Rename file"
-                        >✏️</button>
-                        <button
-                          v-if="file.isRenaming"
-                          @click="saveFileName(blockIndex, fileIndex)"
-                          class="btn-file-action btn-save"
-                          title="Save name"
-                        >✅</button>
-                        <button
-                          v-if="file.isRenaming"
-                          @click="cancelRename(blockIndex, fileIndex)"
-                          class="btn-file-action btn-cancel"
-                          title="Cancel rename"
-                        >❌</button>
-                        <button
-                          @click="removeFile(blockIndex, fileIndex)"
-                          class="btn-file-action btn-remove"
-                          title="Remove file"
-                        >🗑️</button>
-                      </div>
+                    </div>
+                    <div class="file-actions">
+                       <button
+                        v-if="!file.isRenaming"
+                        @click="startRename(blockIndex, fileIndex)"
+                        class="btn-file-action btn-rename"
+                        title="Rename file"
+                        :disabled="isReadOnly"
+                      >✏️</button>
+                      <button
+                        v-if="file.isRenaming"
+                        @click="saveFileName(blockIndex, fileIndex)"
+                        class="btn-file-action btn-save"
+                        title="Save name"
+                        :disabled="isReadOnly"
+                      >✅</button>
+                      <button
+                        v-if="file.isRenaming"
+                        @click="cancelRename(blockIndex, fileIndex)"
+                        class="btn-file-action btn-cancel"
+                        title="Cancel rename"
+                        :disabled="isReadOnly"
+                      >❌</button>
+                      <button
+                        @click="removeFile(blockIndex, fileIndex)"
+                        class="btn-file-action btn-remove"
+                        title="Remove file"
+                        :disabled="isReadOnly"
+                      >🗑️</button>
                     </div>
                   </div>
                 </div>
               </div>
-              <button @click="addDataUploadBlock" class="btn-add-row">+ Add Upload Section</button>
-            </div>
+              <button @click="addDataUploadBlock" :disabled="isReadOnly || isReviewMode" class="btn-add-row">+ Add Upload Section</button>
             </div>
 
-          <div class="form-section">
+          </div>
+          
+          <!-- Assignment Section - Only show for non-review mode -->
+          <div class="form-section" v-if="!isReviewMode">
             <div class="field-group">
-              <label>Review Comments</label>
-              <div v-for="(review, index) in action.reviews" :key="review.id" class="review-comment-row">
-                 <div class="comment-user-selection-row">
-                    <select v-model="review.selectedDepartment" class="compact-select" @change="handleDepartmentChange(review)">
+              <label v-if="userRole !== 'others'">Assignments</label>
+              <label v-else>Send Back to Risk Officer</label>
+              
+              <!-- Assignment UI for Risk Officers -->
+              <div v-if="userRole !== 'others'">
+                <div v-for="(review, reviewIndex) in action.reviews" :key="review.id" class="review-comment-row">
+                  <div class="comment-user-selection-row">
+                    <select v-model="review.selectedDepartment" :disabled="isReadOnly" class="compact-select" @change="handleDepartmentChange(review)">
                       <option value="">Select Department</option>
                       <option v-for="dept in departments" :key="dept.id" :value="dept.name">
                         {{ dept.name }}
                       </option>
                     </select>
-                    <select v-model="review.userId" class="compact-select" :disabled="!review.selectedDepartment">
+                    <select v-model="review.userId" :disabled="isReadOnly || !review.selectedDepartment" class="compact-select">
                       <option value="">Select User</option>
-                      <option v-for="user in review.userList" :key="user.id" :value="user.id">
+                      <option v-for="user in review.userList" :key="user.id" :value="user.name">
                         {{ user.name }}
                       </option>
                     </select>
-                 </div>
-                 <textarea v-model="review.text" placeholder="Add comments..." class="compact-textarea"></textarea>
-                 <button @click="removeReviewCommentRow(index)" v-if="action.reviews.length > 1" class="btn-remove-row" title="Remove Assignment">×</button>
+                  </div>
+                  <textarea v-model="review.text" :disabled="isReadOnly" placeholder="Add comments..." class="compact-textarea"></textarea>
+                  <button @click="removeReviewCommentRow(reviewIndex)" v-if="action.reviews.length > 1" :disabled="isReadOnly" class="btn-remove-row" title="Remove Assignment Section">×</button>
+                </div>
+                <button @click="addReviewCommentRow" :disabled="isReadOnly" class="btn-add-row">+ Add Assignment Section</button>
+                <button v-if="!isReadOnly" @click="assignCase" class="btn-assign">Assign</button>
               </div>
-              <button @click="addReviewCommentRow" class="btn-add-row">+ Add Assignment</button>
+              
+              <!-- Send Back UI for Others -->
+              <div v-else>
+                <textarea v-model="sendBackComment" :disabled="isReadOnly" placeholder="Add comments for send back..." class="compact-textarea"></textarea>
+                <button v-if="!isReadOnly" @click="sendBackCase" class="btn-assign">Send Back</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="currentStep === 3" class="step-panel">
+      <div v-if="userRole !== 'others' && currentStep === 3" class="step-panel">
         <h3>Final Closure</h3>
         <div class="form-grid">
           <div class="form-section">
             <div class="field-group">
               <label>Closure Remarks</label>
               <div class="input-row">
-                <select v-model="action.closureLOV" class="compact-select">
+                <select v-model="action.closureLOV" :disabled="isReadOnly" class="compact-select">
                   <option value="">Select Reason</option>
                   <option v-for="item in closureReasons" :key="item.reason" :value="item.reason">
                     {{ item.reason }}
                   </option>
                 </select>
-                <textarea v-model="action.closureRemarks" placeholder="Closure remarks" class="compact-textarea"></textarea>
+                <textarea v-model="action.closureRemarks" :disabled="isReadOnly" placeholder="Closure remarks" class="compact-textarea"></textarea>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="currentStep === 4" class="step-panel">
+      <div v-if="userRole !== 'others' && currentStep === 4" class="step-panel">
         <h3>Confirmation</h3>
         <div class="confirmation-grid">
           <div class="confirm-section">
             <div class="confirm-row">
               <label>Confirmed Mule</label>
               <div class="radio-group">
-                <label><input type="radio" v-model="action.confirmedMule" value="Yes" name="confirmedMule" /> Yes</label>
-                <label><input type="radio" v-model="action.confirmedMule" value="No" name="confirmedMule" /> No</label>
+                <label><input type="radio" v-model="action.confirmedMule" value="Yes" name="confirmedMule" :disabled="isReadOnly" /> Yes</label>
+                <label><input type="radio" v-model="action.confirmedMule" value="No" name="confirmedMule" :disabled="isReadOnly" /> No</label>
               </div>
             </div>
             <div class="confirm-row">
@@ -286,7 +312,7 @@
               <input
                 type="number"
                 v-model="action.fundsSaved"
-                :disabled="action.confirmedMule !== 'Yes'"
+                :disabled="action.confirmedMule !== 'Yes' || isReadOnly"
                 class="compact-input"
                 placeholder="Amount"
               />
@@ -296,15 +322,56 @@
             <div class="confirm-row">
               <label>Digital Channel Blocked</label>
               <div class="radio-group">
-                <label><input type="radio" v-model="action.digitalBlocked" value="Yes" name="digitalBlocked" /> Yes</label>
-                <label><input type="radio" v-model="action.digitalBlocked" value="No" name="digitalBlocked" /> No</label>
+                <label><input type="radio" v-model="action.digitalBlocked" value="Yes" name="digitalBlocked" :disabled="isReadOnly" /> Yes</label>
+                <label><input type="radio" v-model="action.digitalBlocked" value="No" name="digitalBlocked" :disabled="isReadOnly" /> No</label>
               </div>
             </div>
             <div class="confirm-row">
               <label>Account Blocked</label>
               <div class="radio-group">
-                <label><input type="radio" v-model="action.accountBlocked" value="Yes" name="accountBlocked" /> Yes</label>
-                <label><input type="radio" v-model="action.accountBlocked" value="No" name="accountBlocked" /> No</label>
+                <label><input type="radio" v-model="action.accountBlocked" value="Yes" name="accountBlocked" :disabled="isReadOnly" /> Yes</label>
+                <label><input type="radio" v-model="action.accountBlocked" value="No" name="accountBlocked" :disabled="isReadOnly" /> No</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="currentStep === 2">
+        <div v-if="previouslyUploadedFiles.length > 0" class="uploaded-files-list improved-upload-list">
+          <h4>Previously Uploaded Files</h4>
+          <ul>
+            <li v-for="file in previouslyUploadedFiles" :key="file.id" class="uploaded-file-item">
+              <a :href="`/api/download/${file.id}`" target="_blank" class="file-link">
+                <span class="download-icon">⬇️</span> {{ file.original_filename }}
+              </a>
+              <div class="file-meta-small">
+                Uploaded: {{ new Date(file.uploaded_at).toLocaleString() }}
+                <span v-if="file.comment">- {{ file.comment }}</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+        
+        <!-- Assignment Status for Review Mode -->
+        <div v-if="isReviewMode && assignmentStatus.length > 0" class="assignment-status-section">
+          <h4>Assignment Status</h4>
+          <div class="assignment-list">
+            <div v-for="assignment in assignmentStatus" :key="assignment.assigned_to" class="assignment-item">
+              <div class="assignment-info">
+                <span class="assigned-user">{{ assignment.assigned_to }}</span>
+                <span class="assignment-date">{{ new Date(assignment.assign_date).toLocaleDateString() }}</span>
+                <span v-if="assignment.comment" class="assignment-comment">- {{ assignment.comment }}</span>
+              </div>
+              <div class="assignment-actions">
+                <button 
+                  v-if="userRole === 'risk_officer' && !assignment.sent_back" 
+                  @click="revokeAssignment(assignment.assigned_to)"
+                  class="btn-revoke"
+                  :disabled="isReadOnly"
+                >
+                  Revoke Assignment
+                </button>
+                <span v-if="assignment.sent_back" class="sent-back-badge">Sent Back</span>
               </div>
             </div>
           </div>
@@ -312,11 +379,23 @@
       </div>
     </div>
 
+    <div v-if="caseLogs.length > 0" class="case-logs-section">
+      <h4>Case Activity Log</h4>
+      <ul class="case-log-list">
+        <li v-for="log in caseLogs" :key="log.id" class="case-log-item">
+          <span class="log-time">{{ new Date(log.created_at).toLocaleString() }}</span>
+          <span class="log-user">{{ log.user_name }}</span>
+          <span class="log-action">[{{ log.action }}]</span>
+          <span class="log-details">{{ log.details }}</span>
+        </li>
+      </ul>
+    </div>
+
     <div class="bottom-navigation">
       <div class="nav-buttons">
         <button
           @click="previousStep"
-          :disabled="currentStep === 1"
+          :disabled="currentStep === 1 || isReadOnly"
           class="btn-nav btn-prev"
         >
           Previous
@@ -330,19 +409,23 @@
         </button>
       </div>
       <div class="action-buttons">
-        <button @click="saveAction" class="btn-save">Save</button>
-        <button @click="submitAction" class="btn-submit">Submit</button>
+        <button v-if="!isReadOnly && !isReviewMode" @click="saveAction" class="btn-save">Save</button>
+        <button v-if="!isReadOnly && userRole !== 'others' && !isReviewMode" @click="submitAction" class="btn-submit">Submit</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, onMounted, watch, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
 const route = useRoute();
+const router = useRouter();
+
+// Check if we're in review mode
+const isReviewMode = computed(() => route.query.review === 'true');
 
 // --- State Management ---
 const isLoading = ref(true);
@@ -354,16 +437,45 @@ const analysisReasons = ref([]);
 const departments = ref([]);
 const closureReasons = ref([]);
 
-// --- Stepper Logic ---
+const userRole = ref('');
+const assignmentStatus = ref([]); // Track assignment status for review mode
+
+// Fetch user role on mount (from /api/new-case-list)
+const fetchUserRole = async () => {
+  const token = localStorage.getItem('jwt');
+  const response = await axios.get('/api/new-case-list', {
+    headers: { 'Authorization': `Bearer ${token}` },
+    params: { ack_no: caseAckNo.value }
+  });
+  if (response.data && response.data.logged_in_user_type) {
+    userRole.value = response.data.logged_in_user_type;
+  }
+};
+
+// Adjust steps based on userRole and review mode
 const steps = ref([
   { title: 'Alert Details' },
   { title: 'Analysis' },
   { title: 'Closure' },
   { title: 'Confirmation' }
 ]);
-const goToStep = (step) => { if (!isLoading.value || step === 1) currentStep.value = step; };
-const nextStep = () => { if (currentStep.value < steps.value.length) currentStep.value++; };
-const previousStep = () => { if (currentStep.value > 1) currentStep.value--; };
+
+watch(userRole, (role) => {
+  if (role === 'others' || isReviewMode.value) {
+    steps.value = [
+      { title: 'Alert Details' },
+      { title: 'Analysis' }
+    ];
+    if (currentStep.value > 2) currentStep.value = 2;
+  } else {
+    steps.value = [
+      { title: 'Alert Details' },
+      { title: 'Analysis' },
+      { title: 'Closure' },
+      { title: 'Confirmation' }
+    ];
+  }
+});
 
 // --- Data Models ---
 const i4cDetails = ref({});
@@ -392,11 +504,13 @@ const addReviewCommentRow = () => {
     userList: []
   });
 };
+
 const removeReviewCommentRow = (index) => {
   if (action.value.reviews.length > 1) {
     action.value.reviews.splice(index, 1);
   }
 };
+
 const handleDepartmentChange = async (review) => {
   review.userId = '';
   review.userList = [];
@@ -447,7 +561,7 @@ const formatFileSize = (bytes) => {
 };
 
 const triggerFileInput = (blockIndex) => {
-  if(fileInputRefs.value[blockIndex]) {
+  if(fileInputRefs.value[blockIndex] && !isReadOnly.value) {
     fileInputRefs.value[blockIndex].click();
   }
 };
@@ -460,7 +574,9 @@ const addFiles = (files, blockIndex) => {
 };
 
 const onFileSelect = (event, blockIndex) => {
-  addFiles(Array.from(event.target.files), blockIndex);
+  if (!isReadOnly.value) {
+    addFiles(Array.from(event.target.files), blockIndex);
+  }
   event.target.value = '';
 };
 
@@ -468,7 +584,9 @@ const onDragOver = (blockIndex) => action.value.dataUploads[blockIndex].isDragOv
 const onDragLeave = (blockIndex) => action.value.dataUploads[blockIndex].isDragOver = false;
 const onFileDrop = (event, blockIndex) => {
   action.value.dataUploads[blockIndex].isDragOver = false;
-  addFiles(Array.from(event.dataTransfer.files), blockIndex);
+  if (!isReadOnly.value) {
+    addFiles(Array.from(event.dataTransfer.files), blockIndex);
+  }
 };
 
 const startRename = (blockIndex, fileIndex) => action.value.dataUploads[blockIndex].files[fileIndex].isRenaming = true;
@@ -483,14 +601,16 @@ const cancelRename = (blockIndex, fileIndex) => {
   file.isRenaming = false;
 };
 const removeFile = (blockIndex, fileIndex) => {
-  action.value.dataUploads[blockIndex].files.splice(fileIndex, 1);
+  if (!isReadOnly.value) {
+    action.value.dataUploads[blockIndex].files.splice(fileIndex, 1);
+  }
 };
 
 
 // --- API Integration ---
 const fetchAnalysisReasons = async () => {
   try {
-    const response = await axios.get('http://34.47.219.225:9000/reasons/api/investigation-review');
+    const response = await axios.get('/api/investigation-review');
     if (response.data) analysisReasons.value = response.data;
   } catch (err) { console.error("Failed to fetch analysis reasons:", err); }
 };
@@ -504,10 +624,12 @@ const fetchDepartments = async () => {
 
 const fetchClosureReasons = async () => {
   try {
-    const response = await axios.get('http://34.47.219.225:9000/reasons/api/final-closure');
+    const response = await axios.get('/api/final-closure');
     if (response.data) closureReasons.value = response.data;
   } catch (err) { console.error("Failed to fetch closure reasons:", err); }
 };
+
+const caseAckNo = ref('');
 
 const fetchCaseDetails = async () => {
   const caseId = route.params.case_id;
@@ -517,27 +639,28 @@ const fetchCaseDetails = async () => {
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   
   if (response.data) {
-    const { i4c_data = {}, customer_details = {}, account_details, acc_num, action_details } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status, source_ack_no } = response.data;
+    caseAckNo.value = source_ack_no || '';
     i4cDetails.value = { 
-      name: i4c_data.customer_name || 'N/A', 
-      mobile: i4c_data.mobile || 'N/A', 
-      email: i4c_data.email || 'N/A', 
-      bankAc: i4c_data.account_number || 'N/A' 
+      name: i4c_data?.customer_name || 'N/A', 
+      mobile: i4c_data?.mobile || 'N/A', 
+      email: i4c_data?.email || 'N/A', 
+      bankAc: i4c_data?.account_number || 'N/A' 
     };
     bankDetails.value = { 
-      name: `${customer_details.fname || ''} ${customer_details.mname || ''} ${customer_details.lname || ''}`.trim() || 'N/A', 
-      mobile: customer_details.mobile || 'N/A', 
-      email: customer_details.email || 'N/A', 
-      customerId: customer_details.cust_id || 'N/A', 
+      name: `${customer_details?.fname || ''} ${customer_details?.mname || ''} ${customer_details?.lname || ''}`.trim() || 'N/A', 
+      mobile: customer_details?.mobile || 'N/A', 
+      email: customer_details?.email || 'N/A', 
+      customerId: customer_details?.cust_id || 'N/A', 
       bankAc: acc_num || 'N/A', 
       acStatus: account_details?.acc_status || 'N/A', 
-      pan: customer_details.pan || 'N/A', 
-      aadhaar: customer_details.nat_id || 'N/A', 
+      pan: customer_details?.pan || 'N/A', 
+      aadhaar: customer_details?.nat_id || 'N/A', 
       productCode: account_details?.productCode || 'N/A', 
       aqb: account_details?.aqb || 'N/A', 
       availBal: account_details?.availBal || 'N/A', 
-      relValue: customer_details.rel_value || 'N/A', 
-      mobVintage: customer_details.mob || 'N/A' 
+      relValue: customer_details?.rel_value || 'N/A', 
+      mobVintage: customer_details?.mob || 'N/A' 
     };
     if (action_details) {
       Object.assign(action.value, action_details);
@@ -545,9 +668,114 @@ const fetchCaseDetails = async () => {
       if (!Array.isArray(action.value.dataUploads) || action.value.dataUploads.length === 0) {
         action.value.dataUploads = [{ id: Date.now(), comment: '', files: [], isDragOver: false }];
       }
+      // Ensure reviews is an array, if loading saved data
+      if (!Array.isArray(action.value.reviews) || action.value.reviews.length === 0) {
+        action.value.reviews = [{ id: Date.now(), selectedDepartment: '', userId: '', text: '', userList: [] }];
+      }
+    }
+    // Set isReadOnly based on real case status
+    if (typeof status === 'string' && status.trim().toLowerCase() === 'closed') {
+      isReadOnly.value = true;
+    } else {
+      isReadOnly.value = false;
     }
   } else { 
     throw new Error('Received no data for this case.'); 
+  }
+};
+
+const previouslyUploadedFiles = ref([]);
+const isReadOnly = ref(false);
+const caseLogs = ref([]);
+
+const sendBackComment = ref('');
+const hasUnsavedChanges = ref(false);
+
+// Mark as unsaved on any change
+watch(action, () => { hasUnsavedChanges.value = true; }, { deep: true });
+
+const sendBackCase = async () => {
+  if (hasUnsavedChanges.value) {
+    alert('Please click on Save before Send Back.');
+    return;
+  }
+  if (!sendBackComment.value.trim()) {
+    alert('Please enter a comment before sending back.');
+    return;
+  }
+  const ackNo = caseAckNo.value;
+  const token = localStorage.getItem('jwt');
+  try {
+    await axios.post(`/api/case/${ackNo}/send-back`, { comment: sendBackComment.value }, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    alert('Case sent back successfully!');
+    sendBackComment.value = '';
+    // Refresh logs and assignment
+    const caseId = route.params.case_id;
+    const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    caseLogs.value = logsResp.data.logs || [];
+    await fetchUserRole();
+    // Redirect to case details page after successful send back
+    window.location.href = `/case-details`;
+  } catch (err) {
+    alert('Failed to send back case.');
+    console.error('Send back error:', err);
+  }
+};
+
+const goToStep = (step) => {
+  if (isLoading.value) return;
+  if (userRole.value === 'others' && step > 2) return;
+  currentStep.value = step;
+};
+const nextStep = () => {
+  if (userRole.value === 'others') {
+    if (currentStep.value < 2) currentStep.value++;
+  } else {
+    if (currentStep.value < steps.value.length) currentStep.value++;
+  }
+};
+const previousStep = () => {
+  if (currentStep.value > 1) currentStep.value--;
+};
+
+const fetchAssignmentStatus = async () => {
+  if (!isReviewMode.value) return;
+  
+  const caseId = route.params.case_id;
+  const token = localStorage.getItem('jwt');
+  try {
+    const response = await axios.get(`/api/case/${caseId}/assignments`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    assignmentStatus.value = response.data.assignments || [];
+  } catch (err) {
+    console.error('Failed to fetch assignment status:', err);
+  }
+};
+
+const revokeAssignment = async (assignedTo) => {
+  const ackNo = caseAckNo.value;
+  const token = localStorage.getItem('jwt');
+  try {
+    await axios.post(`/api/case/${ackNo}/revoke-assignment`, 
+      { assigned_to_employee: assignedTo },
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    alert(`Assignment revoked from ${assignedTo} successfully!`);
+    await fetchAssignmentStatus();
+    // Refresh logs
+    const caseId = route.params.case_id;
+    const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    caseLogs.value = logsResp.data.logs || [];
+  } catch (err) {
+    alert('Failed to revoke assignment.');
+    console.error('Revoke error:', err);
   }
 };
 
@@ -555,8 +783,28 @@ onMounted(async () => {
   isLoading.value = true;
   fetchError.value = null;
   try {
+    // Fetch latest saved action data and files
+    const caseId = route.params.case_id;
+    const token = localStorage.getItem('jwt');
+    const resp = await axios.get('/api/case-action/latest', {
+      params: { case_id: caseId },
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (resp.data && resp.data.action_data && resp.data.action_data.action_data) {
+      Object.assign(action.value, resp.data.action_data.action_data);
+    }
+    if (resp.data && resp.data.files) {
+      previouslyUploadedFiles.value = resp.data.files;
+    }
+    // Fetch logs
+    const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    caseLogs.value = logsResp.data.logs || [];
+    await fetchCaseDetails();
+    await fetchUserRole();
+    await fetchAssignmentStatus();
     await Promise.all([
-      fetchCaseDetails(),
       fetchAnalysisReasons(),
       fetchDepartments(),
       fetchClosureReasons()
@@ -571,11 +819,97 @@ onMounted(async () => {
 
 // --- Action Buttons ---
 const saveAction = async () => {
-  console.log('Saving action:', action.value);
+  const caseId = route.params.case_id;
+  // You may need to get case_type from route or data; here we use a placeholder
+  const caseType = bankDetails.value.caseType || 'BM'; // Adjust as needed
+  const formData = new FormData();
+  formData.append('case_id', caseId);
+  formData.append('case_type', caseType);
+  formData.append('action_data', JSON.stringify(action.value));
+
+  // Collect all files from all upload blocks
+  action.value.dataUploads.forEach((block) => {
+    if (block.files && block.files.length > 0) {
+      block.files.forEach((fileObj) => {
+        if (fileObj.file && (fileObj.file instanceof File || fileObj.file instanceof Blob)) {
+          formData.append('files', fileObj.file, fileObj.displayName || fileObj.file.name);
+        }
+      });
+    }
+  });
+
+  try {
+    const token = localStorage.getItem('jwt');
+    await axios.post('/api/case-action/save', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    alert('Case action saved successfully!');
+    hasUnsavedChanges.value = false;
+  } catch (err) {
+    alert('Failed to save case action.');
+    console.error('Failed to save case action:', err);
+  }
 };
 
 const submitAction = async () => {
-  console.log('Submitting action:', action.value);
+  if (hasUnsavedChanges.value) {
+    alert('Please click on Save before Submit.');
+    return;
+  }
+  const caseId = route.params.case_id;
+  try {
+    const token = localStorage.getItem('jwt');
+    await axios.post('/api/case/submit',
+      { case_id: caseId },
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    // Redirect to case details page after successful submit
+    window.location.href = `/case-details`;
+  } catch (err) {
+    console.error('Failed to submit case:', err);
+  }
+};
+
+const assignCase = async () => {
+  if (hasUnsavedChanges.value) {
+    alert('Please click on Save before Assign.');
+    return;
+  }
+  
+  // Validate that all assignments have users selected
+  const validAssignments = action.value.reviews.filter(review => review.userId && review.userId.trim());
+  if (validAssignments.length === 0) {
+    alert('Please select at least one user to assign.');
+    return;
+  }
+  
+  const token = localStorage.getItem('jwt');
+  const ackNo = caseAckNo.value;
+  if (!ackNo) {
+    alert('No valid case ACK No found.');
+    return;
+  }
+  
+  try {
+    // Assign to multiple users
+    const assignmentPromises = validAssignments.map(async (review) => {
+      return axios.post(`/api/case/${ackNo}/assign`, 
+        { assigned_to_employee: review.userId, comment: review.text || '' }, 
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+    });
+    
+    await Promise.all(assignmentPromises);
+    alert(`Case assigned to ${validAssignments.length} user(s) successfully!`);
+    // Redirect to case details page after successful assignment
+    window.location.href = `/case-details`;
+  } catch (err) {
+    alert('Failed to assign case.');
+    console.error('Assignment error:', err);
+  }
 };
 </script>
 
@@ -766,9 +1100,92 @@ const submitAction = async () => {
   resize: vertical;
   font-family: inherit;
 }
+
+/* Professional Styling */
+/* .step-panel {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.step-panel h3 {
+  color: #2c3e50;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e9ecef;
+} */
+
+/* Compact Analysis Section */
+.compact-analysis {
+  margin-bottom: 16px;
+}
+
+.analysis-textarea {
+  min-height: 40px !important;
+  max-height: 60px !important;
+}
+
+
+
+
+
+/* Professional Button Styling */
+
+
+/* .btn-add-row {
+  background: #e9ecef;
+  color: #495057;
+  border: 2px dashed #ced4da;
+}
+
+.btn-add-row:hover {
+  background: #dee2e6;
+  border-color: #adb5bd;
+}
+
+.btn-assign, .btn-save, .btn-submit {
+  background: #0d6efd;
+  color: white;
+}
+
+.btn-assign:hover, .btn-save:hover, .btn-submit:hover {
+  background: #0b5ed7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Professional File Upload Styling */
+/* .file-drop-zone {
+  border: 2px dashed #dee2e6 !important;
+  background: #f8f9fa !important;
+  transition: all 0.3s ease !important;
+}
+
+.file-drop-zone:hover {
+  border-color: #0d6efd !important;
+  background: #e7f3ff !important;
+}
+
+.file-drop-zone.drag-over {
+  border-color: #0d6efd !important;
+  background: #e7f3ff !important;
+  transform: scale(1.02);
+}
+
+/* Professional Section Headers */
+.field-group label {
+  font-weight: 600 !important;
+  color: #2c3e50 !important;
+  margin-bottom: 8px !important;
+  font-size: 14px !important;
+}
 .data-uploads-textarea {
   margin-bottom: 12px;
-}
+}  
 
 /* Dynamic Upload Block Style */
 .data-upload-block {
@@ -778,6 +1195,68 @@ const submitAction = async () => {
   padding: 16px;
   margin-bottom: 16px;
   background: #fdfdfd;
+}
+
+/* Upload Comment Row with File Drop Zone */
+.upload-comment-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.upload-comment-row .data-uploads-textarea {
+  flex: 1;
+  margin-bottom: 0;
+  min-height: 120px;
+  max-height: 200px;
+  width: 50%;
+}
+
+.upload-comment-row .file-drop-zone {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border: 1px dashed #ced4da;
+  border-radius: 6px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 50%;
+}
+
+.upload-comment-row .file-drop-zone:hover {
+  border-color: #0d6efd;
+  background: #e9ecef;
+}
+
+.upload-comment-row .file-drop-zone.drag-over {
+  border-color: #0d6efd;
+  background: #e9ecef;
+}
+
+.upload-comment-row .upload-icon {
+  font-size: 24px;
+  color: #0d6efd;
+  margin-bottom: 8px;
+}
+
+.upload-comment-row .upload-text {
+  font-size: 11px;
+  color: #6c757d;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.upload-comment-row .upload-text strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #495057;
 }
 
 /* Comment/Assignment Rows */
@@ -866,9 +1345,9 @@ const submitAction = async () => {
 
 /* File Upload Styles */
 .file-upload-container {
-  border: 2px dashed #ced4da;
-  border-radius: 6px;
-  padding: 20px;
+  border: 1px dashed #ced4da;
+  border-radius: 4px;
+  padding: 8px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
@@ -886,47 +1365,48 @@ const submitAction = async () => {
   background: #e9ecef;
 }
 .upload-icon {
-  font-size: 48px;
+  font-size: 24px;
   color: #0d6efd;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
 .upload-text {
-  font-size: 14px;
+  font-size: 11px;
   color: #6c757d;
+  line-height: 1.3;
 }
 .hidden-file-input { display: none; }
 .uploaded-files-list {
-  margin-top: 15px;
+  margin-top: 8px;
   background: #fff;
   border: 1px solid #e9ecef;
-  border-radius: 6px;
-  max-height: 150px;
+  border-radius: 4px;
+  max-height: 100px;
   overflow-y: auto;
   text-align: left;
 }
 .files-header {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   color: #495057;
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-bottom: 1px solid #dee2e6;
 }
 .file-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-bottom: 1px solid #e9ecef;
 }
 .file-item:last-child { border-bottom: none; }
 .file-info { display: flex; align-items: center; gap: 10px; }
-.file-icon { font-size: 24px; }
+.file-icon { font-size: 16px; }
 .file-details { display: flex; flex-direction: column; }
 .file-name-container { display: flex; align-items: center; gap: 5px; }
-.file-name-input { padding: 4px 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px; }
-.file-meta { font-size: 12px; color: #6c757d; }
+.file-name-input { padding: 3px 5px; border: 1px solid #ced4da; border-radius: 3px; font-size: 12px; }
+.file-meta { font-size: 10px; color: #6c757d; }
 .file-actions { display: flex; gap: 5px; }
-.btn-file-action { background: none; border: none; cursor: pointer; padding: 4px; font-size: 16px;}
+.btn-file-action { background: none; border: none; cursor: pointer; padding: 3px; font-size: 14px;}
 
 /* Bottom Navigation */
 .bottom-navigation {
@@ -964,6 +1444,7 @@ const submitAction = async () => {
   .details-row { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .input-row, .comment-user-selection-row { grid-template-columns: 1fr; gap: 8px; }
 }
+
 @media (max-width: 768px) {
   .pma-container { padding: 12px; }
   .steps-container { flex-direction: column; gap: 8px; }
@@ -971,6 +1452,17 @@ const submitAction = async () => {
   .details-row, .confirm-row { grid-template-columns: 1fr; }
   .bottom-navigation { flex-direction: column; gap: 12px; }
   .nav-buttons, .action-buttons { width: 100%; justify-content: center; }
+  
+  .upload-comment-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .upload-comment-row .file-drop-zone {
+    min-width: auto;
+    width: 100%;
+    min-height: 80px;
+  }
 }
 
 /* Custom Scrollbar */
@@ -978,4 +1470,217 @@ const submitAction = async () => {
 .step-content::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
 .step-content::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
 .step-content::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+.readonly-banner {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.improved-upload-list {
+  background: #f7fafd;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  padding: 18px 24px 10px 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.improved-upload-list h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a3a5d;
+}
+.uploaded-file-item {
+  margin-bottom: 10px;
+  padding: 10px 0 8px 0;
+  border-bottom: 1px solid #e3e8ee;
+  display: flex;
+  flex-direction: column;
+}
+.uploaded-file-item:last-child {
+  border-bottom: none;
+}
+.file-link {
+  font-size: 15px;
+  font-weight: 500;
+  color: #0d6efd;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-link:hover {
+  text-decoration: underline;
+}
+.download-icon {
+  font-size: 18px;
+  color: #0d6efd;
+}
+.file-meta-small {
+  font-size: 12px;
+  color: #6c757d;
+  margin-left: 26px;
+  margin-top: 2px;
+}
+.btn-assign {
+  width: 100%;
+  padding: 8px;
+  background-color: #e7f3ff;
+  color: #0d6efd;
+  border: 1px solid #0d6efd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.btn-assign:hover {
+  background-color: #d1e7ff;
+}
+.case-logs-section {
+  background: #f8f9fa;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  padding: 18px 24px 10px 24px;
+  margin-top: 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.case-logs-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a3a5d;
+}
+.case-log-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.case-log-item {
+  margin-bottom: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e3e8ee;
+  font-size: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.case-log-item:last-child {
+  border-bottom: none;
+}
+.log-time {
+  color: #6c757d;
+  font-size: 12px;
+  min-width: 120px;
+}
+.log-user {
+  color: #0d6efd;
+  font-weight: 500;
+}
+.log-action {
+  color: #28a745;
+  font-weight: 500;
+}
+.log-details {
+  color: #495057;
+  font-size: 13px;
+}
+
+/* Assignment Status Styles */
+.assignment-status-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.assignment-status-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a3a5d;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+.assignment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.assignment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #e9ecef;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #343a40;
+}
+.assignment-info {
+  display: flex;
+  flex-direction: column;
+}
+.assigned-user {
+  font-weight: 500;
+  color: #0d6efd;
+}
+.assignment-date {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+.assignment-comment {
+  font-style: italic;
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+}
+.assignment-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-revoke {
+  padding: 4px 8px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-revoke:hover {
+  background-color: #f5c6cb;
+  border-color: #dc3545;
+  color: #dc3545;
+}
+.btn-revoke:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+.sent-back-badge {
+  padding: 4px 8px;
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
 </style>

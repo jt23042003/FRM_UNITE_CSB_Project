@@ -39,6 +39,12 @@
             <span v-if="!collapsed">Case Details</span>
           </router-link>
         </li>
+        <li v-if="userRole !== 'others'">
+          <router-link to="/review-assigned-cases" class="sidebar-link" active-class="active">
+            <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span v-if="!collapsed">Review Assigned Cases</span>
+          </router-link>
+        </li>
       </ul>
       <div class="sidebar-bottom">
         <button class="sidebar-link sidebar-logout" @click="logout">
@@ -58,12 +64,13 @@
   </template>
   
   <script setup>
-  import { ref } from 'vue';
+  import { ref, onMounted } from 'vue';
   import { useRouter } from 'vue-router';
   import axios from 'axios';
   
   const collapsed = ref(false);
   const router = useRouter();
+  const userRole = ref('');
   
   function toggleSidebar() {
     collapsed.value = !collapsed.value;
@@ -74,6 +81,26 @@
     delete axios.defaults.headers.common['Authorization'];
     router.push('/login');
   }
+  
+  // Fetch user role on mount
+  const fetchUserRole = async () => {
+    try {
+      const token = localStorage.getItem('jwt');
+      if (!token) return;
+      
+      const response = await axios.get('/api/new-case-list', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data && response.data.logged_in_user_type) {
+        userRole.value = response.data.logged_in_user_type;
+      }
+    } catch (err) {
+      console.error('Failed to fetch user role:', err);
+    }
+  };
+  
+  onMounted(fetchUserRole);
   </script>
   
   <style scoped>

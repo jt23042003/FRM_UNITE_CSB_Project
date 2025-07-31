@@ -23,6 +23,7 @@ const routes = [
       { path: 'data-entry', name: 'DataEntry', component: I4CCaseEntry },
       { path: 'bulk-upload', name: 'BulkUpload', component: BulkFileUpload },
       { path: 'case-details', name: 'CaseDetails', component: CaseDetails },
+      { path: 'review-assigned-cases', name: 'ReviewAssignedCases', component: () => import('@/pages/ReviewAssignedCases.vue') },
       
       // --- All your case detail pages ---
       {

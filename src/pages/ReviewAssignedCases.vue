@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-bg">
     <div class="dashboard-header">
-      <h2>Case View Dashboard</h2>
+      <h2>Review Assigned Cases</h2>
       <div class="filters-row">
         <div class="search-bar-container">
           <span class="search-icon">
@@ -42,7 +42,7 @@
             <th>Location</th>
             <th>Disputed Amount</th>
             <th>Created By</th>
-            <th>Created Time</th>
+            <th>Assigned Time</th>
             <th>Status</th>
             <th>Assigned To</th>
           </tr>
@@ -73,9 +73,10 @@
             </td>
             <td>{{ caseItem.created_by || '-' }}</td>
             <td>
-              <span v-if="caseItem.creation_date || caseItem.creation_time">
-                {{ caseItem.creation_date ? new Date(caseItem.creation_date).toLocaleDateString('en-IN') : '-' }}
-                <span v-if="caseItem.creation_time">{{ ' ' + caseItem.creation_time.slice(0,8) }}</span>
+              <!-- Show actual assignment date and time -->
+              <span v-if="caseItem.assign_date || caseItem.assign_time">
+                {{ caseItem.assign_date ? new Date(caseItem.assign_date).toLocaleDateString('en-IN') : '-' }}
+                <span v-if="caseItem.assign_time">{{ ' ' + caseItem.assign_time.slice(0,8) }}</span>
               </span>
               <span v-else>-</span>
             </td>
@@ -84,10 +85,15 @@
                 {{ caseItem.status || '-' }}
               </span>
             </td>
-            <td>{{ caseItem.assigned_to || '-' }}</td>
+            <td>
+              <span v-if="caseItem.assigned_to" class="assigned-users">
+                {{ caseItem.assigned_to }}
+              </span>
+              <span v-else>-</span>
+            </td>
           </tr>
           <tr v-if="pagedCases.length === 0">
-            <td colspan="10" style="text-align:center; padding: 20px;">No cases found.</td>
+            <td colspan="10" style="text-align:center; padding: 20px;">No assigned cases found.</td>
           </tr>
         </tbody>
       </table>
@@ -137,10 +143,10 @@ const complaintTypes = [
 
 const cases = ref([])
 const page = ref(1)
-const pageSize = 13 // Changed to match the reference design
+const pageSize = 13
 const loading = ref(false)
 const error = ref(null)
-const totalItems = ref(0) // Add total items count from server
+const totalItems = ref(0)
 
 const filters = ref({
   ackNo: '',
@@ -168,7 +174,7 @@ function getCaseLink(caseItem) {
   return {
     name: routeName,
     params: { case_id: caseItem.case_id },
-    query: { status: caseItem.status }
+    query: { status: caseItem.status, review: 'true' }
   }
 }
 
@@ -181,7 +187,7 @@ const fetchCases = async () => {
       throw new Error("Authentication token not found")
     }
 
-    const response = await axios.get(API_ENDPOINTS.NEW_CASE_LIST, {
+    const response = await axios.get('/api/assigned-cases', {
       headers: {
         'Authorization': `Bearer ${token}`
       },
@@ -195,10 +201,8 @@ const fetchCases = async () => {
 
     if (response.data && Array.isArray(response.data.cases)) {
       cases.value = response.data.cases
-      // Since the backend doesn't return total_count, we'll estimate based on current page
-      // If we have a full page, assume there are more pages
       if (response.data.cases.length === pageSize) {
-        totalItems.value = page.value * pageSize + 1 // Estimate
+        totalItems.value = page.value * pageSize + 1
       } else {
         totalItems.value = (page.value - 1) * pageSize + response.data.cases.length
       }
@@ -219,8 +223,27 @@ const fetchCases = async () => {
 
 onMounted(fetchCases)
 
-// Remove the filteredCases computed property since we're using server-side filtering
-const pagedCases = computed(() => cases.value)
+// Consolidate cases by case_id and combine assigned_to values
+const pagedCases = computed(() => {
+  const consolidatedCases = new Map()
+  
+  cases.value.forEach(caseItem => {
+    const caseId = caseItem.case_id
+    
+    if (consolidatedCases.has(caseId)) {
+      // Case already exists, append assigned_to to existing list
+      const existingCase = consolidatedCases.get(caseId)
+      if (caseItem.assigned_to && !existingCase.assigned_to.includes(caseItem.assigned_to)) {
+        existingCase.assigned_to = existingCase.assigned_to + ', ' + caseItem.assigned_to
+      }
+    } else {
+      // New case, add to map
+      consolidatedCases.set(caseId, { ...caseItem })
+    }
+  })
+  
+  return Array.from(consolidatedCases.values())
+})
 
 const prevPage = () => {
   if (page.value > 1) {
@@ -252,7 +275,6 @@ const clearFilters = () => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
   margin-top: 24px;
   padding: 0 0 16px 0;
-  /* Add max-height and overflow for scroll */
   max-height: 60vh;
   overflow-y: auto;
 }
@@ -276,19 +298,6 @@ const clearFilters = () => {
   border-bottom: 1px solid #e0e0e0;
 }
 
-/* Optional: Make the table body scrollable if you want to keep the header always visible */
-/*
-.dashboard-table-card {
-  display: flex;
-  flex-direction: column;
-}
-.case-table {
-  display: block;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-*/
-
 .pagination-row {
   display: flex;
   justify-content: space-between;
@@ -297,5 +306,17 @@ const clearFilters = () => {
   padding: 0 16px;
 }
 
-/* Keep the rest of your styles unchanged */
-</style>
+.assigned-users {
+  display: inline-block;
+  background: #f0f8ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #2c5aa0;
+  border: 1px solid #d1e7ff;
+  white-space: normal;
+  word-wrap: break-word;
+  max-width: 250px;
+  line-height: 1.3;
+}
+</style> 
