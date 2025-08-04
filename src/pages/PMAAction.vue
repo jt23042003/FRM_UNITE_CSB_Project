@@ -19,7 +19,7 @@
     <div class="step-content">
       <!-- Step 1: Alert & Customer Details -->
       <div v-if="currentStep === 1" class="step-panel">
-        <h3>Alert - Potential Mule Account</h3>
+        <h3>Alert - Potential Suspect Account</h3>
         <div class="comparison-grid">
           <!-- I4C Details -->
           <div class="details-section">

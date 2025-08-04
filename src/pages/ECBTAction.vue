@@ -106,19 +106,21 @@
 
       <div v-if="currentStep === 2" class="step-panel">
         <h3>Analysis & Investigation</h3>
+        <div class="form-section compact-analysis">
+          <div class="field-group">
+            <label>Analysis Update</label>
+            <div class="input-row">
+              <select v-model="action.analysisLOV" :disabled="isReadOnly" class="compact-select">
+                <option value="">Select Reason</option>
+                <option v-for="item in analysisReasons" :key="item.reason" :value="item.reason">{{ item.reason }}</option>
+              </select>
+              <textarea v-model="action.analysisUpdate" :disabled="isReadOnly" placeholder="Update details" class="compact-textarea analysis-textarea"></textarea>
+            </div>
+          </div>
+        </div>
+
         <div class="form-grid">
           <div class="form-section">
-            <div class="field-group">
-              <label>Analysis Update</label>
-              <div class="input-row">
-                <select v-model="action.analysisLOV" :disabled="isReadOnly" class="compact-select">
-                  <option value="">Select Reason</option>
-                  <option v-for="item in analysisReasons" :key="item.reason" :value="item.reason">{{ item.reason }}</option>
-                </select>
-                <textarea v-model="action.analysisUpdate" :disabled="isReadOnly" placeholder="Update details" class="compact-textarea"></textarea>
-              </div>
-            </div>
-            
             <div class="field-group">
               <label>Data Uploads</label>
               
@@ -216,34 +218,39 @@
                   </div>
                 </div>
               </div>
-              <button @click="addDataUploadBlock" :disabled="isReadOnly" class="btn-add-row">+ Add Upload Section</button>
-            </div>
+              <button @click="addDataUploadBlock" :disabled="isReadOnly || isReviewMode" class="btn-add-row">+ Add Upload Section</button>
             </div>
 
-          <div class="form-section">
+          </div>
+          
+          <div class="form-section" v-if="!isReviewMode">
             <div class="field-group">
               <label v-if="userRole !== 'others'">Assignments</label>
               <label v-else>Send Back to Risk Officer</label>
+              
               <div v-if="userRole !== 'others'">
-                <div class="review-comment-row">
+                <div v-for="(review, reviewIndex) in action.reviews" :key="review.id" class="review-comment-row">
                   <div class="comment-user-selection-row">
-                    <select v-model="action.reviews[0].selectedDepartment" :disabled="isReadOnly" class="compact-select" @change="handleDepartmentChange(action.reviews[0])">
+                    <select v-model="review.selectedDepartment" :disabled="isReadOnly" class="compact-select" @change="handleDepartmentChange(review)">
                       <option value="">Select Department</option>
                       <option v-for="dept in departments" :key="dept.id" :value="dept.name">
                         {{ dept.name }}
                       </option>
                     </select>
-                    <select v-model="action.reviews[0].userId" :disabled="isReadOnly || !action.reviews[0].selectedDepartment" class="compact-select">
+                    <select v-model="review.userId" :disabled="isReadOnly || !review.selectedDepartment" class="compact-select">
                       <option value="">Select User</option>
-                      <option v-for="user in action.reviews[0].userList" :key="user.id" :value="user.name">
+                      <option v-for="user in review.userList" :key="user.id" :value="user.name">
                         {{ user.name }}
                       </option>
                     </select>
                   </div>
-                  <textarea v-model="action.reviews[0].text" :disabled="isReadOnly" placeholder="Add comments..." class="compact-textarea"></textarea>
+                  <textarea v-model="review.text" :disabled="isReadOnly" placeholder="Add comments..." class="compact-textarea"></textarea>
+                  <button @click="removeReviewCommentRow(reviewIndex)" v-if="action.reviews.length > 1" :disabled="isReadOnly" class="btn-remove-row" title="Remove Assignment Section">×</button>
                 </div>
+                <button @click="addReviewCommentRow" :disabled="isReadOnly" class="btn-add-row">+ Add Assignment Section</button>
                 <button v-if="!isReadOnly" @click="assignCase" class="btn-assign">Assign</button>
               </div>
+              
               <div v-else>
                 <textarea v-model="sendBackComment" :disabled="isReadOnly" placeholder="Add comments for send back..." class="compact-textarea"></textarea>
                 <button v-if="!isReadOnly" @click="sendBackCase" class="btn-assign">Send Back</button>
@@ -318,7 +325,7 @@
           <h4>Previously Uploaded Files</h4>
           <ul>
             <li v-for="file in previouslyUploadedFiles" :key="file.id" class="uploaded-file-item">
-              <a :href="`/fraud_uploads/${file.file_location.split('/').pop()}`" target="_blank" class="file-link">
+              <a :href="`/api/download/${file.id}`" target="_blank" class="file-link">
                 <span class="download-icon">⬇️</span> {{ file.original_filename }}
               </a>
               <div class="file-meta-small">
@@ -327,6 +334,30 @@
               </div>
             </li>
           </ul>
+        </div>
+        
+        <div v-if="isReviewMode && assignmentStatus.length > 0" class="assignment-status-section">
+          <h4>Assignment Status</h4>
+          <div class="assignment-list">
+            <div v-for="assignment in assignmentStatus" :key="assignment.assigned_to" class="assignment-item">
+              <div class="assignment-info">
+                <span class="assigned-user">{{ assignment.assigned_to }}</span>
+                <span class="assignment-date">{{ new Date(assignment.assign_date).toLocaleDateString() }}</span>
+                <span v-if="assignment.comment" class="assignment-comment">- {{ assignment.comment }}</span>
+              </div>
+              <div class="assignment-actions">
+                <button 
+                  v-if="userRole === 'risk_officer' && !assignment.sent_back" 
+                  @click="revokeAssignment(assignment.assigned_to)"
+                  class="btn-revoke"
+                  :disabled="isReadOnly"
+                >
+                  Revoke Assignment
+                </button>
+                <span v-if="assignment.sent_back" class="sent-back-badge">Sent Back</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -361,8 +392,8 @@
         </button>
       </div>
       <div class="action-buttons">
-        <button v-if="!isReadOnly" @click="saveAction" class="btn-save">Save</button>
-        <button v-if="!isReadOnly && userRole !== 'others'" @click="submitAction" class="btn-submit">Submit</button>
+        <button v-if="!isReadOnly && !isReviewMode" @click="saveAction" class="btn-save">Save</button>
+        <button v-if="!isReadOnly && userRole !== 'others' && !isReviewMode" @click="submitAction" class="btn-submit">Submit</button>
       </div>
     </div>
   </div>
@@ -376,6 +407,9 @@ import axios from 'axios';
 const route = useRoute();
 const router = useRouter();
 
+// Check if we're in review mode
+const isReviewMode = computed(() => route.query.review === 'true');
+
 // --- State Management ---
 const isLoading = ref(true);
 const fetchError = ref(null);
@@ -387,8 +421,26 @@ const departments = ref([]);
 const closureReasons = ref([]);
 
 const userRole = ref('');
+const assignmentStatus = ref([]);
 
-// Fetch user role on mount (from /api/new-case-list)
+// --- Data Models for ECBT ---
+const i4cDetails = ref({
+    name: '', mobileNumber: '', email: '', ifscCode: '',
+    beneficiaryAccount: '', bankName: ''
+});
+const bankDetails = ref({
+  name: '', mobileNumber: '', email: '', ifscCode: '', beneficiaryAccount: '', bankName: '',
+  customerId: '', acStatus: '', aqb: '', availBal: '', productCode: '', relValue: '',
+  mobVintage: '', addl1: '', addl2: '', addl4: ''
+});
+const transactionDetails = ref([]);
+
+// --- Computed Property for Total ---
+const totalValueAtRisk = computed(() => {
+  return transactionDetails.value.reduce((total, txn) => total + Number(txn.amount || 0), 0);
+});
+
+// Fetch user role on mount
 const fetchUserRole = async () => {
   const token = localStorage.getItem('jwt');
   const response = await axios.get('/api/new-case-list', {
@@ -400,7 +452,7 @@ const fetchUserRole = async () => {
   }
 };
 
-// Adjust steps based on userRole
+// Adjust steps based on userRole and review mode
 const steps = ref([
   { title: 'Alert Details' },
   { title: 'Analysis' },
@@ -409,7 +461,7 @@ const steps = ref([
 ]);
 
 watch(userRole, (role) => {
-  if (role === 'others') {
+  if (role === 'others' || isReviewMode.value) {
     steps.value = [
       { title: 'Alert Details' },
       { title: 'Analysis' }
@@ -425,17 +477,7 @@ watch(userRole, (role) => {
   }
 });
 
-// --- Data Models for ECBT ---
-const i4cDetails = ref({
-    name: '', mobileNumber: '', email: '', ifscCode: '',
-    beneficiaryAccount: '', bankName: ''
-});
-const bankDetails = ref({
-  name: '', mobileNumber: '', email: '', ifscCode: '', beneficiaryAccount: '', bankName: '',
-  customerId: '', acStatus: '', aqb: '', availBal: '', productCode: '', relValue: '',
-  mobVintage: '', addl1: '', addl2: '', addl4: ''
-});
-const transactionDetails = ref([]);
+// --- Main Action Data Model ---
 const action = ref({
   analysisLOV: '',
   analysisUpdate: '',
@@ -449,13 +491,23 @@ const action = ref({
   accountBlocked: 'No',
 });
 
-// --- Computed Property for Total ---
-const totalValueAtRisk = computed(() => {
-  return transactionDetails.value.reduce((total, txn) => total + Number(txn.amount || 0), 0);
-});
-
-
 // --- Dynamic Row Logic (Reviews) ---
+const addReviewCommentRow = () => {
+  action.value.reviews.push({
+    id: Date.now(),
+    selectedDepartment: '',
+    userId: '',
+    text: '',
+    userList: []
+  });
+};
+
+const removeReviewCommentRow = (index) => {
+  if (action.value.reviews.length > 1) {
+    action.value.reviews.splice(index, 1);
+  }
+};
+
 const handleDepartmentChange = async (review) => {
   review.userId = '';
   review.userList = [];
@@ -555,7 +607,7 @@ const removeFile = (blockIndex, fileIndex) => {
 // --- API Integration ---
 const fetchAnalysisReasons = async () => {
   try {
-    const response = await axios.get('http://34.47.219.225:9000/reasons/api/investigation-review');
+    const response = await axios.get('/api/investigation-review');
     if (response.data) analysisReasons.value = response.data;
   } catch (err) { console.error("Failed to fetch analysis reasons:", err); }
 };
@@ -569,7 +621,7 @@ const fetchDepartments = async () => {
 
 const fetchClosureReasons = async () => {
   try {
-    const response = await axios.get('http://34.47.219.225:9000/reasons/api/final-closure');
+    const response = await axios.get('/api/final-closure');
     if (response.data) closureReasons.value = response.data;
   } catch (err) { console.error("Failed to fetch closure reasons:", err); }
 };
@@ -626,6 +678,9 @@ const fetchCaseDetails = async () => {
       if (!Array.isArray(action.value.dataUploads) || action.value.dataUploads.length === 0) {
         action.value.dataUploads = [{ id: Date.now(), comment: '', files: [], isDragOver: false }];
       }
+      if (!Array.isArray(action.value.reviews) || action.value.reviews.length === 0) {
+        action.value.reviews = [{ id: Date.now(), selectedDepartment: '', userId: '', text: '', userList: [] }];
+      }
     }
     
     if (typeof status === 'string' && status.trim().toLowerCase() === 'closed') {
@@ -641,7 +696,6 @@ const fetchCaseDetails = async () => {
 const previouslyUploadedFiles = ref([]);
 const isReadOnly = ref(false);
 const caseLogs = ref([]);
-
 const sendBackComment = ref('');
 const hasUnsavedChanges = ref(false);
 
@@ -679,11 +733,11 @@ const sendBackCase = async () => {
 
 const goToStep = (step) => {
   if (isLoading.value) return;
-  if (userRole.value === 'others' && step > 2) return;
+  if ((userRole.value === 'others' || isReviewMode.value) && step > 2) return;
   currentStep.value = step;
 };
 const nextStep = () => {
-  if (userRole.value === 'others') {
+  if ((userRole.value === 'others' || isReviewMode.value)) {
     if (currentStep.value < 2) currentStep.value++;
   } else {
     if (currentStep.value < steps.value.length) currentStep.value++;
@@ -691,6 +745,42 @@ const nextStep = () => {
 };
 const previousStep = () => {
   if (currentStep.value > 1) currentStep.value--;
+};
+
+const fetchAssignmentStatus = async () => {
+  if (!isReviewMode.value) return;
+  
+  const caseId = route.params.case_id;
+  const token = localStorage.getItem('jwt');
+  try {
+    const response = await axios.get(`/api/case/${caseId}/assignments`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    assignmentStatus.value = response.data.assignments || [];
+  } catch (err) {
+    console.error('Failed to fetch assignment status:', err);
+  }
+};
+
+const revokeAssignment = async (assignedTo) => {
+  const ackNo = caseAckNo.value;
+  const token = localStorage.getItem('jwt');
+  try {
+    await axios.post(`/api/case/${ackNo}/revoke-assignment`, 
+      { assigned_to_employee: assignedTo },
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    alert(`Assignment revoked from ${assignedTo} successfully!`);
+    await fetchAssignmentStatus();
+    const caseId = route.params.case_id;
+    const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    caseLogs.value = logsResp.data.logs || [];
+  } catch (err) {
+    alert('Failed to revoke assignment.');
+    console.error('Revoke error:', err);
+  }
 };
 
 onMounted(async () => {
@@ -715,6 +805,7 @@ onMounted(async () => {
     caseLogs.value = logsResp.data.logs || [];
     await fetchCaseDetails();
     await fetchUserRole();
+    await fetchAssignmentStatus();
     await Promise.all([
       fetchAnalysisReasons(),
       fetchDepartments(),
@@ -786,23 +877,30 @@ const assignCase = async () => {
     alert('Please click on Save before Assign.');
     return;
   }
-  const assignedTo = action.value.reviews[0].userId;
-  const token = localStorage.getItem('jwt');
-  const ackNo = caseAckNo.value;
-  if (!assignedTo) {
-    alert('Please select a user to assign.');
+  
+  const validAssignments = action.value.reviews.filter(review => review.userId && review.userId.trim());
+  if (validAssignments.length === 0) {
+    alert('Please select at least one user to assign.');
     return;
   }
+  
+  const token = localStorage.getItem('jwt');
+  const ackNo = caseAckNo.value;
   if (!ackNo) {
     alert('No valid case ACK No found.');
     return;
   }
+  
   try {
-    await axios.post(`/api/case/${ackNo}/assign`,
-      { assigned_to_employee: assignedTo },
-      { headers: { 'Authorization': `Bearer ${token}` } }
-    );
-    alert('Case assigned to ' + assignedTo);
+    const assignmentPromises = validAssignments.map(async (review) => {
+      return axios.post(`/api/case/${ackNo}/assign`, 
+        { assigned_to_employee: review.userId, comment: review.text || '' }, 
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+    });
+    
+    await Promise.all(assignmentPromises);
+    alert(`Case assigned to ${validAssignments.length} user(s) successfully!`);
     window.location.href = `/case-details`;
   } catch (err) {
     alert('Failed to assign case.');
@@ -946,7 +1044,7 @@ const assignCase = async () => {
 /* Transaction/Beneficiary Table */
 .beneficiary-table-section {
     margin-top: 24px;
-    grid-column: 1 / -1; /* Span across both columns if in a grid */
+    grid-column: 1 / -1;
 }
 .table-container {
     width: 100%;
@@ -988,6 +1086,7 @@ const assignCase = async () => {
     padding: 20px;
 }
 
+
 /* Form Elements */
 .form-section {
   display: flex;
@@ -1001,9 +1100,9 @@ const assignCase = async () => {
 }
 .field-group label {
   font-size: 14px;
-  font-weight: 500;
-  color: #495057;
-  margin-bottom: 6px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
 }
 .field-group input[type="text"], .field-group input[type="number"] {
   padding: 6px 8px;
@@ -1045,6 +1144,15 @@ const assignCase = async () => {
 }
 .data-uploads-textarea {
   margin-bottom: 12px;
+}
+
+/* Compact Analysis Section */
+.compact-analysis {
+  margin-bottom: 16px;
+}
+.analysis-textarea {
+  min-height: 40px !important;
+  max-height: 60px !important;
 }
 
 /* Dynamic Upload Block Style */
@@ -1453,5 +1561,94 @@ const assignCase = async () => {
 .log-details {
   color: #495057;
   font-size: 13px;
+}
+
+/* Assignment Status Styles */
+.assignment-status-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.assignment-status-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a3a5d;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+.assignment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.assignment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #e9ecef;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #343a40;
+}
+.assignment-info {
+  display: flex;
+  flex-direction: column;
+}
+.assigned-user {
+  font-weight: 500;
+  color: #0d6efd;
+}
+.assignment-date {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+.assignment-comment {
+  font-style: italic;
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+}
+.assignment-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-revoke {
+  padding: 4px 8px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-revoke:hover {
+  background-color: #f5c6cb;
+  border-color: #dc3545;
+  color: #dc3545;
+}
+.btn-revoke:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+.sent-back-badge {
+  padding: 4px 8px;
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
 }
 </style>
