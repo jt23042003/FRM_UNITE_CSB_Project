@@ -272,9 +272,11 @@
               <input 
                 type="number" 
                 v-model="action.fundsSaved" 
-                :disabled="action.confirmedMule !== 'Yes'" 
+                :disabled="isReadOnly"
                 class="compact-input"
-                placeholder="Amount"
+                placeholder="Amount (INR)"
+                min="0"
+                step="0.01"
               />
             </div>
           </div>

@@ -283,13 +283,15 @@
                 </select>
               </div>
               <div class="confirm-row">
-                <label>If yes, funds saved</label>
+                <label>Funds Saved</label>
                 <input 
                   type="number" 
                   v-model="action.fundsSaved" 
-                  :disabled="action.confirmedVictim !== 'Yes'" 
+                  :disabled="isReadOnly" 
                   class="compact-input"
-                  placeholder="999999999.99"
+                  placeholder="Amount (INR)"
+                  min="0"
+                  step="0.01"
                 />
               </div>
             </div>

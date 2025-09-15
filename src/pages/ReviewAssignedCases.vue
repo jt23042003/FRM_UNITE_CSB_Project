@@ -35,9 +35,10 @@
       </div>
     </div>
     <div class="dashboard-table-card">
-      <table class="case-table">
+      <div class="table-responsive">
+        <table class="case-table">
         <colgroup>
-          <col style="width: 10%;"> <col style="width: 12%"> <col style="width: 18%"> <col style="width: 10%"> <col style="width: 10%"> <col style="width: 12%"> <col style="width: 12%"> <col style="width: 14%"> <col style="width: 10%"> <col style="width: 14%">  
+          <col style="width: 10%"> <col style="width: 12%"> <col style="width: 16%"> <col style="width: 10%"> <col style="width: 12%"> <col style="width: 12%"> <col style="width: 12%"> <col style="width: 14%"> <col style="width: 10%"> <col style="width: 14%">
         </colgroup>
         <thead>
           <tr>
@@ -105,7 +106,13 @@
         </thead>
         <tbody>
           <tr v-if="loading">
-             <td colspan="10" style="text-align:center; padding: 20px;">⏳ Loading cases...</td>
+             <td colspan="10" style="padding: 12px;">
+               <div class="skeleton-table">
+                 <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+                 <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+                 <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+               </div>
+             </td>
           </tr>
           <tr v-else-if="paginatedCases.length > 0" v-for="caseItem in paginatedCases" :key="caseItem.case_id">
             <td>
@@ -113,27 +120,26 @@
                 {{ caseItem.case_id }}
               </router-link>
             </td>
-            <td>{{ caseItem.source_ack_no || '-' }}</td>
-            <td>{{ caseItem.case_type || '-' }}</td>
+            <td>{{ caseItem.source_ack_no || '—' }}</td>
+            <td><span class="chip">{{ caseItem.case_type || '—' }}</span></td>
             <td>
               <span :class="['badge', caseItem.is_operational ? 'operational' : 'non-operational']">
                 {{ caseItem.is_operational ? 'Yes' : 'No' }}
               </span>
             </td>
-            <td>{{ caseItem.location || '-' }}</td>
-            <td>
+            <td>{{ caseItem.location || '—' }}</td>
+            <td class="numeric">
               <span v-if="caseItem.disputed_amount !== null && !isNaN(Number(caseItem.disputed_amount))">
                 ₹{{ Number(caseItem.disputed_amount).toLocaleString('en-IN') }}
               </span>
-              <span v-else>-</span>
+              <span v-else>—</span>
             </td>
-            <td>{{ caseItem.created_by || '-' }}</td>
+            <td>{{ caseItem.created_by || '—' }}</td>
             <td>
               <span v-if="caseItem.assign_date || caseItem.assign_time">
-                {{ caseItem.assign_date ? new Date(caseItem.assign_date).toLocaleDateString('en-IN') : '-' }}
-                <span v-if="caseItem.assign_time">{{ ' ' + caseItem.assign_time.slice(0,8) }}</span>
+                {{ formatDateTimeIST(caseItem.assign_date, caseItem.assign_time) }}
               </span>
-              <span v-else>-</span>
+              <span v-else>—</span>
             </td>
             <td>
               <span :class="['status-badge', caseItem.status ? caseItem.status.toLowerCase().replace(/ /g,'-') : '']">
@@ -144,14 +150,58 @@
               <span v-if="caseItem.assigned_to" class="assigned-users">
                 {{ caseItem.assigned_to }}
               </span>
-              <span v-else>-</span>
+              <span v-else>—</span>
             </td>
           </tr>
           <tr v-else>
-            <td colspan="10" style="text-align:center; padding: 20px;">No assigned cases found.</td>
+            <td colspan="10" style="padding: 12px;">
+              <div class="empty-state">
+                <div class="icon">📋</div>
+                <div class="title">No assigned cases</div>
+                <div class="hint">Once cases are assigned to you, they will appear here.</div>
+              </div>
+            </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
+
+      <!-- Mobile Card View -->
+      <div class="case-cards" v-if="!loading && paginatedCases.length > 0">
+        <div class="case-card" v-for="caseItem in paginatedCases" :key="caseItem.case_id" @click="$router.push(getCaseLink(caseItem))">
+          <div class="card-row header">
+            <div class="case-id">#{{ caseItem.case_id }}</div>
+            <div class="status"><span :class="['status-badge', caseItem.status ? caseItem.status.toLowerCase().replace(/ /g,'-') : '']">{{ caseItem.status || '-' }}</span></div>
+          </div>
+          <div class="card-row">
+            <span class="label">ACK:</span>
+            <span class="value">{{ caseItem.source_ack_no || '—' }}</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Type:</span>
+            <span class="value chip">{{ caseItem.case_type || '—' }}</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Operational:</span>
+            <span class="value"><span :class="['badge', caseItem.is_operational ? 'operational' : 'non-operational']">{{ caseItem.is_operational ? 'Yes' : 'No' }}</span></span>
+          </div>
+          <div class="card-row">
+            <span class="label">Location:</span>
+            <span class="value">{{ caseItem.location || '—' }}</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Disputed:</span>
+            <span class="value">{{ caseItem.disputed_amount != null ? '₹' + Number(caseItem.disputed_amount).toLocaleString('en-IN') : '—' }}</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Assigned:</span>
+            <span class="value">{{ formatDateTimeIST(caseItem.assign_date, caseItem.assign_time) }}</span>
+          </div>
+          <div class="card-row footer">
+            <span class="assigned">{{ caseItem.assigned_to || '—' }}</span>
+          </div>
+        </div>
+      </div>
       <div class="pagination-row" v-if="!loading && totalFilteredItems > 0">
         <div>
           <span>Rows per page: {{ pageSize }}</span>
@@ -228,6 +278,51 @@ const fetchCases = async () => {
     totalItems.value = 0;
   } finally {
     loading.value = false;
+  }
+};
+
+// --- Helper function to format date and time in IST ---
+const formatDateTimeIST = (assignDate, assignTime) => {
+  if (!assignDate && !assignTime) return '—';
+  
+  try {
+    let dateTime;
+    
+    if (assignDate && assignTime) {
+      // Combine date and time
+      const dateStr = assignDate.includes('T') ? assignDate : `${assignDate}T${assignTime}`;
+      dateTime = new Date(dateStr);
+    } else if (assignDate) {
+      // Only date available
+      dateTime = new Date(assignDate);
+    } else {
+      // Only time available (use current date)
+      const today = new Date().toISOString().split('T')[0];
+      dateTime = new Date(`${today}T${assignTime}`);
+    }
+    
+    // Convert to IST (UTC+5:30)
+    const istDateTime = new Date(dateTime.getTime() + (5.5 * 60 * 60 * 1000));
+    
+    // Format date in Indian format
+    const dateStr = istDateTime.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
+    // Format time in 24-hour format
+    const timeStr = istDateTime.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    return `${dateStr} ${timeStr}`;
+  } catch (error) {
+    console.error('Error formatting date/time:', error);
+    return '—';
   }
 };
 
@@ -385,8 +480,15 @@ const endIndex = computed(() => Math.min((page.value - 1) * pageSize + paginated
 // --- Navigation ---
 function getCaseLink(caseItem) {
   const routeMap = {
-    'VM': 'OperationalAction', 'BM': 'BeneficiaryAction', 'PMA': 'PMAAction',
-    'PSA': 'PSAAction', 'ECBT': 'ECBTAction', 'ECBNT': 'ECBNTAction', 'NAB': 'NABAction'
+    'VM': 'OperationalAction', 
+    'BM': 'BeneficiaryAction', 
+    'PMA': 'PMAAction',
+    'PVA': 'PVAAction',
+    'PSA': 'PSAAction', 
+    'ECBT': 'ECBTAction', 
+    'ECBNT': 'ECBNTAction', 
+    'NAB': 'NABAction',
+    'MM': 'MobileMatchingAction'
   };
   const routeName = routeMap[caseItem.case_type] || 'CaseRiskReview';
   return {
@@ -416,25 +518,15 @@ onMounted(fetchCases);
   overflow-y: auto;
 }
 
-.case-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 15px;
-}
+.table-responsive { width: 100%; overflow-x: auto; }
+.case-table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 980px; }
 
-.case-table thead th {
-  position: sticky;
-  top: 0;
-  background: #f7f7f7;
-  z-index: 2;
-  padding: 12px 8px;
-}
+.case-table thead th { position: sticky; top: 0; background: #f7f7f7; z-index: 2; padding: 14px 10px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid #e9eef5; }
 
-.case-table th, .case-table td {
-  padding: 10px 8px;
-  text-align: left;
-  border-bottom: 1px solid #e0e0e0;
-}
+.case-table th, .case-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eef2f7; vertical-align: middle; }
+.case-table tbody tr:nth-child(even) { background: #fbfdff; }
+.case-table tbody tr:hover { background: #f3f7ff; transition: background .15s ease; }
+.case-table td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 
 .sortable-header {
   cursor: pointer;
@@ -443,14 +535,10 @@ onMounted(fetchCases);
   transition: background-color 0.2s;
 }
 
-.sortable-header:hover {
-  background-color: #e8e8e8;
-}
+.sortable-header:hover { background-color: #eef4ff; }
 
 .sort-icon {
-  margin-left: 4px;
-  font-weight: bold;
-  color: #007bff;
+  margin-left: 6px; font-weight: bold; color: #007bff;
 }
 
 .search-results-info {
@@ -480,5 +568,32 @@ onMounted(fetchCases);
   word-wrap: break-word;
   max-width: 250px;
   line-height: 1.3;
+}
+
+/* Chips and badges (match Case Details) */
+.chip { display: inline-block; padding: 2px 8px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 600; font-size: 12px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.operational { background: #e6f4ea; color: #18794e; }
+.badge.non-operational { background: #fee2e2; color: #991b1b; }
+.status-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+.status-badge.new { background: #e0f2fe; color: #075985; }
+.status-badge.assigned { background: #fef3c7; color: #92400e; }
+.status-badge.closed { background: #dcfce7; color: #166534; }
+.status-badge.open { background: #e9d5ff; color: #6b21a8; }
+
+/* Mobile Card View */
+.case-cards { display: none; }
+.case-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 6px; }
+.case-card .card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.case-card .card-row.header { margin-bottom: 4px; }
+.case-card .case-id { font-weight: 700; color: #0f172a; }
+.case-card .label { color: #64748b; font-size: 12px; }
+.case-card .value { color: #0f172a; font-weight: 600; }
+.case-card .footer { gap: 12px; font-size: 12px; color: #475569; }
+.case-card:hover { border-color: #0d6efd; box-shadow: 0 2px 8px rgba(13,110,253,.15); cursor: pointer; }
+
+@media (max-width: 768px) {
+  .table-responsive { display: none; }
+  .case-cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
 }
 </style>

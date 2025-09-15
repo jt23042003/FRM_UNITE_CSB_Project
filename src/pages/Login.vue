@@ -15,10 +15,12 @@
               type="text"
               autocomplete="username"
               :class="['form-input', { 'input-error': usernameError }]"
-              placeholder="Enter your username"
+              placeholder="Enter your username or email"
               required
-              @blur="validateUsername"
+              @blur="usernameTouched = true; validateUsername()"
+              @input="validateUsername()"
             />
+            <div v-if="usernameHint && !usernameError" class="form-hint">{{ usernameHint }}</div>
             <div v-if="usernameError" class="form-error">{{ usernameError }}</div>
           </div>
           <div class="form-group">
@@ -32,13 +34,15 @@
                 :class="['form-input', { 'input-error': passwordError }]"
                 placeholder="Enter your password"
                 required
-                @blur="validatePassword"
+                @blur="passwordTouched = true; validatePassword()"
+                @input="validatePassword()"
               />
               <button type="button" class="toggle-password" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'">
                 <svg v-if="showPassword" xmlns="http://www.w3.org/2000/svg" class="icon-eye" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1.5 12C3.5 7 7.5 4 12 4s8.5 3 10.5 8c-2 5-6 8-10.5 8s-8.5-3-10.5-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg v-else xmlns="http://www.w3.org/2000/svg" class="icon-eye" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.06 10.06 0 0 1 12 20c-4.5 0-8.5-3-10.5-8a17.6 17.6 0 0 1 4.06-5.94M9.53 9.53A3 3 0 0 1 12 9c1.66 0 3 1.34 3 3 0 .47-.11.91-.29 1.29M1 1l22 22"/></svg>
               </button>
             </div>
+            <div v-if="passwordHint && !passwordError" class="form-hint">{{ passwordHint }}</div>
             <div v-if="passwordError" class="form-error">{{ passwordError }}</div>
           </div>
           <div class="form-row-between">
@@ -47,7 +51,7 @@
             </label>
             <a href="#" class="forgot-link">Forgot your password?</a>
           </div>
-          <button type="submit" class="login-btn" :disabled="loading">
+          <button type="submit" class="login-btn" :disabled="loading || !isFormValid">
             <span class="login-btn-text">Log In</span>
             <span v-if="loading" class="spinner"></span>
             <svg class="arrow-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
@@ -75,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { API_ENDPOINTS } from '@/config/api'
@@ -87,32 +91,104 @@ const loading = ref(false)
 const error = ref('')
 const usernameError = ref('')
 const passwordError = ref('')
+const usernameHint = ref('')
+const passwordHint = ref('')
 const rememberMe = ref(false)
+const usernameTouched = ref(false)
+const passwordTouched = ref(false)
+const formSubmitted = ref(false)
 const router = useRouter()
 
+const emailRegex = /^[\w.+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
+const userRegex = /^[A-Za-z0-9._-]{3,50}$/
+
 function validateUsername() {
-  usernameError.value = username.value.trim() === '' ? 'Username is required.' : ''
+  const value = username.value.trim()
+  usernameHint.value = ''
+  // Suppress errors until user has interacted or on submit
+  if (!usernameTouched.value && !formSubmitted.value) {
+    usernameError.value = ''
+    return
+  }
+  if (value === '') {
+    usernameError.value = 'Username is required.'
+    return
+  }
+  // Support either email or standard username formats
+  if (value.includes('@')) {
+    if (!emailRegex.test(value)) {
+      usernameError.value = 'Enter a valid email address.'
+      return
+    }
+    usernameHint.value = 'Email detected.'
+  } else {
+    if (!userRegex.test(value)) {
+      usernameError.value = 'Username must be 3-50 chars (letters, numbers, dot, hyphen, underscore).'
+      return
+    }
+    usernameHint.value = 'Valid username.'
+  }
+  usernameError.value = ''
 }
+
 function validatePassword() {
-  passwordError.value = password.value.trim() === '' ? 'Password is required.' : ''
+  const value = password.value
+  passwordHint.value = ''
+  // Suppress errors until user has interacted or on submit
+  if (!passwordTouched.value && !formSubmitted.value) {
+    passwordError.value = ''
+    return
+  }
+  if (value.trim() === '') {
+    passwordError.value = 'Password is required.'
+    return
+  }
+  if (value.length < 8) {
+    passwordError.value = 'Password must be at least 8 characters.'
+    return
+  }
+  if (/\s/.test(value)) {
+    passwordError.value = 'Password cannot contain spaces.'
+    return
+  }
+  // Optional strength hints (not blocking)
+  const hasNumber = /\d/.test(value)
+  const hasLetter = /[A-Za-z]/.test(value)
+  const hasSymbol = /[^A-Za-z0-9]/.test(value)
+  if (!(hasNumber && hasLetter)) {
+    passwordHint.value = 'Tip: Use letters and numbers for a stronger password.'
+  } else if (!(hasSymbol)) {
+    passwordHint.value = 'Tip: Add a symbol for extra strength.'
+  }
+  passwordError.value = ''
 }
+
+const isFormValid = computed(() => {
+  const value = username.value.trim()
+  const pass = password.value
+  const usernameOk = value !== '' && (value.includes('@') ? emailRegex.test(value) : userRegex.test(value))
+  const passwordOk = pass.trim() !== '' && pass.length >= 8 && !/\s/.test(pass)
+  return usernameOk && passwordOk
+})
 
 const login = async () => {
   error.value = ''
+  formSubmitted.value = true
   validateUsername()
   validatePassword()
   if (usernameError.value || passwordError.value) return
   loading.value = true
   try {
     const res = await axios.post(API_ENDPOINTS.LOGIN, {
-      username: username.value,
+      username: username.value.trim(),
       password: password.value
     })
     const accessToken = res.data.access_token
     const refreshToken = res.data.refresh_token
     const userType = res.data.user_type
     const loggedInUsername = res.data.username
-    if (accessToken) {
+    if (accessToken) 
+    {
       localStorage.setItem('jwt', accessToken)
       localStorage.setItem('refresh_token', refreshToken)
       localStorage.setItem('user_type', userType)
@@ -123,7 +199,12 @@ const login = async () => {
       throw new Error('Authentication token was not found in the response body.')
     }
   } catch (err) {
-    error.value = err.response?.data?.detail || 'Invalid username or password. Please try again.'
+    const msg = err.response?.data?.detail || err.response?.data?.message || err.message
+    if (typeof msg === 'string') {
+      error.value = msg.includes('401') ? 'Invalid username or password.' : msg
+    } else {
+      error.value = 'Invalid username or password. Please try again.'
+    }
   } finally {
     loading.value = false
   }
@@ -136,7 +217,7 @@ const login = async () => {
   height: 100vh;
   width: 100vw;
   display: flex;
-  background: #f7f7f8;
+  background: linear-gradient(135deg, #f8fafc 0%, #f3f4f6 40%, #eef2ff 100%);
   overflow: hidden;
 }
 .login-split-left, .login-split-right {
@@ -158,13 +239,15 @@ const login = async () => {
   max-width: 480px;
   padding: 3.5rem 3rem 2.5rem 3rem;
   border-radius: 22px;
-  box-shadow: 0 8px 48px rgba(16, 24, 40, 0.13);
-  border: 1px solid #ececec;
+  box-shadow: 0 12px 60px rgba(16, 24, 40, 0.16);
+  border: 1px solid rgba(236, 236, 236, 0.9);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   animation: fadein-left 0.7s cubic-bezier(.4,0,.2,1);
-  background: #fff;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: saturate(1.2) blur(10px);
+  -webkit-backdrop-filter: saturate(1.2) blur(10px);
   margin: 0 auto;
 }
 .login-logo {
@@ -231,16 +314,18 @@ const login = async () => {
   font-size: 1.05rem;
   background: #fafbfc;
   color: #222;
-  transition: border 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
   box-sizing: border-box;
 }
 .form-input:focus {
-  border-color: #222;
+  border-color: #111;
   background: #fff;
   outline: none;
+  box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.08);
 }
 .input-error {
   border-color: #e11d48 !important;
+  box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.12);
 }
 .toggle-password {
   position: absolute;
@@ -298,12 +383,20 @@ const login = async () => {
   font-size: 1.13rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.18s;
+  transition: background 0.18s, transform 0.12s, box-shadow 0.2s;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
+}
+.login-btn:hover {
+  background: #111;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 24, 40, 0.16);
+}
+.login-btn:active {
+  transform: translateY(0);
 }
 .login-btn-text {
   display: inline-block;
@@ -411,7 +504,10 @@ const login = async () => {
 .right-brand {
   font-size: 2.2rem;
   font-weight: 700;
-  color: #222;
+  background: linear-gradient(90deg, #111827, #4b5563);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   margin-bottom: 0.5rem;
   text-align: center;
   letter-spacing: -0.01em;
@@ -479,4 +575,5 @@ const login = async () => {
     font-size: 1.1rem;
   }
 }
+.form-hint { color: #64748b; font-size: 0.9rem; margin-top: 0.1rem; }
 </style>

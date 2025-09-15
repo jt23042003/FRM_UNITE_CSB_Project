@@ -28,39 +28,39 @@
           <div class="details-section">
             <h4>Customer Details - I4C</h4>
             <div class="details-row">
-              <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" :readonly="isReadOnly" /></div>
+              <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
+              <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
+              <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
             </div>
             <div class="details-row">
-              <div class="field-group"><label>IFSC Code</label><input type="text" v-model="i4cDetails.ifscCode" :readonly="isReadOnly" /></div>
+              <div class="field-group"><label>IFSC Code</label><input type="text" v-model="i4cDetails.ifscCode" readonly /></div>
             </div>
           </div>
           <div class="details-section">
             <h4>Customer Details - Bank</h4>
             <div class="details-row">
-              <div class="field-group highlight"><label>Name</label><input type="text" v-model="bankDetails.name" :readonly="isReadOnly" /></div>
-              <div class="field-group highlight"><label>Mobile</label><input type="text" v-model="bankDetails.mobileNumber" :readonly="isReadOnly" /></div>
-              <div class="field-group highlight"><label>Email</label><input type="text" v-model="bankDetails.email" :readonly="isReadOnly" /></div>
+              <div class="field-group highlight"><label>Name</label><input type="text" v-model="bankDetails.name" readonly /></div>
+              <div class="field-group highlight"><label>Mobile</label><input type="text" v-model="bankDetails.mobileNumber" readonly /></div>
+              <div class="field-group highlight"><label>Email</label><input type="text" v-model="bankDetails.email" readonly /></div>
             </div>
             <div class="details-row">
-              <div class="field-group"><label>Customer ID</label><input type="text" v-model="bankDetails.customerId" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>IFSC Code</label><input type="text" v-model="bankDetails.ifscCode" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Account Status</label><input type="text" v-model="bankDetails.acStatus" :readonly="isReadOnly" /></div>
+              <div class="field-group"><label>Customer ID</label><input type="text" v-model="bankDetails.customerId" readonly /></div>
+              <div class="field-group"><label>IFSC Code</label><input type="text" v-model="bankDetails.ifscCode" readonly /></div>
+              <div class="field-group"><label>Account Status</label><input type="text" v-model="bankDetails.acStatus" readonly /></div>
             </div>
             <div class="details-row">
-              <div class="field-group"><label>Product Code</label><input type="text" v-model="bankDetails.productCode" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>AQB</label><input type="text" v-model="bankDetails.aqb" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Available Balance</label><input type="text" v-model="bankDetails.availBal" :readonly="isReadOnly" /></div>
+              <div class="field-group"><label>Product Code</label><input type="text" v-model="bankDetails.productCode" readonly /></div>
+              <div class="field-group"><label>AQB</label><input type="text" v-model="bankDetails.aqb" readonly /></div>
+              <div class="field-group"><label>Available Balance</label><input type="text" v-model="bankDetails.availBal" readonly /></div>
             </div>
             <div class="details-row">
-              <div class="field-group"><label>Relationship Value</label><input type="text" v-model="bankDetails.relValue" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Vintage (MoB)</label><input type="text" v-model="bankDetails.mobVintage" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Addl field1</label><input type="text" v-model="bankDetails.addl1" :readonly="isReadOnly" /></div>
+              <div class="field-group"><label>Relationship Value</label><input type="text" v-model="bankDetails.relValue" readonly /></div>
+              <div class="field-group"><label>Vintage (MoB)</label><input type="text" v-model="bankDetails.mobVintage" readonly /></div>
+              <div class="field-group"><label>Addl field1</label><input type="text" v-model="bankDetails.addl1" readonly /></div>
             </div>
             <div class="details-row">
-              <div class="field-group"><label>Addl field2</label><input type="text" v-model="bankDetails.addl2" :readonly="isReadOnly" /></div>
-              <div class="field-group"><label>Addl field4</label><input type="text" v-model="bankDetails.addl4" :readonly="isReadOnly" /></div>
+              <div class="field-group"><label>Addl field2</label><input type="text" v-model="bankDetails.addl2" readonly /></div>
+              <div class="field-group"><label>Addl field4</label><input type="text" v-model="bankDetails.addl4" readonly /></div>
             </div>
           </div>
         </div>

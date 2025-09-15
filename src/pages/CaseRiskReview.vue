@@ -42,7 +42,13 @@
 
       <section class="card-section">
   <h2>Risk Entity Profiles</h2>
-  <div v-if="riskEntityLoading" class="case-details-loading">Loading...</div>
+  <div v-if="riskEntityLoading" class="case-details-loading">
+    <div class="skeleton-table">
+      <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+      <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+      <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+    </div>
+  </div>
   <div v-else-if="riskEntityError" class="case-details-error">{{ riskEntityError }}</div>
   <div v-else>
     <div class="tab-selector">
@@ -126,7 +132,8 @@
     <div v-else-if="transactionError" class="case-details-error">{{ transactionError }}</div>
     <div v-else>
       <button class="download-btn" @click="downloadTransactions">Download</button>
-      <table class="txn-table">
+      <div class="table-container">
+      <table class="txn-table data-table">
         <thead>
           <tr>
             <th>Date</th>
@@ -153,6 +160,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </section>
@@ -197,7 +205,13 @@
           **Comment:** {{ doc.comment }}
         </p>
       </li>
-      <li v-if="!existingDocuments.length">No documents uploaded for this case yet.</li>
+      <li v-if="!existingDocuments.length">
+        <div class="empty-state" style="margin-top: 6px;">
+          <div class="icon">📄</div>
+          <div class="title">No documents uploaded</div>
+          <div class="hint">Upload evidence or documents to attach to this case.</div>
+        </div>
+      </li>
     </ul>
   </div>
 </section>
@@ -589,22 +603,22 @@ async function saveCommentAndUpload() {
   // If it's a custom upload, use the custom type and ensure a file is selected
   if (isCustomUpload.value) {
     if (!customDocumentTypeName.value.trim()) {
-      alert("Please enter a name for your custom document type.");
+      window.showNotification('warning', 'Missing Name', 'Please enter a name for your custom document type.');
       return;
     }
     if (!selectedFileForUpload.value) {
-      alert("Please select a file for your custom document.");
+      window.showNotification('warning', 'No File Selected', 'Please select a file for your custom document.');
       return;
     }
     docTypeToUpload = customDocumentTypeName.value.trim();
   }
 
   if (!fileToUpload) {
-    alert("No file selected for upload."); // Should be caught by earlier checks, but good to have
+    window.showNotification('warning', 'No File Selected', 'Please choose a file to upload.');
     return;
   }
   if (!ackno) {
-    alert("Could not determine the case ID for upload.");
+    window.showNotification('error', 'Upload Error', 'Could not determine the case ID for upload.');
     return;
   }
 
@@ -630,14 +644,14 @@ async function saveCommentAndUpload() {
 
     if (response.data.success && response.data.documents) {
       existingDocuments.value.push(response.data.documents);
-      alert('File uploaded successfully!');
+      window.showNotification('success', 'Upload Complete', 'File uploaded successfully!');
     } else {
-      alert('Upload failed: ' + (response.data.message || 'Unknown error.'));
+      window.showNotification('error', 'Upload Failed', response.data.message || 'Unknown error.');
     }
   } catch (error) {
     console.error('Error uploading file:', error);
     const errorMessage = error.response?.data?.message || error.message || 'Failed to upload file due to a network error.';
-    alert(errorMessage);
+    window.showNotification('error', 'Upload Failed', errorMessage);
   } finally {
     isUploadingSingle.value = false;
     // Reset all popup-related states
@@ -700,11 +714,11 @@ const decisionConsole = reactive({
 
 const sendBackCase = async () => {
   if (!ackno) {
-    alert('ACK ID is missing. Cannot send case back.');
+    window.showNotification('error', 'Missing ACK', 'ACK ID is missing. Cannot send case back.');
     return;
   }
   if (!sentBackNotes.value.trim()) {
-    alert('Please add some notes before sending the case back.');
+    window.showNotification('warning', 'Notes Required', 'Please add some notes before sending the case back.');
     return;
   }
 
@@ -720,17 +734,17 @@ const sendBackCase = async () => {
     const res = await axios.post(API_ENDPOINTS.CASE_SEND_BACK(ackno), payload);
 
     if (res.data.success) {
-      alert(`Case ${ackno} sent back successfully with notes.`);
+      window.showNotification('success', 'Sent Back', `Case ${ackno} sent back successfully with notes.`);
       console.log('Case sent back success:', res.data);
       sentBackNotes.value = ''; // Clear notes after successful send
       router.push('/dashboard'); // Or '/case-details' or wherever is appropriate after sending back
     } else {
-      alert('Failed to send case back: ' + (res.data.message || 'Unknown error.'));
+      window.showNotification('error', 'Send Back Failed', res.data.message || 'Unknown error.');
       console.error('Send back error:', res.data);
     }
   } catch (error) {
     console.error('An error occurred while sending the case back:', error.response?.data || error.message);
-    alert('An error occurred while sending the case back. Check console for details.');
+    window.showNotification('error', 'Send Back Failed', 'An error occurred while sending the case back.');
   }
 };
 
@@ -755,7 +769,7 @@ const fetchOperationsStatus = async () => {
   } catch (error) {
     console.error('Failed to fetch operations status:', error.response?.data || error.message);
     operationsStatus.value = false; // Ensure it's unchecked on API error
-    alert('An error occurred while fetching the operations status.');
+    window.showNotification('error', 'Fetch Failed', 'An error occurred while fetching the operations status.');
   }
 };
 // --- Dynamic Validation Function (Your existing code) ---
@@ -804,7 +818,7 @@ const fetchDecisionData = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch decision data:', error.response?.data || error.message);
-    alert('Failed to load decision data. Check console for details.');
+    window.showNotification('error', 'Load Failed', 'Failed to load decision data.');
     // FIX: Clear fields on error
     decisionConsole.riskScore = '';
     decisionConsole.triggeringRules = '';
@@ -824,11 +838,11 @@ const assignCase = async () => {
   const notes = assignmentNotes.value;
 
   if (!ackno) {
-    alert('ACK ID is missing. Cannot assign case.');
+    window.showNotification('error', 'Missing ACK', 'ACK ID is missing. Cannot assign case.');
     return;
   }
   if (!employeeName.trim()) {
-    alert('Please enter an employee name to assign the case.');
+    window.showNotification('warning', 'Employee Required', 'Please enter an employee name to assign the case.');
     return;
   }
 
@@ -844,7 +858,7 @@ const assignCase = async () => {
     );
 
     if (res.data.success) {
-      alert(`Case ${ackno} assigned to ${employeeName} successfully!`);
+      window.showNotification('success', 'Assigned', `Case ${ackno} assigned to ${employeeName} successfully!`);
       console.log('Assignment success:', res.data);
       router.push('/case-details');
       // Optrouterional: Re-fetch decision data to update the console (e.g., status badge on dashboard)
@@ -852,12 +866,12 @@ const assignCase = async () => {
       // If the dashboard needs to reflect the change immediately, you might dispatch an event
       // or implement a refresh mechanism on the dashboard component.
     } else {
-      alert('Failed to assign case: ' + (res.data.message || 'Unknown error.'));
+      window.showNotification('error', 'Assignment Failed', res.data.message || 'Unknown error.');
       console.error('Assignment error:', res.data);
     }
   } catch (error) {
     console.error('Error assigning case:', error.response?.data || error.message);
-    alert('An error occurred while assigning the case. Check console for details.');
+    window.showNotification('error', 'Assignment Failed', 'An error occurred while assigning the case.');
   }
 };
 
@@ -865,11 +879,11 @@ const assignCase = async () => {
 const submitDecisioningConsole = async () => {
 
   if (!ackno) {
-    alert('ACK ID is missing. Cannot submit decision.');
+    window.showNotification('error', 'Missing ACK', 'ACK ID is missing. Cannot submit decision.');
     return;
   }
   if (caseManagementAction.value !== 'readyToClose') {
-    alert('Please select "Ready to Close" in Case Management to submit a decision.');
+    window.showNotification('warning', 'Not Ready To Close', 'Please select "Ready to Close" in Case Management to submit a decision.');
     return;
   }
   try {
@@ -890,18 +904,18 @@ const submitDecisioningConsole = async () => {
     const res = await axios.post(API_ENDPOINTS.CASE_DECISION(ackno), payload);
     
     if (res.data.success) {
-      alert('Decision submitted successfully!');
+      window.showNotification('success', 'Decision Submitted', 'Decision submitted successfully!');
       console.log('Decision submission success:', res.data);
       router.push('/case-details');
       // Optional: Re-fetch data to update audit trail etc.
       // fetchDecisionData();
     } else {
-      alert('Failed to submit decision.');
+      window.showNotification('error', 'Submit Failed', 'Failed to submit decision.');
       console.error('Decision submission error:', res.data);
     }
   } catch (error) {
     console.error('Error submitting decision:', error.response?.data || error.message);
-    alert('An error occurred while submitting the decision.');
+    window.showNotification('error', 'Submit Failed', 'An error occurred while submitting the decision.');
   }
 };
 

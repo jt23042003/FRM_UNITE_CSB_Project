@@ -19,7 +19,7 @@
 
     <div class="step-content">
       <div v-if="currentStep === 1" class="step-panel">
-        <h3>Alert - Potential Mule Account</h3>
+        <h3>Alert - Mobile Number Match</h3>
 
         <div v-if="isLoading" class="loading-indicator">
           Loading Case Details...
@@ -27,34 +27,59 @@
             <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
             <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
             <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
-          </div>
+        </div>
         </div>
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
         <div v-else class="comparison-grid">
           <div class="details-section">
-            <h4>Customer Details - I4C</h4>
-            <div class="details-row">
-              <div class="field-group">
-                <label>Name</label>
-                <input type="text" v-model="i4cDetails.name" readonly />
+            <h4>Customer Details - Mobile Number Match</h4>
+            <!-- Name/Mobile/Email row intentionally omitted for MM cases -->
+
+            <!-- Mobile Number Match Details (for MM-triggered cases) -->
+            <div class="reverification-details">
+              <h5>Reverification Flags Details</h5>
+              <div class="details-row">
+                <div class="field-group">
+                  <label>Flagged Mobile</label>
+                  <input type="text" :value="reverificationData?.mobile_number || 'N/A'" readonly />
+      </div>
+                <div class="field-group">
+                  <label>Reason Flagged</label>
+                  <input type="text" :value="reverificationData?.reason_flagged || 'N/A'" readonly />
+                </div>
+                <div class="field-group">
+                  <label>Sensitivity Index</label>
+                  <input type="text" :value="reverificationData?.sensitivity_index || 'N/A'" readonly />
+                </div>
               </div>
-              <div class="field-group">
-                <label>Mobile</label>
-                <input type="text" v-model="i4cDetails.mobile" readonly />
-              </div>
-               <div class="field-group">
-                <label>Email</label>
-                <input type="text" v-model="i4cDetails.email" readonly />
+              <div class="details-row">
+                <div class="field-group">
+                  <label>TSP Name</label>
+                  <input type="text" :value="reverificationData?.tspname || 'N/A'" readonly />
+                </div>
+                <div class="field-group">
+                  <label>Distribution Details</label>
+                  <input type="text" :value="reverificationData?.distribution_details || 'N/A'" readonly />
+                </div>
               </div>
             </div>
-            <div class="details-row">
+            <!-- Bank/Txn row omitted for MM cases -->
+            <div v-if="false" class="details-row">
               <div class="field-group">
                 <label>Bank Account</label>
-                <input type="text" v-model="i4cDetails.bankAc" readonly />
+                <input type="text" v-model="i4cDetails.bankAc" :readonly="isReadOnly" />
               </div>
-            </div>
-          </div>
+              <div class="field-group">
+                <label>Transaction Amount</label>
+                <input type="text" v-model="i4cDetails.transactionAmount" :readonly="isReadOnly" />
+              </div>
+              <div class="field-group">
+                <label>Transaction Date</label>
+                <input type="text" v-model="i4cDetails.transactionDate" :readonly="isReadOnly" />
+              </div>
+      </div>
+    </div>
 
           <div class="details-section">
             <h4>Customer Details - Bank</h4>
@@ -62,7 +87,7 @@
               <div class="field-group highlight">
                 <label>Name</label>
                 <input type="text" v-model="bankDetails.name" readonly />
-              </div>
+      </div>
               <div class="field-group highlight">
                 <label>Mobile</label>
                 <input type="text" v-model="bankDetails.mobile" readonly />
@@ -72,52 +97,53 @@
                 <input type="text" v-model="bankDetails.email" readonly />
               </div>
             </div>
-            <div class="details-row">
+            <!-- Customer ID/Bank Account/Status row omitted for MM cases -->
+            <div v-if="false" class="details-row">
                <div class="field-group">
                 <label>Customer ID</label>
-                <input type="text" v-model="bankDetails.customerId" readonly />
+                <input type="text" v-model="bankDetails.customerId" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Bank Account</label>
-                <input type="text" v-model="bankDetails.bankAc" readonly />
+                <input type="text" v-model="bankDetails.bankAc" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Account Status</label>
-                <input type="text" v-model="bankDetails.acStatus" readonly />
+                <input type="text" v-model="bankDetails.acStatus" :readonly="isReadOnly" />
               </div>
             </div>
              <div class="details-row">
               <div class="field-group">
                 <label>PAN</label>
-                <input type="text" v-model="bankDetails.pan" readonly />
+                <input type="text" v-model="bankDetails.pan" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Aadhaar</label>
-                <input type="text" v-model="bankDetails.aadhaar" readonly />
+                <input type="text" v-model="bankDetails.aadhaar" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Product Code</label>
-                <input type="text" v-model="bankDetails.productCode" readonly />
+                <input type="text" v-model="bankDetails.productCode" :readonly="isReadOnly" />
               </div>
             </div>
              <div class="details-row">
               <div class="field-group">
                 <label>AQB</label>
-                <input type="text" v-model="bankDetails.aqb" readonly />
+                <input type="text" v-model="bankDetails.aqb" :readonly="isReadOnly" />
               </div>
                <div class="field-group">
                 <label>Balance</label>
-                <input type="text" v-model="bankDetails.availBal" readonly />
+                <input type="text" v-model="bankDetails.availBal" :readonly="isReadOnly" />
               </div>
               <div class="field-group">
                 <label>Relationship Value</label>
-                <input type="text" v-model="bankDetails.relValue" readonly />
+                <input type="text" v-model="bankDetails.relValue" :readonly="isReadOnly" />
               </div>
             </div>
              <div class="details-row">
               <div class="field-group">
                 <label>Vintage (MoB)</label>
-                <input type="text" v-model="bankDetails.mobVintage" readonly />
+                <input type="text" v-model="bankDetails.mobVintage" :readonly="isReadOnly" />
               </div>
             </div>
           </div>
@@ -331,7 +357,7 @@
                       <small>{{ getTemplateDescription(review.templateId) }}</small>
                     </div>
                   </div>
-                  <textarea v-model="review.text" :disabled="isAssignmentDisabled" placeholder="Add comments (required)..." class="compact-textarea" required></textarea>
+                  <textarea v-model="review.text" :disabled="isAssignmentDisabled" placeholder="Add comments..." class="compact-textarea"></textarea>
                   <button @click="removeReviewCommentRow(reviewIndex)" v-if="action.reviews.length > 1" :disabled="isAssignmentDisabled" class="btn-remove-row" title="Remove Assignment Section">×</button>
                 </div>
                 <button @click="addReviewCommentRow" :disabled="isAssignmentDisabled" class="btn-add-row">+ Add Assignment</button>
@@ -573,10 +599,7 @@
             <div class="field-group">
               <label>Supervisor Approval</label>
               <div class="input-row">
-                <textarea v-model="supervisorApprovalComment" :disabled="isReadOnly" placeholder="Approval comment (required)..." class="compact-textarea"></textarea>
-              </div>
-              <div class="input-row">
-                <textarea v-model="supervisorRejectReason" :disabled="isReadOnly" placeholder="Rejection reason (required)..." class="compact-textarea"></textarea>
+                <textarea v-model="supervisorRejectReason" :disabled="isReadOnly" placeholder="Optional: enter reason when rejecting" class="compact-textarea"></textarea>
               </div>
               <div class="supervisor-actions">
                 <button @click="approveDeptChanges" :disabled="isReadOnly" class="btn-approve">
@@ -850,8 +873,30 @@ watch(userRole, (role) => {
 });
 
 // --- Data Models ---
-const i4cDetails = ref({});
-const bankDetails = ref({});
+const i4cDetails = ref({
+  name: '',
+  mobile: '',
+  email: '',
+  bankAc: '',
+  transactionAmount: '',
+  transactionDate: ''
+});
+const bankDetails = ref({
+  name: '',
+  mobile: '',
+  email: '',
+  customerId: '',
+  bankAc: '',
+  acStatus: '',
+  pan: '',
+  aadhaar: '',
+  productCode: '',
+  aqb: '',
+  availBal: '',
+  relValue: '',
+  mobVintage: ''
+});
+
 const action = ref({
   analysisLOV: '',
   analysisUpdate: '',
@@ -949,6 +994,7 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+
 const triggerFileInput = (blockIndex) => {
   if(fileInputRefs.value[blockIndex] && !isReadOnly.value) {
     fileInputRefs.value[blockIndex].click();
@@ -1021,7 +1067,7 @@ const fetchClosureReasons = async () => {
 const caseAckNo = ref('');
 
 const fetchCaseDetails = async () => {
-  const caseId = parseInt(route.params.case_id);
+  const caseId = route.params.case_id;
   const token = localStorage.getItem('jwt');
   if (!token) throw new Error('No authentication token found');
 
@@ -1031,6 +1077,36 @@ const fetchCaseDetails = async () => {
     const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
+    
+    // MMA: Always treat as Mobile Matching; derive reverification data from remarks
+    let remarks = '';
+    if (action_details && action_details.remarks) {
+      remarks = action_details.remarks;
+    } else if (response.data.long_dn) {
+      // Fallback: long_dn from case_main often carries creation remarks
+      remarks = response.data.long_dn;
+    } else if (Array.isArray(response.data.decision_history) && response.data.decision_history.length > 0) {
+      // Fallback: latest decision remark
+      remarks = response.data.decision_history[0]?.remarks || '';
+    }
+
+    if (remarks && remarks.includes('Mobile Number Match:')) {
+      isMMTriggered.value = true;
+      // Extract reverification data from remarks
+      const mobileMatch = remarks.match(/Mobile Number Match: ([^|]+)/);
+      const reasonMatch = remarks.match(/Reason: ([^|]+)/);
+      const sensitivityMatch = remarks.match(/Sensitivity: ([^|]+)/);
+      const tspMatch = remarks.match(/TSP: ([^|]+)/);
+      const detailsMatch = remarks.match(/Details: ([^|]+)/);
+      
+      reverificationData.value = {
+        mobile_number: mobileMatch ? mobileMatch[1].trim() : '',
+        reason_flagged: reasonMatch ? reasonMatch[1].trim() : '',
+        sensitivity_index: sensitivityMatch ? sensitivityMatch[1].trim() : '',
+        tspname: tspMatch ? tspMatch[1].trim() : '',
+        distribution_details: detailsMatch ? detailsMatch[1].trim() : ''
+      };
+    }
     i4cDetails.value = { 
       name: i4c_data?.customer_name || 'N/A', 
       mobile: i4c_data?.mobile || 'N/A', 
@@ -1079,6 +1155,10 @@ const isReadOnly = ref(false);
 const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
 const caseLogs = ref([]);
 
+// MM-triggered case detection
+const isMMTriggered = ref(true);
+const reverificationData = ref(null);
+
 // --- Workflow Logic ---
 const hasClosureActivity = computed(() => {
   return !!(action.value.closureLOV || action.value.closureRemarks?.trim());
@@ -1106,7 +1186,6 @@ const limitedCaseLogs = computed(() => {
 const sendBackComment = ref('');
 const hasUnsavedChanges = ref(false);
 const supervisorRejectReason = ref('');
-const supervisorApprovalComment = ref('');
 
 // Mark as unsaved on any change
 watch(action, () => { hasUnsavedChanges.value = true; }, { deep: true });
@@ -1193,7 +1272,7 @@ const sendBackCase = async () => {
     window.showNotification('success', 'Case Sent Back', 'Case sent back successfully!');
     sendBackComment.value = '';
     // Refresh logs and assignment
-    const caseId = parseInt(route.params.case_id);
+    const caseId = route.params.case_id;
     const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -1208,15 +1287,10 @@ const sendBackCase = async () => {
 };
 
 const approveDeptChanges = async () => {
-  if (!supervisorApprovalComment.value || !supervisorApprovalComment.value.trim()) {
-    window.showNotification('warning', 'Comment Required', 'Please provide an approval comment before approving changes.');
-    return;
-  }
-  
   const ackNo = caseAckNo.value;
   const token = localStorage.getItem('jwt');
   try {
-    await axios.post(`/api/case/${ackNo}/approve-dept`, { approval_comment: supervisorApprovalComment.value }, { headers: { 'Authorization': `Bearer ${token}` } });
+    await axios.post(`/api/case/${ackNo}/approve-dept`, {}, { headers: { 'Authorization': `Bearer ${token}` } });
     window.showNotification('success', 'Approved', 'Department changes approved and routed back to Risk Officer.');
     window.location.href = `/supervisor-worklist`;
   } catch (err) {
@@ -1226,15 +1300,10 @@ const approveDeptChanges = async () => {
 };
 
 const rejectDeptChanges = async () => {
-  if (!supervisorRejectReason.value || !supervisorRejectReason.value.trim()) {
-    window.showNotification('warning', 'Reason Required', 'Please provide a rejection reason before rejecting changes.');
-    return;
-  }
-  
   const ackNo = caseAckNo.value;
   const token = localStorage.getItem('jwt');
   try {
-    await axios.post(`/api/case/${ackNo}/reject-dept`, { rejection_reason: supervisorRejectReason.value }, { headers: { 'Authorization': `Bearer ${token}` } });
+    await axios.post(`/api/case/${ackNo}/reject-dept`, { rejection_reason: supervisorRejectReason.value || null }, { headers: { 'Authorization': `Bearer ${token}` } });
     window.showNotification('success', 'Rejected', 'Department changes rejected and routed back to Risk Officer.');
     window.location.href = `/supervisor-worklist`;
   } catch (err) {
@@ -1280,7 +1349,7 @@ const previousStep = () => {
 const fetchAssignmentStatus = async () => {
   if (!isReviewMode.value) return;
   
-  const caseId = parseInt(route.params.case_id);
+  const caseId = route.params.case_id;
   const token = localStorage.getItem('jwt');
   try {
     const response = await axios.get(`/api/case/${caseId}/assignments`, {
@@ -1303,7 +1372,7 @@ const revokeAssignment = async (assignedTo) => {
     window.showNotification('success', 'Assignment Revoked', `Assignment revoked from ${assignedTo} successfully!`);
     await fetchAssignmentStatus();
     // Refresh logs
-    const caseId = parseInt(route.params.case_id);
+    const caseId = route.params.case_id;
     const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -1319,7 +1388,7 @@ onMounted(async () => {
   fetchError.value = null;
   try {
     // Fetch latest saved action data and files
-    const caseId = parseInt(route.params.case_id);
+    const caseId = route.params.case_id;
     const token = localStorage.getItem('jwt');
     const resp = await axios.get('/api/case-action/latest', {
       params: { case_id: caseId },
@@ -1383,9 +1452,9 @@ onMounted(async () => {
 
 // --- Action Buttons ---
 const saveAction = async () => {
-  const caseId = parseInt(route.params.case_id);
+  const caseId = route.params.case_id;
   // You may need to get case_type from route or data; here we use a placeholder
-  const caseType = bankDetails.value.caseType || 'BM'; // Adjust as needed
+  const caseType = 'ECBNT'; // Set case_type to ECBNT for this component
   const formData = new FormData();
   formData.append('case_id', caseId);
   formData.append('case_type', caseType);
@@ -1432,7 +1501,7 @@ const submitAction = async () => {
       return;
     }
   }
-  const caseId = parseInt(route.params.case_id);
+  const caseId = route.params.case_id;
   try {
     const token = localStorage.getItem('jwt');
     await axios.post('/api/case/submit',
@@ -1454,17 +1523,10 @@ const assignCase = async () => {
     return;
   }
   
-  // Validate that all assignments have users selected and comments provided
+  // Validate that all assignments have users selected
   const validAssignments = action.value.reviews.filter(review => review.userId && review.userId.trim());
   if (validAssignments.length === 0) {
     window.showNotification('warning', 'No Users Selected', 'Please select at least one user to assign.');
-    return;
-  }
-  
-  // Check if all valid assignments have comments
-  const assignmentsWithoutComments = validAssignments.filter(review => !review.text || !review.text.trim());
-  if (assignmentsWithoutComments.length > 0) {
-    window.showNotification('warning', 'Comments Required', 'Please provide comments for all assignments before proceeding.');
     return;
   }
   
@@ -1525,7 +1587,7 @@ const fetchAssignedTemplate = async () => {
   }
   
   try {
-    const caseId = parseInt(route.params.case_id);
+    const caseId = route.params.case_id;
     const token = localStorage.getItem('jwt');
     const currentUsername = localStorage.getItem('username'); // Get actual username
     
@@ -1628,7 +1690,7 @@ const handleTemplateFileUpload = (event, questionId) => {
 
 const saveTemplateResponses = async () => {
   try {
-    const caseId = parseInt(route.params.case_id);
+    const caseId = route.params.case_id;
     const token = localStorage.getItem('jwt');
     
     // Get the actual department name from user profile
@@ -1673,7 +1735,7 @@ const saveTemplateResponses = async () => {
 
 const fetchCaseTemplateResponses = async () => {
   try {
-    const caseId = parseInt(route.params.case_id);
+    const caseId = route.params.case_id;
     const token = localStorage.getItem('jwt');
     const response = await axios.get(`/api/case/${caseId}/template-responses`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -1835,6 +1897,21 @@ const getTemplateQuestionFiles = (questionId) => {
   font-weight: 600;
   padding-bottom: 8px;
   border-bottom: 1px solid #dee2e6;
+}
+
+.reverification-details {
+  background: #e8f4fd;
+  border: 1px solid #b8daff;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.reverification-details h5 {
+  margin: 0 0 8px 0;
+  color: #0c5460;
+  font-size: 14px;
+  font-weight: 600;
 }
 .details-row {
   display: grid;

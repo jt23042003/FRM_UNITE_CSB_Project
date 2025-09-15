@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   CASE_OPERATIONS_STATUS: (ackno) => `${API_BASE_URL}/case/${ackno}/operations-status`,
   CASE_DECISION: (ackno) => `${API_BASE_URL}/case/${ackno}/decision`,
   CASE_ASSIGN: (ackno) => `${API_BASE_URL}/case/${ackno}/assign`,
+  SEND_BACK_ANALYSIS: `${API_BASE_URL}/send-back-analysis`,
   
   
   // File Processing

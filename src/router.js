@@ -1,11 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/pages/MainLayout.vue'
 import Dashboard from '@/pages/Dashboard.vue'
+import SimpleDashboard from '@/pages/SimpleDashboard.vue'
 import I4CCaseEntry from '@/pages/I4CCaseEntry.vue'
 import CaseDetails from '@/pages/CaseDetails.vue'
 // import CaseRiskReview from '@/pages/CaseRiskReview.vue'
 import Login from '@/pages/Login.vue'
 import BulkFileUpload from '@/pages/BulkFileUpload.vue'
+import UserActivity from '@/pages/UserActivity.vue'
 
 const routes = [
   {
@@ -20,10 +22,15 @@ const routes = [
     children: [
       { path: '', redirect: '/dashboard' },
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
+      { path: 'simple-dashboard', name: 'SimpleDashboard', component: SimpleDashboard },
       { path: 'data-entry', name: 'DataEntry', component: I4CCaseEntry },
       { path: 'bulk-upload', name: 'BulkUpload', component: BulkFileUpload },
       { path: 'case-details', name: 'CaseDetails', component: CaseDetails },
       { path: 'review-assigned-cases', name: 'ReviewAssignedCases', component: () => import('@/pages/ReviewAssignedCases.vue') },
+      { path: 'my-activity', name: 'UserActivity', component: UserActivity },
+      { path: 'supervisor-worklist', name: 'SupervisorWorklist', component: () => import('@/pages/SupervisorWorklist.vue') },
+      { path: 'delayed-cases', name: 'DelayedCases', component: () => import('@/pages/DelayedCases.vue') },
+      { path: 'template-library', name: 'TemplateDisplay', component: () => import('@/pages/TemplateDisplay.vue') },
       
       // --- All your case detail pages ---
       {
@@ -81,6 +88,20 @@ const routes = [
         component: () => import('@/pages/NABAction.vue'),
         props: true,
       },
+      // --- MOBILE MATCHING (MM) CASE ROUTE ---
+      {
+        path: 'mobile-matching-action/:case_id',
+        name: 'MobileMatchingAction',
+        component: () => import('@/pages/MobileMatchingAction.vue'),
+        props: true,
+      },
+      // --- NEW SUPERVISOR TEMPLATE REVIEW ROUTE ---
+      {
+        path: 'supervisor-template-review/:case_id',
+        name: 'SupervisorTemplateReview',
+        component: () => import('@/pages/SupervisorTemplateReview.vue'),
+        props: true,
+      },
     ],
   },
 ]
@@ -104,8 +125,52 @@ router.beforeEach((to, from, next) => {
   else if (to.path === '/login' && loggedIn) {
     next('/dashboard');
   } 
+        // Check if user with type "others" is trying to access restricted routes
+      else if (to.meta.requiresAuth && loggedIn) {
+        const userType = localStorage.getItem('user_type');
+        if (userType === 'others') {
+          // Users with type "others" can only access case-details, simple-dashboard, and all case detail pages
+          if (to.path === '/dashboard' || to.path === '/') {
+            next('/simple-dashboard');
+            return;
+          }
+          
+          // Allow access to case-details list page
+          if (to.path === '/case-details') {
+            next();
+            return;
+          }
+
+          // Allow access to user activity page
+          if (to.path === '/my-activity') {
+            next();
+            return;
+          }
+          
+          // Allow access to simple-dashboard
+          if (to.path === '/simple-dashboard') {
+            next();
+            return;
+          }
+          
+          // Allow access to template library
+          if (to.path === '/template-library') {
+            next();
+            return;
+          }
+          
+          // Allow access to all case detail pages (operational-action, beneficiary-action, etc.)
+          if (to.path.includes('-action/') || to.path.includes('case-details/')) {
+            next();
+            return;
+          }
+          
+          // Block access to all other pages
+          next('/simple-dashboard');
+          return;
+        }
+      }
+  
   // Otherwise, let them proceed.
-  else {
-    next();
-  }
+  next();
 });

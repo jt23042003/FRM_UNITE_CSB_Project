@@ -12,7 +12,8 @@ body {
     padding: 20px 24px;
     margin: 0;
     background-color: #ffffff;
-    min-height: calc(100vh - 40px);
+    height: 100vh;
+    overflow-y: auto;
 }
 
 /* Dashboard Header and Filters */

@@ -21,7 +21,14 @@
       <div v-if="currentStep === 1" class="step-panel">
         <h3>Alert - NAB Action</h3>
 
-        <div v-if="isLoading" class="loading-indicator">Loading Case Details...</div>
+        <div v-if="isLoading" class="loading-indicator">
+          Loading Case Details...
+          <div class="skeleton-table" style="margin-top: 12px;">
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+          </div>
+        </div>
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
         <div v-else>
@@ -29,9 +36,9 @@
                 <div class="details-section">
                     <h4>Customer Details - I4C</h4>
                     <div class="details-row">
-                        <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" :readonly="isReadOnly" /></div>
-                        <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" :readonly="isReadOnly" /></div>
-                        <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
+                        <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
+                        <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
                     </div>
                     <div class="details-row">
                         <div class="field-group"><label>IFSC Code</label><input type="text" v-model="i4cDetails.ifscCode" :readonly="isReadOnly" /></div>
@@ -43,9 +50,9 @@
                 <div class="details-section">
                     <h4>Customer Details - Bank</h4>
                     <div class="details-row">
-                        <div class="field-group highlight"><label>Name</label><input type="text" v-model="bankDetails.name" :readonly="isReadOnly" /></div>
-                        <div class="field-group highlight"><label>Mobile</label><input type="text" v-model="bankDetails.mobileNumber" :readonly="isReadOnly" /></div>
-                        <div class="field-group highlight"><label>Email</label><input type="text" v-model="bankDetails.email" :readonly="isReadOnly" /></div>
+                        <div class="field-group highlight"><label>Name</label><input type="text" v-model="bankDetails.name" readonly /></div>
+                        <div class="field-group highlight"><label>Mobile</label><input type="text" v-model="bankDetails.mobileNumber" readonly /></div>
+                        <div class="field-group highlight"><label>Email</label><input type="text" v-model="bankDetails.email" readonly /></div>
                     </div>
                      <div class="details-row">
                         <div class="field-group"><label>IFSC Code</label><input type="text" v-model="bankDetails.ifscCode" :readonly="isReadOnly" /></div>
@@ -220,6 +227,14 @@
             </div>
             </div>
 
+                      <!-- Warning for reopened cases -->
+            <div v-if="status === 'Reopened'" class="reopened-warning">
+              <div class="warning-icon">⚠️</div>
+              <div class="warning-text">
+                <strong>Case Reopened:</strong> This case was reopened by a super_user. <strong>Only assignment functionality is disabled</strong> - all other features remain editable.
+              </div>
+            </div>
+          
           <div class="form-section">
             <div class="field-group">
               <label v-if="userRole !== 'others'">Assignments</label>
@@ -227,22 +242,25 @@
               <div v-if="userRole !== 'others'">
                 <div class="review-comment-row">
                   <div class="comment-user-selection-row">
-                    <select v-model="action.reviews[0].selectedDepartment" :disabled="isReadOnly" class="compact-select" @change="handleDepartmentChange(action.reviews[0])">
+                    <select v-model="action.reviews[0].selectedDepartment" :disabled="isAssignmentDisabled" class="compact-select" @change="handleDepartmentChange(action.reviews[0])">
                       <option value="">Select Department</option>
                       <option v-for="dept in departments" :key="dept.id" :value="dept.name">
                         {{ dept.name }}
                       </option>
                     </select>
-                    <select v-model="action.reviews[0].userId" :disabled="isReadOnly || !action.reviews[0].selectedDepartment" class="compact-select">
+                    <select v-model="action.reviews[0].userId" :disabled="isAssignmentDisabled || !action.reviews[0].selectedDepartment" class="compact-select">
                       <option value="">Select User</option>
                       <option v-for="user in action.reviews[0].userList" :key="user.id" :value="user.name">
                         {{ user.name }}
                       </option>
                     </select>
                   </div>
-                  <textarea v-model="action.reviews[0].text" :disabled="isReadOnly" placeholder="Add comments..." class="compact-textarea"></textarea>
+                  <textarea v-model="action.reviews[0].text" :disabled="isAssignmentDisabled" placeholder="Add comments..." class="compact-textarea"></textarea>
                 </div>
-                <button v-if="!isReadOnly" @click="assignCase" class="btn-assign">Assign</button>
+                <button v-if="!isAssignmentDisabled" @click="assignCase" class="btn-assign btn-assign-prominent">
+                  <span class="assignment-icon">⚡</span>
+                  <span>Proceed with Assignment</span>
+                </button>
               </div>
               <div v-else>
                 <textarea v-model="sendBackComment" :disabled="isReadOnly" placeholder="Add comments for send back..." class="compact-textarea"></textarea>
@@ -275,13 +293,20 @@
 
       <div v-if="userRole !== 'others' && currentStep === 4" class="step-panel">
         <h3>Confirmation</h3>
-        <div class="confirmation-grid">
+        <div v-if="!canAccessConfirmation" class="locked-section-warning" 
+             style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 8px; display: flex; align-items: center; gap: 15px;">
+          <span class="warning-icon" style="font-size: 24px; color: #b45309;">🔒</span>
+          <span class="warning-text" style="color: #b45309; font-size: 16px; font-weight: 600;">
+            <strong style="color: #b45309; font-weight: 700;">Section Locked:</strong> Please complete the closure section first before accessing confirmation.
+          </span>
+        </div>
+        <div class="confirmation-grid" :class="{ 'locked-section': !canAccessConfirmation }">
           <div class="confirm-section">
             <div class="confirm-row">
               <label>Confirmed Mule</label>
               <div class="radio-group">
-                <label><input type="radio" v-model="action.confirmedMule" value="Yes" name="confirmedMule" :disabled="isReadOnly" /> Yes</label>
-                <label><input type="radio" v-model="action.confirmedMule" value="No" name="confirmedMule" :disabled="isReadOnly" /> No</label>
+                <label><input type="radio" v-model="action.confirmedMule" value="Yes" name="confirmedMule" :disabled="isReadOnly || !canAccessConfirmation" /> Yes</label>
+                <label><input type="radio" v-model="action.confirmedMule" value="No" name="confirmedMule" :disabled="isReadOnly || !canAccessConfirmation" /> No</label>
               </div>
             </div>
             <div class="confirm-row">
@@ -289,9 +314,11 @@
               <input
                 type="number"
                 v-model="action.fundsSaved"
-                :disabled="action.confirmedMule !== 'Yes' || isReadOnly"
+                :disabled="isReadOnly || !canAccessConfirmation"
                 class="compact-input"
-                placeholder="Amount"
+                placeholder="Amount (INR)"
+                min="0"
+                step="0.01"
               />
             </div>
           </div>
@@ -299,15 +326,15 @@
             <div class="confirm-row">
               <label>Digital Channel Blocked</label>
               <div class="radio-group">
-                <label><input type="radio" v-model="action.digitalBlocked" value="Yes" name="digitalBlocked" :disabled="isReadOnly" /> Yes</label>
-                <label><input type="radio" v-model="action.digitalBlocked" value="No" name="digitalBlocked" :disabled="isReadOnly" /> No</label>
+                <label><input type="radio" v-model="action.digitalBlocked" value="Yes" name="digitalBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> Yes</label>
+                <label><input type="radio" v-model="action.digitalBlocked" value="No" name="digitalBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> No</label>
               </div>
             </div>
             <div class="confirm-row">
               <label>Account Blocked</label>
               <div class="radio-group">
-                <label><input type="radio" v-model="action.accountBlocked" value="Yes" name="accountBlocked" :disabled="isReadOnly" /> Yes</label>
-                <label><input type="radio" v-model="action.accountBlocked" value="No" name="accountBlocked" :disabled="isReadOnly" /> No</label>
+                <label><input type="radio" v-model="action.accountBlocked" value="Yes" name="accountBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> Yes</label>
+                <label><input type="radio" v-model="action.accountBlocked" value="No" name="accountBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> No</label>
               </div>
             </div>
           </div>
@@ -328,6 +355,13 @@
             </li>
           </ul>
         </div>
+        <div v-else class="uploaded-files-list improved-upload-list">
+          <div class="empty-state">
+            <div class="icon">📄</div>
+            <div class="title">No documents uploaded</div>
+            <div class="hint">Upload supporting documents in Analysis to see them listed here.</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -341,6 +375,13 @@
           <span class="log-details">{{ log.details }}</span>
         </li>
       </ul>
+    </div>
+    <div v-else class="case-logs-section">
+      <div class="empty-state">
+        <div class="icon">📝</div>
+        <div class="title">No activity yet</div>
+        <div class="hint">Actions and updates will appear here.</div>
+      </div>
     </div>
 
     <div class="bottom-navigation">
@@ -362,7 +403,7 @@
       </div>
       <div class="action-buttons">
         <button v-if="!isReadOnly" @click="saveAction" class="btn-save">Save</button>
-        <button v-if="!isReadOnly && userRole !== 'others'" @click="submitAction" class="btn-submit">Submit</button>
+        <button v-if="!isReadOnly && userRole !== 'others' && showSubmitButton" @click="submitAction" class="btn-submit">Submit</button>
       </div>
     </div>
   </div>
@@ -387,6 +428,7 @@ const departments = ref([]);
 const closureReasons = ref([]);
 
 const userRole = ref('');
+const status = ref('New'); // Track case status
 
 // Fetch user role on mount (from /api/new-case-list)
 const fetchUserRole = async () => {
@@ -588,9 +630,10 @@ const fetchCaseDetails = async () => {
     const i4c_data = response.data.i4c_data || {};
     const customer_details = response.data.customer_details || {};
     const account_details = response.data.account_details || {};
-    const { transactions = [], action_details, status, source_ack_no, source_bene_accno } = response.data;
+    const { transactions = [], action_details, status: caseStatus, source_ack_no, source_bene_accno } = response.data;
 
     caseAckNo.value = source_ack_no || '';
+    status.value = caseStatus || 'New'; // Update the status ref
     
     i4cDetails.value = {
         name: i4c_data.customer_name || 'N/A',
@@ -629,6 +672,7 @@ const fetchCaseDetails = async () => {
       }
     }
     
+    // Set isReadOnly based on real case status (only closed cases should be read-only)
     if (typeof status === 'string' && status.trim().toLowerCase() === 'closed') {
       isReadOnly.value = true;
     } else {
@@ -641,7 +685,21 @@ const fetchCaseDetails = async () => {
 
 const previouslyUploadedFiles = ref([]);
 const isReadOnly = ref(false);
+const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
 const caseLogs = ref([]);
+
+// --- Workflow Logic ---
+const hasClosureActivity = computed(() => {
+  return !!(action.value.closureLOV || action.value.closureRemarks?.trim());
+});
+
+const canAccessConfirmation = computed(() => {
+  return hasClosureActivity.value;
+});
+
+const showSubmitButton = computed(() => {
+  return hasClosureActivity.value;
+});
 
 const sendBackComment = ref('');
 const hasUnsavedChanges = ref(false);
@@ -650,11 +708,11 @@ watch(action, () => { hasUnsavedChanges.value = true; }, { deep: true });
 
 const sendBackCase = async () => {
   if (hasUnsavedChanges.value) {
-    alert('Please click on Save before Send Back.');
+    window.showNotification('warning', 'Unsaved Changes', 'Please click on Save before Send Back.');
     return;
   }
   if (!sendBackComment.value.trim()) {
-    alert('Please enter a comment before sending back.');
+    window.showNotification('warning', 'Missing Comment', 'Please enter a comment before sending back.');
     return;
   }
   const ackNo = caseAckNo.value;
@@ -663,7 +721,7 @@ const sendBackCase = async () => {
     await axios.post(`/api/case/${ackNo}/send-back`, { comment: sendBackComment.value }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    alert('Case sent back successfully!');
+    window.showNotification('success', 'Case Sent Back', 'Case sent back successfully!');
     sendBackComment.value = '';
     const caseId = route.params.case_id;
     const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
@@ -673,7 +731,7 @@ const sendBackCase = async () => {
     await fetchUserRole();
     window.location.href = `/case-details`;
   } catch (err) {
-    alert('Failed to send back case.');
+    window.showNotification('error', 'Send Back Failed', 'Failed to send back case.');
     console.error('Send back error:', err);
   }
 };
@@ -681,12 +739,30 @@ const sendBackCase = async () => {
 const goToStep = (step) => {
   if (isLoading.value) return;
   if (userRole.value === 'others' && step > 2) return;
+  
+  // Prevent direct access to confirmation step (step 4) without closure activity
+  if (step === 4 && !canAccessConfirmation.value) {
+    if (window.showNotification) {
+      window.showNotification('Please complete the closure section before accessing confirmation.', 'warning');
+    }
+    return;
+  }
+  
   currentStep.value = step;
 };
 const nextStep = () => {
   if (userRole.value === 'others') {
     if (currentStep.value < 2) currentStep.value++;
   } else {
+    // Prevent access to confirmation step (step 4) without closure activity
+    if (currentStep.value === 3 && !canAccessConfirmation.value) {
+      // Show notification that closure section must be completed first
+      if (window.showNotification) {
+        window.showNotification('Please complete the closure section before proceeding to confirmation.', 'warning');
+      }
+      return;
+    }
+    
     if (currentStep.value < steps.value.length) currentStep.value++;
   }
 };
@@ -756,17 +832,17 @@ const saveAction = async () => {
         'Content-Type': 'multipart/form-data',
       },
     });
-    alert('Case action saved successfully!');
+    window.showNotification('success', 'Action Saved', 'Case action saved successfully!');
     hasUnsavedChanges.value = false;
   } catch (err) {
-    alert('Failed to save case action.');
+    window.showNotification('error', 'Save Failed', 'Failed to save case action.');
     console.error('Failed to save case action:', err);
   }
 };
 
 const submitAction = async () => {
   if (hasUnsavedChanges.value) {
-    alert('Please click on Save before Submit.');
+    window.showNotification('warning', 'Unsaved Changes', 'Please click on Save before Submit.');
     return;
   }
   const caseId = route.params.case_id;
@@ -784,18 +860,18 @@ const submitAction = async () => {
 
 const assignCase = async () => {
   if (hasUnsavedChanges.value) {
-    alert('Please click on Save before Assign.');
+    window.showNotification('warning', 'Unsaved Changes', 'Please click on Save before Assign.');
     return;
   }
   const assignedTo = action.value.reviews[0].userId;
   const token = localStorage.getItem('jwt');
   const ackNo = caseAckNo.value;
   if (!assignedTo) {
-    alert('Please select a user to assign.');
+    window.showNotification('warning', 'No Users Selected', 'Please select a user to assign.');
     return;
   }
   if (!ackNo) {
-    alert('No valid case ACK No found.');
+    window.showNotification('error', 'Invalid Case', 'No valid case ACK No found.');
     return;
   }
   try {
@@ -803,10 +879,10 @@ const assignCase = async () => {
       { assigned_to_employee: assignedTo },
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
-    alert('Case assigned to ' + assignedTo);
+    window.showNotification('success', 'Case Assigned', 'Case assigned to ' + assignedTo);
     window.location.href = `/case-details`;
   } catch (err) {
-    alert('Failed to assign case.');
+    window.showNotification('error', 'Assignment Failed', 'Failed to assign case.');
     console.error('Assignment error:', err);
   }
 };
@@ -1405,6 +1481,128 @@ const assignCase = async () => {
 .btn-assign:hover {
   background-color: #d1e7ff;
 }
+
+/* Simple Assignment Button Styling - Like Save/Submit */
+.btn-assign-prominent {
+  background: #0d6efd !important;
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 12px 24px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2) !important;
+  transition: all 0.2s ease !important;
+  text-transform: none !important;
+  letter-spacing: 0.2px !important;
+  position: relative !important;
+  width: 100% !important;
+  max-width: 280px !important;
+  margin: 16px auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+}
+
+.btn-assign-prominent:hover {
+  background: #0b5ed7 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3) !important;
+}
+
+.btn-assign-prominent:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2) !important;
+}
+
+.btn-assign-prominent:disabled {
+  background: #6c757d !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6 !important;
+}
+
+/* Icon styling within the button */
+.btn-assign-prominent .assignment-icon {
+  font-size: 16px;
+}
+
+/* Enhanced Add Section Buttons - Nice but Simple */
+.btn-add-row {
+  background: #f8f9fa !important;
+  color: #495057 !important;
+  border: 2px dashed #dee2e6 !important;
+  border-radius: 8px !important;
+  padding: 12px 20px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 12px 0 !important;
+}
+
+.btn-add-row:hover {
+  background: #e9ecef !important;
+  border-color: #adb5bd !important;
+  color: #212529 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.btn-add-row:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Locked Section Styling */
+.locked-section-warning {
+  background: #fff3cd !important;
+  border: 2px solid #ffc107 !important;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex !important;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+.locked-section-warning .warning-icon {
+  font-size: 24px !important;
+  color: #b45309 !important;
+  font-weight: bold;
+}
+
+.locked-section-warning .warning-text {
+  color: #b45309 !important;
+  font-size: 15px !important;
+  line-height: 1.5;
+  font-weight: 500 !important;
+}
+
+.locked-section {
+  opacity: 0.5;
+  pointer-events: none;
+  position: relative;
+}
+
+.locked-section::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  z-index: 1;
+}
 .case-logs-section {
   background: #f8f9fa;
   border: 1px solid #e3e8ee;
@@ -1425,6 +1623,11 @@ const assignCase = async () => {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+.case-logs-section .case-log-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 .case-log-item {
   margin-bottom: 8px;
@@ -1454,5 +1657,34 @@ const assignCase = async () => {
 .log-details {
   color: #495057;
   font-size: 13px;
+}
+
+/* Reopened Case Warning Styles */
+.reopened-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  color: #856404;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.warning-text strong {
+  color: #856404;
+  font-weight: 600;
 }
 </style>

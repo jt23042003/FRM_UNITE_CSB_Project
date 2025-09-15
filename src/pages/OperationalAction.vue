@@ -22,7 +22,14 @@
       
       <div v-if="currentStep === 1" class="step-panel">
         <h3>Alert - I4C Operational Response</h3>
-        <div v-if="isLoading" class="loading-indicator">Loading Case Details...</div>
+        <div v-if="isLoading" class="loading-indicator">
+          Loading Case Details...
+          <div class="skeleton-table" style="margin-top: 12px;">
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+          </div>
+        </div>
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
         <div v-else class="comparison-grid">
           <div class="details-section">
@@ -96,6 +103,55 @@
       </div>
     </div>
 
+    <!-- Show saved data if available -->
+    <div v-if="savedActionData && !isLoading" class="saved-data-section">
+      <h4>Last Saved Action</h4>
+      <div class="saved-data-grid">
+        <div class="saved-item">
+          <label>Reference No:</label>
+          <span>{{ savedActionData.proof_of_upload_ref || 'Not provided' }}</span>
+        </div>
+        <div class="saved-item">
+          <label>Checked Documents:</label>
+          <div v-if="savedActionData.checked_documents && savedActionData.checked_documents.length > 0" class="checked-documents-list">
+            <ul>
+              <li v-for="doc in savedActionData.checked_documents" :key="doc">{{ doc }}</li>
+            </ul>
+          </div>
+          <span v-else>{{ savedActionData.checked_documents?.length || 0 }} documents selected</span>
+        </div>
+        <div class="saved-item">
+          <label>Screenshot:</label>
+          <div v-if="savedActionData.screenshot_filename">
+            <a 
+              :href="`/api/download-document/${savedActionData.screenshot_document_id}`" 
+              target="_blank"
+              class="screenshot-download-link"
+              v-if="savedActionData.screenshot_document_id"
+            >
+              {{ savedActionData.screenshot_filename }}
+            </a>
+            <span v-else>{{ savedActionData.screenshot_filename }}</span>
+          </div>
+          <span v-else>No screenshot uploaded</span>
+        </div>
+        <div class="saved-item">
+          <label>Status:</label>
+          <span :class="['status-badge', savedActionData.confirmation_action_status]">
+            {{ savedActionData.confirmation_action_status }}
+          </span>
+        </div>
+        <div class="saved-item">
+          <label>Submitted By:</label>
+          <span>{{ savedActionData.submitted_by || 'Unknown' }}</span>
+        </div>
+        <div class="saved-item">
+          <label>Submitted At:</label>
+          <span>{{ savedActionData.submitted_at ? new Date(savedActionData.submitted_at).toLocaleString() : 'Unknown' }}</span>
+        </div>
+      </div>
+    </div>
+
     <div v-if="caseLogs.length > 0" class="case-logs-section">
       <h4>Case Activity Log</h4>
       <ul class="case-log-list">
@@ -107,6 +163,13 @@
         </li>
       </ul>
     </div>
+    <div v-else class="case-logs-section">
+      <div class="empty-state">
+        <div class="icon">📝</div>
+        <div class="title">No activity yet</div>
+        <div class="hint">Actions and updates will appear here.</div>
+      </div>
+    </div>
 
     <div class="bottom-navigation">
       <div class="nav-buttons">
@@ -114,15 +177,16 @@
         <button @click="nextStep" v-if="currentStep < steps.length" class="btn-nav btn-next">Next</button>
       </div>
       <div class="action-buttons">
-        <button v-if="!isReadOnly" @click="saveAction" class="btn-save" :disabled="isSaving">Save</button>
+        <button v-if="!isReadOnly" @click="saveAction" class="btn-save" :disabled="isSaving">
+          {{ isSaving ? 'Saving...' : 'Save' }}
+        </button>
         <button
           v-if="!isReadOnly"
           @click="submitAction"
           class="btn-submit"
-          :disabled="!isSubmittable || isSaving"
-          title="You must save the case before you can submit it."
+          :disabled="isSaving"
         >
-          Submit
+          {{ isSaving ? 'Submitting...' : 'Submit & Close Case' }}
         </button>
       </div>
     </div>
@@ -142,11 +206,12 @@ const isLoading = ref(true);
 const fetchError = ref(null);
 const isSaving = ref(false);
 const caseLogs = ref([]);
+const savedActionData = ref(null);
 
-// --- NEW State Management for Status ---
-const caseStatus = ref(route.query.status || 'New');
-const isReadOnly = computed(() => caseStatus.value === 'Closed');
-const isSubmittable = computed(() => caseStatus.value === 'Open');
+// --- Case Status Management ---
+const caseStatus = ref('New');
+const isReadOnly = computed(() => caseStatus.value === 'Closed'); // Only closed cases should be read-only
+const isAssignmentDisabled = computed(() => caseStatus.value === 'Reopened'); // Only assignment is disabled for reopened cases
 
 // --- Stepper Logic ---
 const currentStep = ref(1);
@@ -166,7 +231,7 @@ const referenceNo = ref('');
 const screenshotFile = ref(null);
 const fileInputRef = ref(null);
 
-const caseId = route.params.case_id;
+const caseId = parseInt(route.params.case_id);
 
 // --- API Integration ---
 onMounted(async () => {
@@ -180,28 +245,29 @@ onMounted(async () => {
   }
 
   try {
-    const [caseDataRes, docListRes, logsRes, savedActionRes] = await Promise.all([
-      axios.get(`/api/combined-case-data/${caseId}`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get('/api/i4c-document-list', { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`/api/case/${caseId}/logs`, { headers: { Authorization: `Bearer ${token}` } }),
-      // Fetch saved data if the case is not 'New'
-      caseStatus.value !== 'New' ? axios.get(`/api/case/${caseId}/action-log`, { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null)
-    ]);
+    // First, get case data to determine status
+    const caseDataRes = await axios.get(`/api/combined-case-data/${caseId}`, { 
+      headers: { Authorization: `Bearer ${token}` } 
+    });
 
     if (caseDataRes.data) {
-      const { i4c_data = {}, customer_details = {}, account_details = {}, acc_num } = caseDataRes.data;
+      const { i4c_data = {}, customer_details = {}, account_details = {}, acc_num, status } = caseDataRes.data;
+      
+      // Update case status
+      caseStatus.value = status || 'New';
+      
       i4cDetails.value = {
-        name: i4c_data.customer_name || 'N/A',
-        mobileNumber: i4c_data.mobile || 'N/A',
-        bankAc: i4c_data.account_number || 'N/A',
-        email: i4c_data.email || 'N/A',
+        name: i4c_data?.customer_name || 'N/A',
+        mobileNumber: i4c_data?.mobile || 'N/A',
+        bankAc: i4c_data?.account_number || 'N/A',
+        email: i4c_data?.email || 'N/A',
       };
       bankDetails.value = {
-        name: `${customer_details.fname || ''} ${customer_details.mname || ''} ${customer_details.lname || ''}`.trim() || 'N/A',
-        mobileNumber: customer_details.mobile || 'N/A',
+        name: `${customer_details?.fname || ''} ${customer_details?.mname || ''} ${customer_details?.lname || ''}`.trim() || 'N/A',
+        mobileNumber: customer_details?.mobile || 'N/A',
         bankAc: acc_num || 'N/A',
-        email: customer_details.email || 'N/A',
-        customerId: customer_details.cust_id || 'N/A',
+        email: customer_details?.email || 'N/A',
+        customerId: customer_details?.cust_id || 'N/A',
         acStatus: account_details?.acc_status || 'N/A',
         aqb: account_details?.aqb || 'N/A',
         availBal: account_details?.availBal || 'N/A',
@@ -210,6 +276,12 @@ onMounted(async () => {
         mobVintage: customer_details?.mob || 'N/A',
       };
     }
+
+    // Fetch other data in parallel
+    const [docListRes, logsRes] = await Promise.all([
+      axios.get('/api/i4c-document-list', { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get(`/api/case/${caseId}/logs`, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
 
     if (docListRes.data?.success) {
       documentList.value = docListRes.data.documents.map(doc => ({
@@ -221,16 +293,27 @@ onMounted(async () => {
 
     caseLogs.value = logsRes.data?.logs || [];
 
-    // Pre-fill form if data was fetched for 'Open' or 'Closed' cases
-    if (savedActionRes?.data?.success && savedActionRes.data.data) {
-      const savedData = savedActionRes.data.data;
-      referenceNo.value = savedData.proof_of_upload_ref || '';
-      const checkedDocs = savedData.checked_documents || [];
-      documentList.value.forEach(doc => {
-        if (checkedDocs.includes(doc.name)) {
-          doc.checked = true;
+    // Only fetch operational confirmation if case is not "New"
+    if (caseStatus.value !== 'New') {
+      try {
+        const operationalConfirmationRes = await axios.get(`/api/case/${caseId}/operational-confirmation`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        
+        if (operationalConfirmationRes.data?.success && operationalConfirmationRes.data.data) {
+          savedActionData.value = operationalConfirmationRes.data.data;
+          
+          // Pre-fill form with saved data
+          referenceNo.value = savedActionData.value.proof_of_upload_ref || '';
+          const checkedDocs = savedActionData.value.checked_documents || [];
+          documentList.value.forEach(doc => {
+            doc.checked = checkedDocs.includes(doc.name);
+          });
         }
-      });
+      } catch (operationalConfirmationErr) {
+        console.log("No operational confirmation found for case (this is normal for new cases):", operationalConfirmationErr.message);
+        // This is expected for new cases, so we don't treat it as an error
+      }
     }
 
   } catch (err) {
@@ -276,27 +359,35 @@ const saveAction = async () => {
     const response = await axios.post('/api/operational-confirm', formData, {
       headers: { Authorization: `Bearer ${localStorage.getItem('jwt')}` },
     });
+    
     if (response.data.success) {
-      alert('Case data saved successfully! You can now submit.');
-      if (response.data.new_status) {
-        caseStatus.value = response.data.new_status; // This should be 'Open'
+    window.showNotification('success', 'Action Saved', 'Case data saved successfully! You can now submit when ready.');
+      caseStatus.value = 'Open'; // Update status to Open
+      
+      // Refresh saved action data
+      try {
+        const operationalConfirmationRes = await axios.get(`/api/case/${caseId}/operational-confirmation`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('jwt')}` }
+        });
+        if (operationalConfirmationRes.data?.success && operationalConfirmationRes.data.data) {
+          savedActionData.value = operationalConfirmationRes.data.data;
+        }
+      } catch (refreshErr) {
+        console.log("Operational confirmation not found yet (normal for first save):", refreshErr.message);
+        // This is normal for first-time saves
       }
     } else {
       throw new Error(response.data.message || 'Unknown error');
     }
   } catch (err) {
     console.error('Save action error:', err);
-    alert(`Failed to save data: ${err.message}`);
+    window.showNotification('error', 'Save Failed', `Failed to save data: ${err.message}`);
   } finally {
     isSaving.value = false;
   }
 };
 
 const submitAction = async () => {
-  if (!isSubmittable.value) { // Safety check
-      alert('You must save the case before submitting.');
-      return;
-  }
   isSaving.value = true;
   const formData = createActionPayload();
   formData.append('confirmation_action_status', 'submitted');
@@ -305,16 +396,34 @@ const submitAction = async () => {
     const response = await axios.post('/api/operational-confirm', formData, {
       headers: { Authorization: `Bearer ${localStorage.getItem('jwt')}` },
     });
+    
     if (response.data.success) {
-      alert('Case submitted successfully!');
-      caseStatus.value = 'Closed'; // Update status before navigating away
-      router.push('/case-details');
+    window.showNotification('success', 'Case Submitted', 'Case submitted and closed successfully!');
+      caseStatus.value = 'Closed'; // Update status to Closed
+      
+      // Refresh saved action data
+      try {
+        const operationalConfirmationRes = await axios.get(`/api/case/${caseId}/operational-confirmation`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('jwt')}` }
+        });
+        if (operationalConfirmationRes.data?.success && operationalConfirmationRes.data.data) {
+          savedActionData.value = operationalConfirmationRes.data.data;
+        }
+      } catch (refreshErr) {
+        console.log("Operational confirmation not found yet (normal for first submit):", refreshErr.message);
+        // This is normal for first-time submits
+      }
+      
+      // Navigate back to case details after a short delay
+      setTimeout(() => {
+        router.push('/case-details');
+      }, 2000);
     } else {
       throw new Error(response.data.message || 'Unknown error');
     }
   } catch (err) {
     console.error('Submit action error:', err);
-    alert(`Failed to submit case: ${err.message}`);
+    window.showNotification('error', 'Submit Failed', `Failed to submit case: ${err.message}`);
   } finally {
     isSaving.value = false;
   }
@@ -428,7 +537,7 @@ const submitAction = async () => {
 /* Action Section */
 .action-section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .document-checklist { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 16px; }
-.document-list { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; }
+.document-list { list-style: none; padding: 0; margin: 0; }
 .document-list li { margin-bottom: 12px; }
 .document-list label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
 .document-list input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0d6efd; }
@@ -439,10 +548,93 @@ const submitAction = async () => {
 .hidden-file-input { display: none; }
 .file-name-display { font-size: 13px; color: #6c757d; font-style: italic; }
 
+/* Saved Data Section */
+.saved-data-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 16px;
+}
+.saved-data-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #1a3a5d;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+.saved-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+.saved-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.saved-item label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.saved-item span {
+  font-size: 14px;
+  color: #495057;
+  padding: 4px 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.status-badge.saved {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+.status-badge.submitted {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* Checked Documents List */
+.checked-documents-list ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.checked-documents-list li {
+  margin-bottom: 4px;
+  color: #495057;
+  font-size: 14px;
+}
+
+/* Screenshot Download Link */
+.screenshot-download-link {
+  color: #0d6efd;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.screenshot-download-link:hover {
+  color: #0a58ca;
+  text-decoration: underline;
+}
+
 /* Case Logs & Bottom Nav */
 .case-logs-section, .bottom-navigation { background: #fff; border-radius: 8px; padding: 18px 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: auto; }
 .case-logs-section h4 { margin: 0 0 12px 0; font-size: 16px; color: #1a3a5d; }
 .case-log-list { list-style: none; padding: 0; margin: 0; }
+.case-logs-section .case-log-list { max-height: 40vh; overflow-y: auto; padding-right: 8px; }
 .case-log-item { display: flex; gap: 12px; align-items: center; font-size: 14px; padding: 8px 0; border-bottom: 1px solid #e3e8ee; }
 .case-log-item:last-child { border-bottom: none; }
 .log-time { color: #6c757d; font-size: 12px; min-width: 120px; }
@@ -464,5 +656,6 @@ const submitAction = async () => {
 @media (max-width: 1200px) {
   .comparison-grid, .action-section-grid { grid-template-columns: 1fr; }
   .details-row { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .saved-data-grid { grid-template-columns: 1fr; }
 }
 </style>
