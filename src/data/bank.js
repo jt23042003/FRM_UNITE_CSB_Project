@@ -6,7 +6,7 @@ export const banks = {
     "ABDX": "Dr. Ambedkar Nagrik Sahakari Bank Mydt Gwalior",
     "ABEX": "Andhra Bank Employees Co-operative Bank",
     "ABHY": "Abhyudaya Co-operative Bank",
-    "ABNA": "Royal Bank of Scotland N.V.",
+    "ABNA": "Royal Bank of Scotland N.V",
     "ABPB": "Aditya Birla Idea Payments Bank",
     "ABSB": "Abhinav Sahakari Bank",
     "ABUX": "Abhinandan Urban Co-operative Bank Amravati",

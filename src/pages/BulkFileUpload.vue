@@ -3,10 +3,32 @@
     <h1 class="screen-header">Bulk Complaint Processing</h1>
     
     <div class="upload-card">
-      <h2 class="card-title">Upload I4C File</h2>
+      <!-- File Type Selection Dropdown -->
+      <div class="file-type-selector">
+        <label for="file-type" class="file-type-label">Select File Type:</label>
+        <select 
+          id="file-type" 
+          v-model="selectedFileType" 
+          @change="onFileTypeChange"
+          class="file-type-dropdown"
+        >
+          <option value="i4c">Upload I4C File</option>
+          <option value="dot">Upload DOT File (Reverification Flags)</option>
+        </select>
+      </div>
+
+      <h2 class="card-title">{{ getCardTitle() }}</h2>
       <p class="card-subtitle">
-        Select a file containing an array of complaint records. The system will process each record individually.
+        {{ getCardSubtitle() }}
       </p>
+      
+      <!-- Performance notice -->
+      <div class="performance-notice">
+        <div class="performance-icon">⚡</div>
+        <div class="performance-text">
+          <strong>Optimized Processing:</strong> This version uses parallel batch processing for significantly faster uploads.
+        </div>
+      </div>
 
       <div 
         class="file-input-area"
@@ -56,8 +78,8 @@
         :class="{ 'processing': isLoading }"
         class="process-btn"
       >
-        <span v-if="isLoading">Processing...</span>
-        <span v-else>Start Processing</span>
+        <span v-if="isLoading">Processing... (Optimized)</span>
+        <span v-else>Start Processing (Optimized)</span>
       </button>
 
       <!-- Loading skeleton while server processes -->
@@ -87,7 +109,7 @@
           <div class="results-grid">
             <div class="result-item info">
               <span class="count">{{ result.records_processed || 0 }}</span>
-              <span class="label">Records Processed</span>
+              <span class="label1">Records Processed</span>
             </div>
             <div class="result-item success">
               <span class="count">{{ result.records_inserted || 0 }}</span>
@@ -99,7 +121,7 @@
             </div>
             <div class="result-item primary">
               <span class="count">{{ result.ecb_cases_created || 0 }}</span>
-              <span class="label">ECB Cases Created</span>
+              <span class="label1">ECB Cases Created</span>
             </div>
           </div>
           
@@ -290,6 +312,8 @@ const isLoading = ref(false);
 const result = ref(null);
 // Hide inline error tables; rely on downloadable error file instead
 const showInlineErrorDetails = ref(false);
+// File type selection
+const selectedFileType = ref('i4c');
 
 // Computed property to detect reverification flags results
 const isReverificationFlagsResult = computed(() => {
@@ -346,7 +370,80 @@ const duplicateErrors = computed(() => {
   );
 });
 
-function handleFileSelect(event) {
+// File type change handler
+function onFileTypeChange() {
+  // Clear current file and results when file type changes
+  file.value = null;
+  result.value = null;
+  // Reset file input
+  const fileInput = document.getElementById('json-upload');
+  if (fileInput) {
+    fileInput.value = '';
+  }
+}
+
+// Get dynamic card title based on selected file type
+function getCardTitle() {
+  return selectedFileType.value === 'i4c' ? 'Upload I4C File' : 'Upload DOT File';
+}
+
+// Get dynamic card subtitle based on selected file type
+function getCardSubtitle() {
+  if (selectedFileType.value === 'i4c') {
+    return 'Select a file containing an array of complaint records. The system will process each record individually.';
+  } else {
+    return 'Select a file containing reverification flags data with mobile numbers and related information. The system will create MM and ECB cases.';
+  }
+}
+
+// Validate file type matches selection
+function validateFileType(fileContent) {
+  try {
+    const records = JSON.parse(fileContent);
+    if (!Array.isArray(records) || records.length === 0) {
+      return { valid: false, error: 'File must contain a JSON array of records.' };
+    }
+
+    const firstRecord = records[0];
+    if (!firstRecord || typeof firstRecord !== 'object') {
+      return { valid: false, error: 'Each record must be a JSON object.' };
+    }
+
+    // Expected columns for DOT file (reverification flags)
+    const dotColumns = ['mobile_number', 'reason_flagged', 'flagged_date', 'lsacode', 'tspname', 'sensitivity_index', 'distribution_details'];
+    
+    // Expected columns for I4C file (case entry)
+    const i4cColumns = ['ackNo', 'customerName', 'subCategory', 'transactionDate', 'complaintDate', 'reportDateTime', 'state', 'district'];
+
+    const recordKeys = Object.keys(firstRecord);
+    
+    if (selectedFileType.value === 'dot') {
+      // Check if this looks like a DOT file
+      const dotMatches = recordKeys.filter(key => dotColumns.includes(key)).length;
+      if (dotMatches < 4) {
+        return { 
+          valid: false, 
+          error: 'Selected DOT file but uploaded file does not contain reverification flags data. Please select a file with mobile_number, reason_flagged, flagged_date, and other DOT fields.' 
+        };
+      }
+    } else if (selectedFileType.value === 'i4c') {
+      // Check if this looks like an I4C file
+      const i4cMatches = recordKeys.filter(key => i4cColumns.includes(key)).length;
+      if (i4cMatches < 4) {
+        return { 
+          valid: false, 
+          error: 'Selected I4C file but uploaded file does not contain case entry data. Please select a file with ackNo, customerName, subCategory, and other I4C fields.' 
+        };
+      }
+    }
+
+    return { valid: true };
+  } catch (error) {
+    return { valid: false, error: 'Invalid JSON file format.' };
+  }
+}
+
+async function handleFileSelect(event) {
   const selectedFile = event.target.files[0];
   if (!selectedFile) return;
   
@@ -367,12 +464,30 @@ function handleFileSelect(event) {
     return;
   }
   
+  // Validate file content matches selected type
+  try {
+    const fileContent = await selectedFile.text();
+    const validation = validateFileType(fileContent);
+    
+    if (!validation.valid) {
+      window.showNotification('error', 'File Type Mismatch', validation.error);
+      file.value = null;
+      event.target.value = '';
+      return;
+    }
+  } catch (error) {
+    window.showNotification('error', 'File Read Error', 'Could not read the file content for validation.');
+    file.value = null;
+    event.target.value = '';
+    return;
+  }
+  
   file.value = selectedFile;
   result.value = null;
   window.showNotification('success', 'File Selected', `${selectedFile.name} has been selected successfully.`);
 }
 
-function handleFileDrop(event) {
+async function handleFileDrop(event) {
   const droppedFile = event.dataTransfer.files[0];
   if (!droppedFile) return;
   
@@ -386,6 +501,20 @@ function handleFileDrop(event) {
   const maxSize = 5 * 1024 * 1024; // 5MB in bytes
   if (droppedFile.size > maxSize) {
     window.showNotification('error', 'File Too Large', `File size must be less than 5MB. Current size: ${(droppedFile.size / (1024 * 1024)).toFixed(2)}MB`);
+    return;
+  }
+  
+  // Validate file content matches selected type
+  try {
+    const fileContent = await droppedFile.text();
+    const validation = validateFileType(fileContent);
+    
+    if (!validation.valid) {
+      window.showNotification('error', 'File Type Mismatch', validation.error);
+      return;
+    }
+  } catch (error) {
+    window.showNotification('error', 'File Read Error', 'Could not read the file content for validation.');
     return;
   }
   
@@ -405,10 +534,16 @@ async function startProcessing() {
 
   try {
     const token = localStorage.getItem('jwt');
-    const res = await axios.post('/api/process-bulk-file', formData, {
+    const res = await axios.post('/api/process-bulk-file-optimized', formData, {
       headers: { 
         'Content-Type': 'multipart/form-data',
         'Authorization': `Bearer ${token}`
+      },
+      // Add timeout and progress tracking for better UX
+      timeout: 300000, // 5 minutes timeout for large files
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        console.log(`Upload Progress: ${percentCompleted}%`);
       }
     });
     
@@ -474,6 +609,75 @@ async function startProcessing() {
 </script>
 
 <style scoped>
+/* File Type Selector Styles */
+.file-type-selector {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+}
+
+/* Performance Notice Styles */
+.performance-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+  border-left: 4px solid #4caf50;
+}
+
+.performance-icon {
+  font-size: 20px;
+  color: #4caf50;
+  flex-shrink: 0;
+}
+
+.performance-text {
+  font-size: 14px;
+  color: #2e7d32;
+  line-height: 1.4;
+}
+
+.performance-text strong {
+  color: #1b5e20;
+  font-weight: 600;
+}
+
+.file-type-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.file-type-dropdown {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  background: white;
+  font-size: 16px;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-type-dropdown:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.file-type-dropdown:hover {
+  border-color: #adb5bd;
+}
+
 .bulk-error-details {
   margin-top: 2rem;
   background: #fff3cd;
@@ -722,8 +926,15 @@ async function startProcessing() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: #000000;
 }
-
+.result-item .label1 {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: white;
+}
 /* Error Summary Styles */
 .error-summary {
   margin: 24px 0;
@@ -877,6 +1088,7 @@ async function startProcessing() {
 .result-item.info {
   background: linear-gradient(135deg, #17a2b8, #138496);
   color: white;
+
 }
 
 .result-item.warning {

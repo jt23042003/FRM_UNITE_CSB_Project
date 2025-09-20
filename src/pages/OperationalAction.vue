@@ -211,7 +211,7 @@ const savedActionData = ref(null);
 // --- Case Status Management ---
 const caseStatus = ref('New');
 const isReadOnly = computed(() => caseStatus.value === 'Closed'); // Only closed cases should be read-only
-const isAssignmentDisabled = computed(() => caseStatus.value === 'Reopened'); // Only assignment is disabled for reopened cases
+const isAssignmentDisabled = computed(() => caseStatus.value === 'Reopened' || caseStatus.value === 'Closed'); // Assignment is disabled for reopened and closed cases
 
 // --- Stepper Logic ---
 const currentStep = ref(1);

@@ -1,7 +1,7 @@
 <template>
   <div class="delayed-cases-page">
     <div class="page-header">
-      <h1>Delayed Cases</h1>
+      <h1>Beyond TAT Cases</h1>
       <p class="page-description">
         <span v-if="delayedCasesData.case_type === 'risk_officer'">
           Risk officer cases with no action for more than {{ delayedCasesData.threshold_days }} days
@@ -19,13 +19,13 @@
       <!-- Loading State -->
       <div v-if="loadingDelayedCases" class="loading-container">
         <div class="loading-spinner"></div>
-        <p>Loading delayed cases...</p>
+        <p>Loading Beyond TAT cases...</p>
       </div>
 
       <!-- No Delayed Cases -->
       <div v-else-if="!delayedCasesData.delayed_cases || delayedCasesData.delayed_cases.length === 0" class="no-cases">
         <div class="no-cases-icon">✅</div>
-        <h3>No Delayed Cases</h3>
+        <h3>No Beyond TAT Cases</h3>
         <p>All cases are being processed within the expected timeframe.</p>
       </div>
 
@@ -33,9 +33,9 @@
       <div v-else class="delayed-cases-table-container">
         <div class="table-header">
           <h3>
-            <span v-if="delayedCasesData.case_type === 'risk_officer'">Risk Officer Delayed Cases</span>
-            <span v-else-if="delayedCasesData.case_type === 'department'">{{ delayedCasesData.department }} Department Delayed Cases</span>
-            <span v-else>Delayed Cases</span>
+            <span v-if="delayedCasesData.case_type === 'risk_officer'">Risk Officer Beyond TAT Cases</span>
+            <span v-else-if="delayedCasesData.case_type === 'department'">{{ delayedCasesData.department }} Department Beyond TAT Cases</span>
+            <span v-else> <b>Beyond TAT Cases</b></span>
             ({{ filteredCases.length }} of {{ delayedCasesData.total_count }} total)
           </h3>
           <div class="header-controls">

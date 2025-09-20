@@ -19,13 +19,6 @@
                 {{ loading ? 'Refreshing...' : 'Refresh' }}
               </button>
             </div>
-                      <div class="user-info">
-              <span class="user-name">{{ userName }}</span>
-              <span v-if="userType" class="user-type">{{ userType }}</span>
-              <div class="user-avatar">
-                <img src="@/assets/unite_hub_tech_logo.png" alt="Profile" />
-              </div>
-            </div>
           </div>
         </div>
       </header>

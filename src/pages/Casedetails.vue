@@ -3,13 +3,6 @@
     <div class="dashboard-header">
       <div class="header-content">
         <h2>Case View Dashboard</h2>
-        <div class="user-info">
-          <span class="user-name">{{ userName }}</span>
-          <span v-if="userType" class="user-type">{{ userType }}</span>
-          <div class="user-avatar">
-            <img src="@/assets/unite_hub_tech_logo.png" alt="Profile" />
-          </div>
-        </div>
       </div>
       <div v-if="globalSearch.trim()" class="search-results-info">
           <span v-if="isAccountNumber(globalSearch)">
@@ -474,7 +467,6 @@ const pageSize = 15;
 const loading = ref(true);
 const error = ref(null);
 const totalItems = ref(0);
-const userName = ref('');
 const userType = ref('');
 
 // Global search and sorting
@@ -823,14 +815,7 @@ const assignableCasesCount = computed(() => {
 
 // --- Load User Information ---
 const loadUserInfo = () => {
-  const storedUsername = localStorage.getItem('username');
   const storedUserType = localStorage.getItem('user_type');
-  
-  if (storedUsername) {
-    userName.value = storedUsername;
-  } else {
-    userName.value = 'Unknown User';
-  }
   
   if (storedUserType) {
     userType.value = storedUserType;
@@ -840,12 +825,19 @@ const loadUserInfo = () => {
 // --- Fetch User Role ---
 const fetchUserRole = async () => {
   try {
+    // First try localStorage (faster, no API call needed)
+    const storedRole = localStorage.getItem('user_type');
+    if (storedRole) {
+      userRole.value = storedRole;
+      return;
+    }
+    
     const token = localStorage.getItem('jwt');
     if (!token) return;
     
-    const response = await axios.get('/api/new-case-list', {
-      headers: { 'Authorization': `Bearer ${token}` },
-      params: { skip: 0, limit: 1 } // Just need to get user role, not cases
+    // Fallback to lightweight user profile API (much faster than new-case-list)
+    const response = await axios.get('/api/user/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
     
     if (response.data && response.data.logged_in_user_type) {
@@ -856,7 +848,6 @@ const fetchUserRole = async () => {
     
     // Also fetch user name if available
     if (response.data && response.data.logged_in_user_name) {
-      userName.value = response.data.logged_in_user_name;
       localStorage.setItem('username', response.data.logged_in_user_name);
     }
   } catch (err) { 
@@ -1154,9 +1145,6 @@ onMounted(async () => {
 /* Header Content Styles */
 .header-content { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .header-content h2 { margin: 0; color: #1e293b; font-size: 1.875rem; font-weight: 600; }
-.user-info { display: flex; align-items: center; gap: 1rem; }
-.user-name { font-size: 1.125rem; font-weight: 500; color: #475569; }
-.user-type { font-size: 0.875rem; font-weight: 500; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; text-transform: capitalize; }
 .user-avatar img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #e2e8f0; }
 
 .table-responsive { width: 100%; overflow-x: auto; }

@@ -3,10 +3,6 @@
     <div class="dashboard-header">
       <div class="header-content">
         <h2>{{ pageTitle }}</h2>
-        <div class="user-info">
-          <span class="user-name">{{ userName }}</span>
-          <span v-if="userType" class="user-type">{{ userType }}</span>
-        </div>
       </div>
     </div>
 
@@ -149,10 +145,9 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
-const userName = ref(localStorage.getItem('username') || '');
 const userType = ref(localStorage.getItem('user_type') || '');
 
-const pageTitle = computed(() => userType.value === 'others' ? 'My Case Activity' : 'Risk Officer Case Activity');
+const pageTitle = computed(() => userType.value === 'others' ? 'My Case Activity' : 'Case Activity');
 
 // Computed property for localStorage access in template
 const localStorageUserType = computed(() => {
@@ -738,8 +733,6 @@ onMounted(() => {
 <style scoped>
 .dashboard-bg { padding: 12px; }
 .header-content { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.user-info { display: flex; align-items: center; gap: .75rem; }
-.user-type { font-size: 0.875rem; font-weight: 500; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; text-transform: capitalize; }
 
 .activity-layout { display: grid; grid-template-columns: 2fr 1.5fr; gap: 16px; }
 .activity-list, .activity-logs { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; }

@@ -7,6 +7,20 @@
             <img src="@/assets/unite_hub_tech_logo.png" class="sidebar-logo" alt="Logo" />
             <span v-if="!collapsed || isMobile" class="sidebar-title">UNITE Hub<br>Technologies</span>
           </div>
+          
+          <!-- User Info Section -->
+          <div class="sidebar-user-info" v-if="!collapsed || isMobile">
+            <div class="user-avatar">
+              <svg class="user-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <div class="user-details">
+              <div class="user-name">{{ userName || 'Loading...' }}</div>
+              <div class="user-role">{{ formattedUserRole || 'Loading...' }}</div>
+            </div>
+          </div>
+          
           <button class="sidebar-toggle" @click="onToggleClick" :aria-label="toggleAriaLabel">
             <svg v-if="isMobile ? !mobileOpen : collapsed" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             <svg v-else xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -65,7 +79,7 @@
               <li>
                 <router-link to="/delayed-cases" class="sidebar-link" active-class="active" @click.native="onNavigate">
                   <svg class="sidebar-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                  <span v-if="!collapsed || isMobile">Delayed Cases</span>
+                  <span v-if="!collapsed || isMobile">Beyond TAT Cases</span>
                 </router-link>
               </li>
             </template>
@@ -144,9 +158,27 @@
   const isMobile = ref(false);
   const router = useRouter();
   const userRole = ref('');
+  const userName = ref('');
   
   const mobileOpenOrDesktop = computed(() => (isMobile.value ? mobileOpen.value : true));
   const toggleAriaLabel = computed(() => isMobile.value ? (mobileOpen.value ? 'Close menu' : 'Open menu') : (collapsed.value ? 'Expand sidebar' : 'Collapse sidebar'));
+  
+  // Format user role for display
+  const formattedUserRole = computed(() => {
+    if (!userRole.value) return '';
+    switch (userRole.value) {
+      case 'super_user':
+        return 'Super User';
+      case 'supervisor':
+        return 'Supervisor';
+      case 'risk_officer':
+        return 'Risk Officer';
+      case 'others':
+        return 'Branch User';
+      default:
+        return userRole.value.charAt(0).toUpperCase() + userRole.value.slice(1);
+    }
+  });
   
   function updateIsMobile() {
     isMobile.value = window.innerWidth <= 900;
@@ -181,21 +213,69 @@
     router.push('/login');
   }
   
-  // Fetch user role on mount
-  const fetchUserRole = async () => {
+  // Fetch user role and name on mount
+  const fetchUserInfo = async () => {
     try {
+      // First try localStorage (faster, no API call needed)
+      const storedRole = localStorage.getItem('user_type');
+      const storedUsername = localStorage.getItem('username');
+      
+      if (storedRole && storedUsername) {
+        // Both role and username are cached, use them
+        userRole.value = storedRole;
+        userName.value = storedUsername;
+        console.log('✅ Sidebar: Using cached data - role:', storedRole, 'username:', storedUsername);
+        return;
+      }
+      
+      // If we have role but no username, or neither, fetch from API
+      
       const token = localStorage.getItem('jwt');
       if (!token) return;
-      const response = await axios.get('/api/new-case-list', {
+      
+      // Fallback to lightweight user profile API (much faster than new-case-list)
+      const response = await axios.get('/api/user/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (response.data && response.data.logged_in_user_type) {
-        userRole.value = response.data.logged_in_user_type;
-        // Store in localStorage for consistency
-        localStorage.setItem('user_type', response.data.logged_in_user_type);
+      if (response.data) {
+        console.log('Sidebar API Response:', response.data);
+        if (response.data.logged_in_user_type) {
+          userRole.value = response.data.logged_in_user_type;
+          // Store in localStorage for consistency
+          localStorage.setItem('user_type', response.data.logged_in_user_type);
+          console.log('Set userRole to:', response.data.logged_in_user_type);
+        }
+        if (response.data.logged_in_username) {
+          userName.value = response.data.logged_in_username;
+          // Store in localStorage for consistency
+          localStorage.setItem('username', response.data.logged_in_username);
+          console.log('✅ Sidebar: Set userName to:', response.data.logged_in_username);
+        } else {
+          console.log('⚠️ Sidebar: No logged_in_username in response');
+          console.log('Full response data:', response.data);
+          // Set a fallback username if none provided
+          userName.value = 'User';
+          localStorage.setItem('username', 'User');
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch user role:', err);
+      console.error('Failed to fetch user info:', err);
+      // Fallback to localStorage if API fails
+      const storedUserType = localStorage.getItem('user_type');
+      const storedUsername = localStorage.getItem('username');
+      console.log('🔄 Sidebar Fallback - storedUserType:', storedUserType, 'storedUsername:', storedUsername);
+      if (storedUserType) {
+        userRole.value = storedUserType;
+        console.log('✅ Sidebar: Set userRole from localStorage:', storedUserType);
+      }
+      if (storedUsername) {
+        userName.value = storedUsername;
+        console.log('✅ Sidebar: Set userName from localStorage:', storedUsername);
+      } else {
+        // Set a fallback username if none in localStorage
+        userName.value = 'User';
+        console.log('⚠️ Sidebar: No username in localStorage, using fallback: User');
+      }
     }
   };
   
@@ -203,9 +283,12 @@
     updateIsMobile();
     window.addEventListener('resize', updateIsMobile);
     window.addEventListener('toggle-sidebar', toggleSidebarFromGlobal);
-    fetchUserRole();
-    const storedUserType = localStorage.getItem('user_type');
-    if (storedUserType) userRole.value = storedUserType;
+    
+    // Clear localStorage to force fresh API call (for testing)
+    // localStorage.removeItem('user_type');
+    // localStorage.removeItem('username');
+    
+    fetchUserInfo();
   });
   
   onBeforeUnmount(() => {
@@ -272,6 +355,59 @@
     line-height: 1.1;
     color: #fff;
   }
+  
+  /* User Info Styles */
+  .sidebar-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
+    width: 100%;
+  }
+  
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .user-icon {
+    width: 20px;
+    height: 20px;
+    color: #fff;
+  }
+  
+  .user-details {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .user-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .user-role {
+    font-size: 0.8rem;
+    color: #bdbdbd;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
   .sidebar-toggle {
     background: none;
     border: none;
@@ -320,7 +456,8 @@
   /* Collapsed styles */
   .sidebar-ui.collapsed .sidebar-title,
   .sidebar-ui.collapsed .sidebar-link span,
-  .sidebar-ui.collapsed .sidebar-toggle-mode span { display: none; }
+  .sidebar-ui.collapsed .sidebar-toggle-mode span,
+  .sidebar-ui.collapsed .sidebar-user-info { display: none; }
   .sidebar-ui.collapsed .sidebar-toggle-mode { justify-content: center; padding: 0.5em 0.5em; }
   
   /* Mobile drawer */

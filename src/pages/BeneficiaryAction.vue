@@ -127,6 +127,12 @@
       <div v-if="currentStep === 2" class="step-panel">
         <h3>Analysis & Investigation <span v-if="userRole === 'supervisor' && latestActionStatus" :class="['status-chip', latestActionStatus === 'approved' ? 'approved' : (latestActionStatus === 'pending_approval' ? 'pending' : 'rejected')]">{{ latestActionStatus === 'approved' ? 'Approved' : (latestActionStatus === 'pending_approval' ? 'Pending approval' : 'Rejected') }}</span></h3>
         
+        <!-- Loading indicator for analysis data -->
+        <div v-if="isLoadingAdditionalDetails && !isAnalysisDataLoaded" class="section-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading analysis data, templates, and saved work...</span>
+        </div>
+        
         <!-- Approved Template Responses Summary for Risk Officers -->
         <div v-if="userRole === 'risk_officer' && approvedTemplateResponses.length > 0" class="approved-responses-summary">
           <div class="summary-header">
@@ -571,12 +577,9 @@
           <!-- Supervisor Approval Section -->
           <div class="form-section" v-if="userRole === 'supervisor'">
             <div class="field-group">
-              <label>Supervisor Approval</label>
+              <label>Supervisor Decision</label>
               <div class="input-row">
-                <textarea v-model="supervisorApprovalComment" :disabled="isReadOnly" placeholder="Approval comment (required)..." class="compact-textarea"></textarea>
-              </div>
-              <div class="input-row">
-                <textarea v-model="supervisorRejectReason" :disabled="isReadOnly" placeholder="Rejection reason (required)..." class="compact-textarea"></textarea>
+                <textarea v-model="supervisorComment" :disabled="isReadOnly" placeholder="Please provide your comment" class="compact-textarea"></textarea>
               </div>
               <div class="supervisor-actions">
                 <button @click="approveDeptChanges" :disabled="isReadOnly" class="btn-approve">
@@ -624,6 +627,13 @@
 
       <div v-if="userRole === 'risk_officer' && currentStep === 3" class="step-panel">
         <h3>Final Closure</h3>
+        
+        <!-- Loading indicator for closure data -->
+        <div v-if="isLoadingAdditionalDetails && !isClosureDataLoaded" class="section-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading closure data...</span>
+        </div>
+        
         <div class="form-grid">
           <div class="form-section">
             <div class="field-group">
@@ -807,47 +817,55 @@ const analysisReasons = ref([]);
 const departments = ref([]);
 const closureReasons = ref([]);
 
-const userRole = ref('');
+// Get user role from localStorage immediately to avoid UI flicker
+const userRole = ref(localStorage.getItem('user_type') || 'others');
 const status = ref('New'); // Track case status
 const latestActionStatus = ref('');
 const assignmentStatus = ref([]); // Track assignment status for review mode
 
-// Fetch user role on mount (from /api/new-case-list)
+// Fetch user role on mount (from lightweight /api/user/profile)
 const fetchUserRole = async () => {
+  // First try localStorage (faster, no API call needed)
+  const storedRole = localStorage.getItem('user_type');
+  if (storedRole) {
+    userRole.value = storedRole;
+    return;
+  }
+  
+  // Fallback to lightweight user profile API (much faster than new-case-list)
   const token = localStorage.getItem('jwt');
-  const response = await axios.get('/api/new-case-list', {
-    headers: { 'Authorization': `Bearer ${token}` },
-    params: { ack_no: caseAckNo.value }
+  const response = await axios.get('/api/user/profile', {
+    headers: { 'Authorization': `Bearer ${token}` }
   });
   if (response.data && response.data.logged_in_user_type) {
     userRole.value = response.data.logged_in_user_type;
+    // Store in localStorage for future use
+    localStorage.setItem('user_type', response.data.logged_in_user_type);
   }
 };
 
-// Adjust steps based on userRole and review mode
-const steps = ref([
-  { title: 'Alert Details' },
-  { title: 'Analysis' },
-  { title: 'Closure' },
-  { title: 'Confirmation' }
-]);
-
-watch(userRole, (role) => {
-  if (role === 'others' || role === 'supervisor' || isReviewMode.value) {
-    steps.value = [
+// Compute steps based on userRole and review mode (no flicker)
+const steps = computed(() => {
+  if (userRole.value === 'others' || userRole.value === 'supervisor' || isReviewMode.value) {
+    return [
       { title: 'Alert Details' },
       { title: 'Analysis' }
     ];
-    if (currentStep.value > 2) currentStep.value = 2;
-  } else {
-    steps.value = [
-      { title: 'Alert Details' },
-      { title: 'Analysis' },
-      { title: 'Closure' },
-      { title: 'Confirmation' }
-    ];
   }
+  return [
+    { title: 'Alert Details' },
+    { title: 'Analysis' },
+    { title: 'Closure' },
+    { title: 'Confirmation' }
+  ];
 });
+
+// Watch for step changes to adjust currentStep if needed
+watch([userRole, isReviewMode], ([role, reviewMode]) => {
+  if ((role === 'others' || role === 'supervisor' || reviewMode) && currentStep.value > 2) {
+    currentStep.value = 2;
+  }
+}, { immediate: true });
 
 // --- Data Models ---
 const i4cDetails = ref({});
@@ -1018,6 +1036,100 @@ const fetchClosureReasons = async () => {
   } catch (err) { console.error("Failed to fetch closure reasons:", err); }
 };
 
+// Section-based loading flags
+const isAnalysisDataLoaded = ref(false);
+const isClosureDataLoaded = ref(false);
+const isLoadingAdditionalDetails = ref(false);
+
+// Load analysis section data when user navigates to step 2
+const loadAnalysisData = async () => {
+  if (isAnalysisDataLoaded.value) return;
+  
+  isLoadingAdditionalDetails.value = true;
+  try {
+    // Load basic analysis data
+    await Promise.all([
+      fetchAnalysisReasons(),
+      fetchDepartments(),
+      fetchAvailableTemplates()
+    ]);
+    
+    // Load template-related data based on user role
+    if (userRole.value === 'others') {
+      await fetchAssignedTemplate();
+      await fetchCaseTemplateResponses();
+    }
+    
+    if (userRole.value === 'supervisor' || userRole.value === 'risk_officer') {
+      await fetchCaseTemplateResponses();
+    }
+    
+    // Load send-back analysis reasons for Others
+    try {
+      const r = await axios.get(API_ENDPOINTS.SEND_BACK_ANALYSIS);
+      sendBackReasons.value = Array.isArray(r.data) ? r.data : [];
+    } catch (e) { 
+      console.error('Failed to load send-back reasons:', e); 
+    }
+    
+    // Load latest saved action data and files (moved from onMounted for better performance)
+    try {
+      const caseId = parseInt(route.params.case_id);
+      const token = localStorage.getItem('jwt');
+      const resp = await axios.get('/api/case-action/latest', {
+        params: { case_id: caseId },
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (resp.data && resp.data.merged_action_data && typeof resp.data.merged_action_data === 'object') {
+        Object.assign(action.value, resp.data.merged_action_data);
+      } else if (resp.data && resp.data.action_data && resp.data.action_data.action_data) {
+        Object.assign(action.value, resp.data.action_data.action_data);
+      }
+      
+      if (resp.data && resp.data.files) {
+        previouslyUploadedFiles.value = resp.data.files;
+      }
+      
+      if (resp.data && resp.data.action_data) {
+        latestActionStatus.value = resp.data.action_data.status || '';
+      }
+      
+      if (resp.data && resp.data.merged_from_departments) {
+        mergedFromDepartments.value = resp.data.merged_from_departments;
+      }
+      
+      // After loading action data, inject existing files into Data Uploads
+      if (previouslyUploadedFiles.value && previouslyUploadedFiles.value.length > 0) {
+        injectExistingFilesIntoDataUploads(previouslyUploadedFiles.value);
+      }
+    } catch (e) {
+      console.error('Failed to load latest case action data:', e);
+    }
+    
+    isAnalysisDataLoaded.value = true;
+  } catch (error) {
+    console.error('Error loading analysis data:', error);
+  } finally {
+    isLoadingAdditionalDetails.value = false;
+  }
+};
+
+// Load closure section data when user navigates to step 3
+const loadClosureData = async () => {
+  if (isClosureDataLoaded.value) return;
+  
+  isLoadingAdditionalDetails.value = true;
+  try {
+    await fetchClosureReasons();
+    isClosureDataLoaded.value = true;
+  } catch (error) {
+    console.error('Error loading closure data:', error);
+  } finally {
+    isLoadingAdditionalDetails.value = false;
+  }
+};
+
 const caseAckNo = ref('');
 
 const fetchCaseDetails = async () => {
@@ -1076,7 +1188,7 @@ const fetchCaseDetails = async () => {
 
 const previouslyUploadedFiles = ref([]);
 const isReadOnly = ref(false);
-const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
+const isAssignmentDisabled = computed(() => status.value === 'Reopened' || status.value === 'Closed'); // Assignment is disabled for reopened and closed cases
 const caseLogs = ref([]);
 
 // --- Workflow Logic ---
@@ -1105,8 +1217,7 @@ const limitedCaseLogs = computed(() => {
 
 const sendBackComment = ref('');
 const hasUnsavedChanges = ref(false);
-const supervisorRejectReason = ref('');
-const supervisorApprovalComment = ref('');
+const supervisorComment = ref('');
 
 // Mark as unsaved on any change
 watch(action, () => { hasUnsavedChanges.value = true; }, { deep: true });
@@ -1187,7 +1298,7 @@ const sendBackCase = async () => {
   const ackNo = caseAckNo.value;
   const token = localStorage.getItem('jwt');
   try {
-    await axios.post(`/api/case/${ackNo}/send-back`, { comment: sendBackComment.value, reason_id: sendBackReasonId.value }, {
+    await axios.post(`/api/case/${ackNo}/send-back-optimized`, { comment: sendBackComment.value, reason_id: sendBackReasonId.value }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     window.showNotification('success', 'Case Sent Back', 'Case sent back successfully!');
@@ -1208,15 +1319,15 @@ const sendBackCase = async () => {
 };
 
 const approveDeptChanges = async () => {
-  if (!supervisorApprovalComment.value || !supervisorApprovalComment.value.trim()) {
-    window.showNotification('warning', 'Comment Required', 'Please provide an approval comment before approving changes.');
+  if (!supervisorComment.value || !supervisorComment.value.trim()) {
+    window.showNotification('warning', 'Comment Required', 'Please provide a comment before approving changes.');
     return;
   }
   
   const ackNo = caseAckNo.value;
   const token = localStorage.getItem('jwt');
   try {
-    await axios.post(`/api/case/${ackNo}/approve-dept`, { approval_comment: supervisorApprovalComment.value }, { headers: { 'Authorization': `Bearer ${token}` } });
+    await axios.post(`/api/case/${ackNo}/approve-dept`, { approval_comment: supervisorComment.value }, { headers: { 'Authorization': `Bearer ${token}` } });
     window.showNotification('success', 'Approved', 'Department changes approved and routed back to Risk Officer.');
     window.location.href = `/supervisor-worklist`;
   } catch (err) {
@@ -1226,15 +1337,15 @@ const approveDeptChanges = async () => {
 };
 
 const rejectDeptChanges = async () => {
-  if (!supervisorRejectReason.value || !supervisorRejectReason.value.trim()) {
-    window.showNotification('warning', 'Reason Required', 'Please provide a rejection reason before rejecting changes.');
+  if (!supervisorComment.value || !supervisorComment.value.trim()) {
+    window.showNotification('warning', 'Comment Required', 'Please provide a comment before rejecting changes.');
     return;
   }
   
   const ackNo = caseAckNo.value;
   const token = localStorage.getItem('jwt');
   try {
-    await axios.post(`/api/case/${ackNo}/reject-dept`, { rejection_reason: supervisorRejectReason.value }, { headers: { 'Authorization': `Bearer ${token}` } });
+    await axios.post(`/api/case/${ackNo}/reject-dept`, { rejection_reason: supervisorComment.value }, { headers: { 'Authorization': `Bearer ${token}` } });
     window.showNotification('success', 'Rejected', 'Department changes rejected and routed back to Risk Officer.');
     window.location.href = `/supervisor-worklist`;
   } catch (err) {
@@ -1243,7 +1354,7 @@ const rejectDeptChanges = async () => {
   }
 };
 
-const goToStep = (step) => {
+const goToStep = async (step) => {
   if (isLoading.value) return;
   if ((userRole.value === 'others' || userRole.value === 'supervisor') && step > 2) return;
   
@@ -1256,10 +1367,25 @@ const goToStep = (step) => {
   }
   
   currentStep.value = step;
+  
+  // Load data based on the step user is navigating to
+  if (step === 2) {
+    // Load analysis data when user goes to Analysis & Investigation
+    await loadAnalysisData();
+  } else if (step === 3) {
+    // Load closure data when user goes to Closure & Confirmation
+    await loadClosureData();
+  }
 };
-const nextStep = () => {
+const nextStep = async () => {
   if (userRole.value === 'others' || userRole.value === 'supervisor') {
-    if (currentStep.value < 2) currentStep.value++;
+    if (currentStep.value < 2) {
+      currentStep.value++;
+      // Load analysis data when moving to step 2
+      if (currentStep.value === 2) {
+        await loadAnalysisData();
+      }
+    }
   } else {
     // Prevent access to confirmation step (step 4) without closure activity
     if (currentStep.value === 3 && !canAccessConfirmation.value) {
@@ -1270,7 +1396,15 @@ const nextStep = () => {
       return;
     }
     
-    if (currentStep.value < steps.value.length) currentStep.value++;
+    if (currentStep.value < steps.value.length) {
+      currentStep.value++;
+      // Load data based on the step user is moving to
+      if (currentStep.value === 2) {
+        await loadAnalysisData();
+      } else if (currentStep.value === 3) {
+        await loadClosureData();
+      }
+    }
   }
 };
 const previousStep = () => {
@@ -1351,28 +1485,8 @@ onMounted(async () => {
     }
     await fetchUserRole();
     await fetchAssignmentStatus();
-    await Promise.all([
-      fetchAnalysisReasons(),
-      fetchDepartments(),
-      fetchClosureReasons(),
-      fetchAvailableTemplates()
-    ]);
-    
-    // Fetch assigned template for "others" users
-    if (userRole.value === 'others') {
-      await fetchAssignedTemplate();
-    }
-    
-    // Fetch template responses for supervisors and risk officers (to see approved responses)
-    if (userRole.value === 'supervisor' || userRole.value === 'risk_officer') {
-      await fetchCaseTemplateResponses();
-    }
-    
-    // Load send-back analysis reasons for Others
-    try {
-      const r = await axios.get(API_ENDPOINTS.SEND_BACK_ANALYSIS);
-      sendBackReasons.value = Array.isArray(r.data) ? r.data : [];
-    } catch (e) { console.error('Failed to load send-back reasons:', e); }
+    // Note: Analysis and closure data will be loaded when user navigates to those sections
+    // Note: Template responses, send-back analysis, and case action data will be loaded when user navigates to analysis section
   } catch (error) {
     console.error('Error during component mount:', error);
     fetchError.value = 'Failed to load case details. Please try again later.';
@@ -1404,7 +1518,7 @@ const saveAction = async () => {
 
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case-action/save', formData, {
+    await axios.post('/api/case-action/save-optimized', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
@@ -1435,7 +1549,7 @@ const submitAction = async () => {
   const caseId = parseInt(route.params.case_id);
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case/submit',
+    await axios.post('/api/case/submit-optimized',
       { case_id: caseId },
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
@@ -1484,7 +1598,7 @@ const assignCase = async () => {
         template_id: review.templateId || null
       };
       
-      return axios.post(`/api/case/${ackNo}/assign`, assignmentData, {
+      return axios.post(`/api/case/${ackNo}/assign-optimized`, assignmentData, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
     });
@@ -1681,6 +1795,16 @@ const fetchCaseTemplateResponses = async () => {
     
     if (response.data && response.data.success) {
       caseTemplateResponses.value = response.data.responses;
+      
+      // For "others" users, restore their own saved responses into the template form
+      if (userRole.value === 'others') {
+        const currentUser = localStorage.getItem('username');
+        const userResponses = response.data.responses.find(r => r.assigned_to === currentUser);
+        if (userResponses && userResponses.responses) {
+          // Restore saved template responses
+          Object.assign(templateResponses.value, userResponses.responses);
+        }
+      }
     }
   } catch (err) {
     console.error("Failed to fetch template responses:", err);
@@ -3228,5 +3352,35 @@ const getTemplateQuestionFiles = (questionId) => {
     align-items: flex-start;
     gap: 4px;
   }
+}
+
+/* Progressive loading styles */
+.section-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin: 16px 0;
+  color: #6c757d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

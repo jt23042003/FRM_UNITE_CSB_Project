@@ -113,6 +113,13 @@
 
       <div v-if="currentStep === 2" class="step-panel">
         <h3>Analysis & Investigation</h3>
+        
+        <!-- Loading indicator for analysis data -->
+        <div v-if="isLoadingAdditionalDetails && !isAnalysisDataLoaded" class="section-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading analysis data...</span>
+        </div>
+        
         <div class="form-grid">
           <div class="form-section">
             <div class="field-group">
@@ -273,6 +280,13 @@
 
       <div v-if="userRole !== 'others' && currentStep === 3" class="step-panel">
         <h3>Final Closure</h3>
+        
+        <!-- Loading indicator for closure data -->
+        <div v-if="isLoadingAdditionalDetails && !isClosureDataLoaded" class="section-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading closure data...</span>
+        </div>
+        
         <div class="form-grid">
           <div class="form-section">
             <div class="field-group">
@@ -430,15 +444,24 @@ const closureReasons = ref([]);
 const userRole = ref('');
 const status = ref('New'); // Track case status
 
-// Fetch user role on mount (from /api/new-case-list)
+// Fetch user role on mount (from lightweight /api/user/profile)
 const fetchUserRole = async () => {
+  // First try localStorage (faster, no API call needed)
+  const storedRole = localStorage.getItem('user_type');
+  if (storedRole) {
+    userRole.value = storedRole;
+    return;
+  }
+  
+  // Fallback to lightweight user profile API (much faster than new-case-list)
   const token = localStorage.getItem('jwt');
-  const response = await axios.get('/api/new-case-list', {
-    headers: { 'Authorization': `Bearer ${token}` },
-    params: { ack_no: caseAckNo.value }
+  const response = await axios.get('/api/user/profile', {
+    headers: { 'Authorization': `Bearer ${token}` }
   });
   if (response.data && response.data.logged_in_user_type) {
     userRole.value = response.data.logged_in_user_type;
+    // Store in localStorage for future use
+    localStorage.setItem('user_type', response.data.logged_in_user_type);
   }
 };
 
@@ -616,6 +639,46 @@ const fetchClosureReasons = async () => {
   } catch (err) { console.error("Failed to fetch closure reasons:", err); }
 };
 
+// Section-based loading flags
+const isAnalysisDataLoaded = ref(false);
+const isClosureDataLoaded = ref(false);
+const isLoadingAdditionalDetails = ref(false);
+
+// Load analysis section data when user navigates to step 2
+const loadAnalysisData = async () => {
+  if (isAnalysisDataLoaded.value) return;
+  
+  isLoadingAdditionalDetails.value = true;
+  try {
+    // Load basic analysis data (NAB is simpler - no templates)
+    await Promise.all([
+      fetchAnalysisReasons(),
+      fetchDepartments()
+    ]);
+    
+    isAnalysisDataLoaded.value = true;
+  } catch (error) {
+    console.error('Error loading analysis data:', error);
+  } finally {
+    isLoadingAdditionalDetails.value = false;
+  }
+};
+
+// Load closure section data when user navigates to step 3
+const loadClosureData = async () => {
+  if (isClosureDataLoaded.value) return;
+  
+  isLoadingAdditionalDetails.value = true;
+  try {
+    await fetchClosureReasons();
+    isClosureDataLoaded.value = true;
+  } catch (error) {
+    console.error('Error loading closure data:', error);
+  } finally {
+    isLoadingAdditionalDetails.value = false;
+  }
+};
+
 const caseAckNo = ref('');
 
 const fetchCaseDetails = async () => {
@@ -685,7 +748,7 @@ const fetchCaseDetails = async () => {
 
 const previouslyUploadedFiles = ref([]);
 const isReadOnly = ref(false);
-const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
+const isAssignmentDisabled = computed(() => status.value === 'Reopened' || status.value === 'Closed'); // Assignment is disabled for reopened and closed cases
 const caseLogs = ref([]);
 
 // --- Workflow Logic ---
@@ -736,7 +799,7 @@ const sendBackCase = async () => {
   }
 };
 
-const goToStep = (step) => {
+const goToStep = async (step) => {
   if (isLoading.value) return;
   if (userRole.value === 'others' && step > 2) return;
   
@@ -749,10 +812,25 @@ const goToStep = (step) => {
   }
   
   currentStep.value = step;
+  
+  // Load data based on the step user is navigating to
+  if (step === 2) {
+    // Load analysis data when user goes to Analysis
+    await loadAnalysisData();
+  } else if (step === 3) {
+    // Load closure data when user goes to Closure
+    await loadClosureData();
+  }
 };
-const nextStep = () => {
+const nextStep = async () => {
   if (userRole.value === 'others') {
-    if (currentStep.value < 2) currentStep.value++;
+    if (currentStep.value < 2) {
+      currentStep.value++;
+      // Load analysis data when moving to step 2
+      if (currentStep.value === 2) {
+        await loadAnalysisData();
+      }
+    }
   } else {
     // Prevent access to confirmation step (step 4) without closure activity
     if (currentStep.value === 3 && !canAccessConfirmation.value) {
@@ -763,7 +841,15 @@ const nextStep = () => {
       return;
     }
     
-    if (currentStep.value < steps.value.length) currentStep.value++;
+    if (currentStep.value < steps.value.length) {
+      currentStep.value++;
+      // Load data based on the step user is moving to
+      if (currentStep.value === 2) {
+        await loadAnalysisData();
+      } else if (currentStep.value === 3) {
+        await loadClosureData();
+      }
+    }
   }
 };
 const previousStep = () => {
@@ -792,11 +878,7 @@ onMounted(async () => {
     caseLogs.value = logsResp.data.logs || [];
     await fetchCaseDetails();
     await fetchUserRole();
-    await Promise.all([
-      fetchAnalysisReasons(),
-      fetchDepartments(),
-      fetchClosureReasons()
-    ]);
+    // Note: Analysis and closure data will be loaded when user navigates to those sections
   } catch (error) {
     console.error('Error during component mount:', error);
     fetchError.value = 'Failed to load case details. Please try again later.';
@@ -826,7 +908,7 @@ const saveAction = async () => {
 
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case-action/save', formData, {
+    await axios.post('/api/case-action/save-optimized', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
@@ -848,7 +930,7 @@ const submitAction = async () => {
   const caseId = route.params.case_id;
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case/submit',
+    await axios.post('/api/case/submit-optimized',
       { case_id: caseId },
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
@@ -1686,5 +1768,35 @@ const assignCase = async () => {
 .warning-text strong {
   color: #856404;
   font-weight: 600;
+}
+
+/* Progressive loading styles */
+.section-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin: 16px 0;
+  color: #6c757d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
