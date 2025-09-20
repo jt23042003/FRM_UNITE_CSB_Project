@@ -730,7 +730,7 @@
     </div>
 
     <div v-if="caseLogs.length > 0" class="case-logs-section">
-      <h4>Case Activity Log</h4>
+      <h4>Case Activity Logs</h4>
       <ul class="case-log-list">
         <li v-for="log in limitedCaseLogs" :key="log.id" class="case-log-item">
           <span class="log-time">{{ new Date(log.created_at).toLocaleString() }}</span>
