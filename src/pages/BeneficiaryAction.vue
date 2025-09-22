@@ -730,7 +730,7 @@
     </div>
 
     <div v-if="caseLogs.length > 0" class="case-logs-section">
-      <h4>Case Activity Logs</h4>
+      <h4>Case Activity Log</h4>
       <ul class="case-log-list">
         <li v-for="log in limitedCaseLogs" :key="log.id" class="case-log-item">
           <span class="log-time">{{ new Date(log.created_at).toLocaleString() }}</span>
@@ -1188,7 +1188,7 @@ const fetchCaseDetails = async () => {
 
 const previouslyUploadedFiles = ref([]);
 const isReadOnly = ref(false);
-const isAssignmentDisabled = computed(() => status.value === 'Reopened' || status.value === 'Closed'); // Assignment is disabled for reopened and closed cases
+const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
 const caseLogs = ref([]);
 
 // --- Workflow Logic ---
@@ -1298,7 +1298,7 @@ const sendBackCase = async () => {
   const ackNo = caseAckNo.value;
   const token = localStorage.getItem('jwt');
   try {
-    await axios.post(`/api/case/${ackNo}/send-back-optimized`, { comment: sendBackComment.value, reason_id: sendBackReasonId.value }, {
+    await axios.post(`/api/case/${ackNo}/send-back`, { comment: sendBackComment.value, reason_id: sendBackReasonId.value }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     window.showNotification('success', 'Case Sent Back', 'Case sent back successfully!');
@@ -1518,7 +1518,7 @@ const saveAction = async () => {
 
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case-action/save-optimized', formData, {
+    await axios.post('/api/case-action/save', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
@@ -1549,7 +1549,7 @@ const submitAction = async () => {
   const caseId = parseInt(route.params.case_id);
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case/submit-optimized',
+    await axios.post('/api/case/submit',
       { case_id: caseId },
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
@@ -1598,7 +1598,7 @@ const assignCase = async () => {
         template_id: review.templateId || null
       };
       
-      return axios.post(`/api/case/${ackNo}/assign-optimized`, assignmentData, {
+      return axios.post(`/api/case/${ackNo}/assign`, assignmentData, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
     });

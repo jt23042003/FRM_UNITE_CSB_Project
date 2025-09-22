@@ -748,7 +748,7 @@ const fetchCaseDetails = async () => {
 
 const previouslyUploadedFiles = ref([]);
 const isReadOnly = ref(false);
-const isAssignmentDisabled = computed(() => status.value === 'Reopened' || status.value === 'Closed'); // Assignment is disabled for reopened and closed cases
+const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
 const caseLogs = ref([]);
 
 // --- Workflow Logic ---
@@ -908,7 +908,7 @@ const saveAction = async () => {
 
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case-action/save-optimized', formData, {
+    await axios.post('/api/case-action/save', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
@@ -930,7 +930,7 @@ const submitAction = async () => {
   const caseId = route.params.case_id;
   try {
     const token = localStorage.getItem('jwt');
-    await axios.post('/api/case/submit-optimized',
+    await axios.post('/api/case/submit',
       { case_id: caseId },
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
