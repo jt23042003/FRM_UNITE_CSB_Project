@@ -1,0 +1,691 @@
+# db/matcher.py
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from datetime import date
+from typing import Dict, Any, List, Optional, Union
+import json
+import requests
+import asyncio # For running async operations
+from concurrent.futures import ThreadPoolExecutor # For running sync DB calls in async context
+from main import executor
+
+# Import models and connection utilities
+from .connection import get_db_connection
+from models.base_models import CaseEntryData, I4CData, TransactionData # Import relevant models
+from config import DB_CONNECTION_PARAMS, ERROR_LOG_DIR # Import config details
+
+# Custom exception
+class CaseNotFoundError(Exception):
+    pass
+
+# Global Thread Pool for synchronous DB operations in async context
+# This is used for running psycopg2 calls from async functions without blocking.
+executor = ThreadPoolExecutor(max_workers=10)
+
+# --- Standalone Database Helper Functions ---
+# These functions are designed to be called directly from API endpoints
+# and will run their DB operations in the executor.
+
+async def fetch_transactions_from_db(ack_no: str, from_date: date, to_date: date, type: str):
+    loop = asyncio.get_event_loop()
+    def _sync_fetch():
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT account_number, to_account FROM case_entry_form WHERE ack_no = %s", (ack_no,))
+                account_data = cur.fetchone()
+                if not account_data:
+                    raise CaseNotFoundError(f"Case with ACK No '{ack_no}' not found")
+
+                account_to_query = None
+                account_column = None
+                if type == "victim":
+                    account_to_query = account_data.get('account_number')
+                    account_column = "acct_num"
+                elif type == "beneficiary":
+                    account_to_query = account_data.get('to_account')
+                    account_column = "bene_acct_num"
+                else:
+                    raise ValueError("Type must be 'victim' or 'beneficiary'")
+
+                if not account_to_query:
+                    return [] 
+
+                query = f"SELECT txn_date, descr, txn_ref, amount, txn_type FROM txn WHERE {account_column} = %s AND txn_date BETWEEN %s AND %s ORDER BY txn_date DESC"
+                cur.execute(query, (account_to_query, from_date, to_date))
+                db_rows = cur.fetchall()
+
+                transactions = []
+                for row in db_rows:
+                    transactions.append({
+                        "date": row['txn_date'].strftime('%d/%m/%Y'),
+                        "narration": row['descr'],
+                        "refNo": row['txn_ref'],
+                        "valueDate": row['txn_date'].strftime('%d/%m/%Y'),
+                        "withdrawal": row['amount'] if row['txn_type'] == 'Debit' else None,
+                        "deposit": row['amount'] if row['txn_type'] == 'Credit' else None,
+                        "closingBalance": ""
+                    })
+                return transactions
+    return await loop.run_in_executor(executor, _sync_fetch)
+
+async def insert_uploaded_document(ack_no: str, document_type: str, original_filename: str, saved_filepath: str, file_mime_type: str):
+    loop = asyncio.get_event_loop()
+    def _sync_insert():
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO fraud_notice_uploads
+                        (ack_no, document_type, original_filename, saved_filepath, file_mime_type)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id, original_filename, document_type;
+                    """,
+                    (ack_no, document_type, original_filename, saved_filepath, file_mime_type)
+                )
+                new_doc = cur.fetchone()
+                conn.commit()
+                return new_doc
+    return await loop.run_in_executor(executor, _sync_insert)
+
+async def get_uploaded_documents(ack_no: str):
+    loop = asyncio.get_event_loop()
+    def _sync_get_docs():
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT id, document_type, original_filename, saved_filepath FROM fraud_notice_uploads WHERE ack_no = %s ORDER BY uploaded_at DESC",
+                    (ack_no,)
+                )
+                docs = cur.fetchall()
+                return docs
+    return await loop.run_in_executor(executor, _sync_get_docs)
+
+async def save_or_update_decision(ack_no: str, data: dict):
+    loop = asyncio.get_event_loop()
+    def _sync_save_decision():
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    INSERT INTO case_decisions (
+                        ack_no, risk_score, triggering_rules, comments, decision_action,
+                        assigned_employee, audit_trail, system_recommendation, system_explanation, last_updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (ack_no) DO UPDATE SET
+                        risk_score = EXCLUDED.risk_score, comments = EXCLUDED.comments, 
+                        decision_action = EXCLUDED.decision_action, assigned_employee = EXCLUDED.assigned_employee,
+                        last_updated_at = NOW()
+                    RETURNING *;
+                    """,
+                    (
+                        data.get('riskScore'), data.get('triggeringRules'), data.get('comments'),
+                        data.get('decisionAction'), data.get('assignedEmployee'), data.get('auditTrail'),
+                        data.get('systemRecommendation'), data.get('systemExplanation')
+                    )
+                )
+                updated_record = cur.fetchone()
+                conn.commit()
+                return updated_record
+    return await loop.run_in_executor(executor, _sync_save_decision)
+
+async def get_decision(ack_no: str):
+    loop = asyncio.get_event_loop()
+    def _sync_get_decision():
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM case_decisions WHERE ack_no = %s", (ack_no,))
+                decision = cur.fetchone()
+                return decision
+    return await loop.run_in_executor(executor, _sync_get_decision)
+
+
+# --- Matcher Classes (Methods adapted to be async and use executor for DB calls) ---
+
+class DatabaseMatcher:
+    def __init__(self):
+        pass 
+
+    # Helper to run synchronous DB operations in the thread pool for methods in this class
+    def _execute_sync_db_op(self, func, *args, **kwargs):
+        return asyncio.get_event_loop().run_in_executor(executor, func, *args, **kwargs)
+
+    async def insert_cyber_complaint(self, data: I4CData):
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                await self._execute_sync_db_op(cur.execute, "SELECT ack_no FROM cyber_complaints WHERE ack_no = %s", (data.complaintref,)) 
+                existing = await self._execute_sync_db_op(cur.fetchone)
+                if existing: return None
+                await self._execute_sync_db_op(cur.execute, """
+                    INSERT INTO cyber_complaints (
+                        ack_no, category, sub_category, complaint_date, incident_location, incident_url_id,
+                        suspect_name, ip_address, suspect_id_type, suspect_id_no, suspect_bank_acct, suspect_upi_mobile,
+                        comp_full_name, comp_mobile, comp_relation_name, comp_email, comp_address, comp_state, comp_district_ps, comp_relation_with_victim,
+                        complaint_ps_name, complaint_ps_desig, complaint_ps_mobile, complaint_ps_email,
+                        fraud_amount, txn_sno, txn_entity, txn_acct_wallet, txn_amount,
+                        txn_ref_no, txn_date, txn_complaint_date, txn_remarks, reported_state, forwarded_to
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """, (
+                    data.complaintref, data.complaintType, data.subCategory, data.complaintDate or date.today(),
+                    data.incidentLocation, data.incidentUrlId, data.beneficiaryInfo, data.beneficiaryIp,
+                    data.suspectIdType, data.suspectIdNo, data.beneficiaryAccountNumber, data.beneficiaryMobile,
+                    data.victimName, data.victimContact, data.victimRelativeName, data.victimEmail,
+                    data.victimAddress, data.victimState, data.victimCity, data.victimRelativeName,
+                    data.policeName, data.policeDesignation, data.policeMobile, data.policeEmail,
+                    data.fraudAmount, data.txnSno, data.txnEntity, data.txnAcctWallet, data.txnAmount,
+                    data.transactionId, data.txnDate, data.txnComplaintDate, data.txnRemarks,
+                    data.reportedState, data.forwardedTo
+                ))
+                await self._execute_sync_db_op(conn.commit)
+                return data.complaintref
+
+    async def fetch_customer_data(self):
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                await self._execute_sync_db_op(cur.execute, "SELECT cust_id, fname, mname, lname, mobile, email, pan, nat_id FROM customer")
+                return await self._execute_sync_db_op(cur.fetchall)
+
+    async def insert_case_master(self, ack_no, cust_id, match_type):
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                today = date.today()
+                await self._execute_sync_db_op(cur.execute, """
+                    INSERT INTO case_master (ack_no, cust_id, match_type, status, created_on, closed_on, decision, remarks)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING case_id
+                """, (ack_no, cust_id, match_type, 'New', today, None, '', ''))
+                case_id_result = await self._execute_sync_db_op(cur.fetchone)
+                await self._execute_sync_db_op(conn.commit)
+                return case_id_result[0]
+
+    async def insert_case_details(self, case_id, cust_id, complaint_date, mobile, email, pan, nat_id, card_num, acct_num, txn_ref_id):
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                await self._execute_sync_db_op(cur.execute, """
+                    INSERT INTO case_detail (case_id, cust_id, comp_date, mobile, email, pan, aadhar, card, acct, txn_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (case_id, cust_id, complaint_date, mobile, email, pan, nat_id, card_num or '', acct_num or '', txn_ref_id or ''))
+                await self._execute_sync_db_op(conn.commit)
+
+    async def insert_case_decisions(self, ack_no: str, classification_result: dict):
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                classification = classification_result.get("classification"); reason = classification_result.get("reason")
+                decision_action = classification; system_explanation = reason; comments = reason
+                try:
+                    await self._execute_sync_db_op(cur.execute, """
+                        INSERT INTO public.case_decisions (
+                            ack_no, risk_score, triggering_rules, comments, decision_action,
+                            assigned_employee, audit_trail, system_recommendation, system_explanation
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        ack_no, None, None, comments, decision_action, None, None, decision_action, system_explanation
+                    ))
+                    await self._execute_sync_db_op(conn.commit)
+                except Exception as e:
+                    await self._execute_sync_db_op(conn.rollback)
+                    raise e
+
+    async def match_data(self, data: I4CData):
+        # All synchronous DB calls are wrapped in loop.run_in_executor.
+        ack_no = await self.insert_cyber_complaint(data) # This is now async
+
+        if ack_no is None:
+            return f"⚠️ Duplicate ack_no '{data.complaintref}' already exists. Skipping insert."
+
+        customers = await self.fetch_customer_data()
+        victim_cust_id = None
+        beneficiary_cust_id = None
+
+        for cust in customers:
+            cust_id, fname, mname, lname, mobile, email, pan, nat_id = cust
+            full_name = f"{fname} {mname} {lname}".strip().lower()
+            i4c_name_fields = [data.beneficiaryInfo.lower(), data.victimName.lower(), data.policeName.lower()]
+            if full_name in i4c_name_fields:
+                victim_cust_id = cust_id
+                break
+
+        if not victim_cust_id and data.beneficiaryAccountNumber:
+             for cust in customers:
+                cust_id, fname, mname, lname, mobile, email, pan, nat_id = cust
+                if str(data.beneficiaryAccountNumber) == str(cust[9]): # Assuming acc_num is at index 9
+                    beneficiary_cust_id = cust_id
+                    break
+
+        if victim_cust_id or beneficiary_cust_id:
+            case_id = await self.insert_case_master(ack_no, victim_cust_id or beneficiary_cust_id, 'Mixed Match')
+            await self.insert_case_details( 
+                case_id, victim_cust_id or beneficiary_cust_id, data.complaintDate or date.today(),
+                data.victimContact, data.victimEmail, None, None, 
+                data.victimAccountNumber, data.victimAccountNumber, data.transactionId, 'Victim'
+            )
+
+            if beneficiary_cust_id:
+                try:
+                    api_acct_num = str(data.victimAccountNumber)
+                    api_amount = float(data.fraudAmount)
+                    api_txn_ref = data.complaintref
+                    api_descr = f"Transaction for ACK {data.complaintref} from case entry system."
+
+                    decision_api_url = "http://34.47.219.225:9000/api/classify-transaction"
+                    headers = {"Content-Type": "application/json"}
+                    payload = {"acct_num": api_acct_num, "amount": api_amount, "txn_ref": api_txn_ref, "descr": api_descr}
+
+                    response = await self._execute_sync_db_op(requests.post, decision_api_url, headers=headers, data=json.dumps(payload)) # requests.post is sync
+                    response.raise_for_status()
+                    decision_data = await self._execute_sync_db_op(response.json)
+
+                    classification_result = decision_data.get("classification_result")
+                    if classification_result:
+                        await self._execute_sync_db_op(self.insert_case_decisions, data.complaintref, classification_result)
+
+                except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
+                    print(f"❌ Error calling decision API for beneficiary-matched case (RequestException): {e}")
+                except Exception as e:
+                    print(f"❌ An unexpected error occurred during decision API call or processing for beneficiary-matched case: {e}")
+
+            return f"✅ Match found and inserted into case_master with ack_no {ack_no}. Decision processing attempted (for beneficiary match)."
+
+        return f"ℹ️ Inserted complaint to cyber_complaints, but no customer match found (ack_no: {ack_no})."
+
+
+# --- CaseEntryMatcher Class (The primary class for /api/case-entry) ---
+class CaseEntryMatcher:
+    def __init__(self):
+        pass
+
+    async def _execute_sync_db_op(self, func, *args, **kwargs):
+        return await asyncio.get_running_loop().run_in_executor(executor, func, *args, **kwargs)
+
+    async def insert_case_master(self, ack_no, cust_id, complaint_type, source, location, transaction_amount):
+        async with get_db_connection() as conn:
+            async with get_db_cursor(conn) as cur:
+                today = date.today()
+                await self._execute_sync_db_op(cur.execute, """
+                    INSERT INTO case_master (ack_no, cust_id, complaint_type, source,
+                    location, transaction_amount, status, created_on,
+                    closed_on, decision, remarks)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING case_id
+                """, (
+                    ack_no, cust_id, complaint_type, source,
+                    location, transaction_amount, 'New', today,
+                    None, None, None
+                ))
+                case_id_result = await self._execute_sync_db_op(cur.fetchone)
+                await self._execute_sync_db_op(conn.commit)
+                return case_id_result['case_id']
+
+    async def insert_case_details(self, case_id, cust_id, complaint_date, mobile, email, pan, nat_id, card_num, acct_num, txn_ref_id, match_flag):
+        async with get_db_connection() as conn:
+            async with get_db_cursor(conn) as cur:
+                await self._execute_sync_db_op(cur.execute, """
+                    INSERT INTO case_detail (case_id, cust_id, comp_date, mobile, email, pan, aadhar, card, acct, txn_id, match_flag)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (case_id, cust_id, complaint_date, mobile or None, email or None, pan or None, nat_id or None,
+                      card_num or None, acct_num or None, txn_ref_id or None, match_flag))
+                await self._execute_sync_db_op(conn.commit)
+
+    async def insert_case_decisions(self, ack_no: str, classification_result: dict):
+        async with get_db_connection() as conn:
+            async with get_db_cursor(conn) as cur:
+                classification = classification_result.get("classification")
+                reason = classification_result.get("reason")
+                decision_action = classification
+                system_explanation = reason
+                comments = reason
+                try:
+                    await self._execute_sync_db_op(cur.execute, """
+                        INSERT INTO public.case_decisions (
+                            ack_no, risk_score, triggering_rules, comments, decision_action,
+                            assigned_employee, audit_trail, system_recommendation, system_explanation
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        ack_no, None, None, comments, decision_action,
+                        None, None, decision_action, system_explanation
+                    ))
+                    await self._execute_sync_db_op(conn.commit)
+                    print(f"✅ Decision for ack_no {ack_no} inserted into case_decisions.", flush=True)
+                except Exception as e:
+                    await self._execute_sync_db_op(conn.rollback)
+                    print(f"❌ Error inserting decision for ack_no {ack_no}: {e}", flush=True)
+                    raise
+
+    @staticmethod
+    def validate_numeric_field(field_name: str, field_value: Union[int, float, str, None], error_list: list):
+        if field_value is not None and str(field_value).strip() != '':
+            if isinstance(field_value, str):
+                if not re.fullmatch(r'\d+', field_value.strip()):
+                    error_list.append(f"'{field_name}' ('{field_value}') must contain only digits.")
+            elif isinstance(field_value, (int, float)):
+                if not str(int(field_value)).isdigit():
+                    error_list.append(f"'{field_name}' ('{field_value}') must contain only digits.")
+
+    # FIX: INTEGRATED AND CONVERTED fetch_transactions to async method
+    async def fetch_transactions(self, ack_no: str, from_date: date, to_date: date, type: str):
+        transactions = []
+        try:
+            print(f"\n--- DEBUG fetch_transactions START ---", flush=True)
+            print(f"DEBUG: Input - ack_no: {ack_no}, from_date: {from_date}, to_date: {to_date}, type: {type}", flush=True)
+
+            async with get_db_connection() as conn:
+                async with get_db_cursor(conn) as cur:
+                    account_col = 'account_number' if type == 'victim' else 'to_account'
+                    print(f"DEBUG: Determining account_col: {account_col}", flush=True)
+
+                    await self._execute_sync_db_op(cur.execute, f"""
+                        SELECT {account_col}
+                        FROM case_entry_form
+                        WHERE ack_no = %s
+                    """, (ack_no,))
+                    result = await self._execute_sync_db_op(cur.fetchone)
+
+                    print(f"DEBUG: Result from case_entry_form for {account_col}: {result}", flush=True)
+
+                    if not result or not result.get(account_col):
+                        print(f"DEBUG: No {type} account found in case_entry_form for ACK {ack_no}. Returning empty list.", flush=True)
+                        print(f"--- DEBUG fetch_transactions END ---", flush=True)
+                        return []
+
+                    account_num = result.get(account_col)
+                    print(f"DEBUG: Retrieved account_num for {type}: {account_num}", flush=True)
+
+                    if not isinstance(account_num, (int, float, str)) or (isinstance(account_num, str) and not re.fullmatch(r'\d+', str(account_num).strip())):
+                        print(f"DEBUG: Invalid account number retrieved from case_entry_form ('{account_num}') for {type}. Skipping txn fetch.", flush=True)
+                        return []
+
+                    sql_query = """
+                        SELECT
+                            txn_date,
+                            descr,
+                            txn_ref,
+                            amount,
+                            txn_type
+                        FROM txn
+                        WHERE acct_num = %s
+                          AND txn_date BETWEEN %s AND %s
+                        ORDER BY txn_date DESC, txn_time DESC;
+                    """
+                    query_params = (str(account_num), from_date, to_date)
+
+                    print(f"DEBUG: Executing txn query for account: {account_num}, Dates: {from_date} to {to_date}", flush=True)
+                    print(f"DEBUG: SQL Query: {sql_query}", flush=True)
+                    print(f"DEBUG: Query Parameters: {query_params}", flush=True)
+
+                    await self._execute_sync_db_op(cur.execute, sql_query, query_params)
+                    raw_transactions = await self._execute_sync_db_op(cur.fetchall)
+
+                    print(f"DEBUG: Fetched {len(raw_transactions)} raw transactions.", flush=True)
+
+                    if len(raw_transactions) > 0:
+                        print(f"DEBUG: Keys of first raw transaction: {raw_transactions[0].keys()}", flush=True)
+
+                    processed_transactions = []
+                    for txn in raw_transactions:
+                        withdrawal = None
+                        deposit = None
+                        if txn.get('txn_type') == 'Debit':
+                            withdrawal = txn.get('amount')
+                        elif txn.get('txn_type') == 'Credit':
+                            deposit = txn.get('amount')
+
+                        processed_transactions.append({
+                            'date': txn.get('txn_date'),
+                            'narration': txn.get('descr'),
+                            'refNo': txn.get('txn_ref'),
+                            'valueDate': txn.get('txn_date'),
+                            'withdrawal': withdrawal,
+                            'deposit': deposit,
+                            'closingBalance': None
+                        })
+
+                    print(f"DEBUG: Processed {len(processed_transactions)} transactions for {type} account {account_num}.", flush=True)
+                    print(f"--- DEBUG fetch_transactions END ---", flush=True)
+                    return processed_transactions
+
+        except psycopg2.Error as db_error:
+            print(f"DEBUG: Database error in self.fetch_transactions: {db_error}", flush=True)
+            print(f"--- DEBUG fetch_transactions END ---", flush=True)
+            raise # Re-raise for API endpoint to handle
+        except Exception as e:
+            print(f"DEBUG: An unexpected error occurred in self.fetch_transactions: {e}", flush=True)
+            print(f"--- DEBUG fetch_transactions END ---", flush=True)
+            raise
+
+    async def match_data(self, data: CaseEntryData):
+        victim_cust_id = None
+        beneficiary_cust_id = None
+        case_id = None
+
+        # --- Backend Validation for Numeric Account Fields ---
+        errors = []
+        self.validate_numeric_field("accountNumber", data.accountNumber, errors)
+        self.validate_numeric_field("cardNumber", data.cardNumber, errors)
+        self.validate_numeric_field("toAccount", data.toAccount, errors)
+        self.validate_numeric_field("transactionId", data.transactionId, errors)
+        self.validate_numeric_field("toTransactionId", data.toTransactionId, errors)
+        self.validate_numeric_field("transactionAmount", data.transactionAmount, errors)
+        self.validate_numeric_field("disputedAmount", data.disputedAmount, errors)
+        self.validate_numeric_field("toAmount", data.toAmount, errors)
+        self.validate_numeric_field("lienAmount", data.lienAmount, errors)
+
+        if errors:
+            error_message = f"Validation Error for ack_no {data.ackNo}: " + "; ".join(errors)
+            print(f"❌ {error_message}", flush=True)
+            raise ValueError(error_message)
+
+        print("\n--- Starting match_data processing ---", flush=True)
+        print("Received accountNumber (victim):", data.accountNumber, flush=True)
+        print("Received toAccount (beneficiary):", data.toAccount, flush=True)
+        print("Received ackNo:", data.ackNo, flush=True)
+        print("Received transactionAmount:", data.transactionAmount, flush=True)
+
+        # ---- Check for victim match ----
+        if data.accountNumber is not None:
+            try:
+                async with get_db_connection() as conn:
+                    async with get_db_cursor(conn) as cur:
+                        await self._execute_sync_db_op(cur.execute, "SELECT cust_id FROM account_customer WHERE acc_num = %s", (str(data.accountNumber),))
+                        victim_result = await self._execute_sync_db_op(cur.fetchone)
+                print("Victim result from DB:", victim_result, flush=True)
+                if victim_result:
+                    victim_cust_id = victim_result.get('cust_id')
+            except Exception as e:
+                print(f"Error checking victim match for {data.accountNumber}: {e}", flush=True)
+        else:
+            print("Skipping victim match check: accountNumber is None.", flush=True)
+
+        # ---- Check for beneficiary match ----
+        if data.toAccount is not None:
+            try:
+                async with get_db_connection() as conn:
+                    async with get_db_cursor(conn) as cur:
+                        await self._execute_sync_db_op(cur.execute, "SELECT cust_id FROM account_customer WHERE acc_num = %s", (str(data.toAccount),))
+                        beneficiary_result = await self._execute_sync_db_op(cur.fetchone)
+                print("Beneficiary result from DB:", beneficiary_result, flush=True)
+                if beneficiary_result:
+                    beneficiary_cust_id = beneficiary_result.get('cust_id')
+            except Exception as e:
+                print(f"Error checking beneficiary match for {data.toAccount}: {e}", flush=True)
+        else:
+            print("Skipping beneficiary match check: toAccount is None.", flush=True)
+
+        print(f"DEBUG: At this point, victim_cust_id: {victim_cust_id}, beneficiary_cust_id: {beneficiary_cust_id}", flush=True)
+
+        # ---- Always insert into case_entry_form FIRST ----
+        print("Inserting into case_entry_form...", flush=True)
+        async with get_db_connection() as conn_form_insert:
+            async with get_db_cursor(conn_form_insert) as cur_form_insert:
+                try:
+                    await self._execute_sync_db_op(cur_form_insert.execute, """INSERT INTO case_entry_form (
+                        ack_no, sub_category, transaction_date, complaint_date, report_datetime,
+                        state, district, policestation, payment_mode,
+                        account_number, card_number, transaction_id, layers,
+                        transaction_amount, disputed_amount, action, to_bank, to_account,
+                        ifsc, to_transaction_id, to_amount, action_taken_date, lien_amount,
+                        evidence, evidence_name, additional_info, to_upi_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (
+                            data.ackNo, data.subCategory, data.transactionDate, data.complaintDate, data.reportDateTime,
+                            data.state, data.district, data.policestation, data.paymentMode,
+                            str(data.accountNumber) if data.accountNumber is not None else None,
+                            str(data.cardNumber) if data.cardNumber is not None else None,
+                            str(data.transactionId),
+                            data.layers,
+                            data.transactionAmount,
+                            data.disputedAmount,
+                            data.action,
+                            str(data.toBank) if data.toBank is not None else None,
+                            str(data.toAccount) if data.toAccount is not None else None,
+                            data.ifsc,
+                            str(data.toTransactionId),
+                            data.toAmount,
+                            data.actionTakenDate,
+                            data.lienAmount,
+                            data.evidence,
+                            data.evidenceName,
+                            data.additionalInfo,
+                            data.toUpiId
+                        )
+                    )
+                    await self._execute_sync_db_op(conn_form_insert.commit)
+                    print("✅ Case_entry_form committed to the database.", flush=True)
+                except psycopg2.Error as e:
+                    await self._execute_sync_db_op(conn_form_insert.rollback)
+                    print(f"❌ Error inserting into case_entry_form for ack_no {data.ackNo}: {e}", flush=True)
+                    raise ValueError(f"Database error inserting into case_entry_form: {e}")
+
+        # --- FILE UPLOAD HANDLING NOTE ---
+        # The CaseEntryData model defines 'evidence: Optional[str]'.
+        # If the frontend is sending an actual file (FastAPI UploadFile),
+        # your Pydantic model and API endpoint need to be adjusted (e.g., using FastAPI.File and FormData).
+        # The current implementation assumes 'evidence' is a string.
+        # If it's a base64 encoded string, you might decode and save it like this:
+        # if data.evidence and data.evidenceName:
+        #     import base64
+        #     UPLOAD_DIR = "/home/ubuntu/fraud_uploads"
+        #     os.makedirs(UPLOAD_DIR, exist_ok=True)
+        #     file_extension = os.path.splitext(data.evidenceName)[1] if data.evidenceName else ".bin"
+        #     unique_filename = f"{data.ackNo}_{uuid.uuid4()}{file_extension}"
+        #     saved_filepath = os.path.join(UPLOAD_DIR, unique_filename)
+        #     try:
+        #         decoded_content = base64.b64decode(data.evidence)
+        #         with open(saved_filepath, "wb") as buffer:
+        #             buffer.write(decoded_content)
+        #         print(f"✅ Evidence file saved to: {saved_filepath}", flush=True)
+        #     except Exception as e:
+        #         print(f"❌ Error saving evidence file: {e}", flush=True)
+
+
+        # ---- Insert into case_master if any match exists ----
+        if victim_cust_id or beneficiary_cust_id:
+            try:
+                case_id = await self.insert_case_master(
+                    ack_no=data.ackNo,
+                    cust_id=victim_cust_id or beneficiary_cust_id,
+                    complaint_type=data.subCategory,
+                    source="Portal",
+                    location=data.state,
+                    transaction_amount=data.transactionAmount
+                )
+                print(f"case_master entry created with case_id: {case_id}", flush=True)
+            except Exception as e:
+                print(f"❌ Error inserting into case_master for ack_no {data.ackNo}: {e}", flush=True)
+                raise
+
+            # ---- Insert victim case_detail ----
+            if victim_cust_id:
+                print("Inserting victim details into case_detail...", flush=True)
+                try:
+                    await self.insert_case_details(
+                        case_id=case_id,
+                        cust_id=victim_cust_id,
+                        complaint_date=data.complaintDate,
+                        mobile=None, email=None, pan=None, nat_id=None,
+                        card_num=data.cardNumber,
+                        acct_num=data.accountNumber,
+                        txn_ref_id=data.transactionId,
+                        match_flag="victim"
+                    )
+                except Exception as e:
+                    print(f"❌ Error inserting victim case_detail for ack_no {data.ackNo}: {e}", flush=True)
+                    raise
+
+            # ---- Insert beneficiary case_detail ----
+            if beneficiary_cust_id:
+                print("Inserting beneficiary details into case_detail...", flush=True)
+                try:
+                    await self.insert_case_details(
+                        case_id=case_id,
+                        cust_id=beneficiary_cust_id,
+                        complaint_date=data.complaintDate,
+                        mobile=None, email=None, pan=None, nat_id=None,
+                        card_num=None,
+                        acct_num=data.toAccount,
+                        txn_ref_id=data.toTransactionId,
+                        match_flag="beneficiary"
+                    )
+                except Exception as e:
+                    print(f"❌ Error inserting beneficiary case_detail for ack_no {data.ackNo}: {e}", flush=True)
+                    raise
+
+            # ---- Call the decision API and process its response ONLY IF BENEFICIARY MATCH WAS FOUND ----
+            if beneficiary_cust_id:
+                api_acct_num = str(data.accountNumber) if data.accountNumber is not None else ''
+                api_amount = float(data.transactionAmount) if data.transactionAmount is not None else 0.0
+                api_txn_ref = str(data.transactionId) if data.transactionId is not None else ''
+                api_descr = f"Transaction for ACK {data.ackNo} from case entry system."
+
+                decision_api_url = "http://34.47.219.225:9000/api/classify-transaction"
+                headers = {"Content-Type": "application/json"}
+                payload = {
+                    "acct_num": api_acct_num,
+                    "amount": api_amount,
+                    "txn_ref": api_txn_ref,
+                    "descr": api_descr
+                }
+
+                print(f"\n--- Calling decision API for beneficiary-matched case ---", flush=True)
+                print(f"API URL: {decision_api_url}", flush=True)
+                print(f"Payload: {json.dumps(payload, indent=2)}", flush=True)
+
+                try:
+                    response = await self._execute_sync_db_op(requests.post, decision_api_url, headers=headers, data=json.dumps(payload))
+                    response.raise_for_status()
+                    decision_data = await self._execute_sync_db_op(response.json)
+                    print(f"Decision API raw response: {json.dumps(decision_data, indent=2)}", flush=True)
+
+                    classification_result = decision_data.get("classification_result")
+                    if classification_result:
+                        print(f"DEBUG: Calling insert_case_decisions with ack_no: {data.ackNo}, result: {classification_result}", flush=True)
+                        await self.insert_case_decisions(data.ackNo, classification_result)
+                    else:
+                        print("⚠️ No 'classification_result' found in decision API response for beneficiary-matched case.", flush=True)
+                        print(f"Full API response was: {json.dumps(decision_data, indent=2)}", flush=True)
+
+                except requests.exceptions.RequestException as e:
+                    print(f"❌ Error calling decision API for beneficiary-matched case (RequestException): {e}", flush=True)
+                    if hasattr(e, 'response') and e.response is not None:
+                        print(f"API Response content (if available): {e.response.text}", flush=True)
+                except json.JSONDecodeError as e:
+                    print(f"❌ Error decoding JSON from decision API response for beneficiary-matched case (JSONDecodeError): {e}", flush=True)
+                    if 'response' in locals() and response:
+                        print(f"Raw response content: {response.text}", flush=True)
+                except Exception as e:
+                    print(f"❌ An unexpected error occurred during decision API call or processing for beneficiary-matched case: {e}", flush=True)
+            else:
+                print("ℹ️ No beneficiary match found. Skipping decision API call and case_decisions insertion.", flush=True)
+
+        else:
+            print("ℹ️ No victim or beneficiary match found. Skipping case_master, case_detail, and decision API call for case_decisions.", flush=True)
+
+        # ---- Final return message ----
+        print("\n--- Finalizing match_data processing ---", flush=True)
+        if victim_cust_id or beneficiary_cust_id:
+            return f"✅ Match found and inserted into case_master with ack_no {data.ackNo}. Decision processing attempted (for beneficiary match)."
+        else:
+            return f"ℹ️ No match found. Only case_entry_form entry inserted for ack_no {data.ackNo}."
