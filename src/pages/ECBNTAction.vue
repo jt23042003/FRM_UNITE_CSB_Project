@@ -532,7 +532,10 @@
                 </div>
               </div>
               
-              <button v-if="!isReadOnly" @click="saveTemplateResponses" class="btn-save">Save Template Responses</button>
+              <div class="template-actions">
+                <button v-if="!isReadOnly" @click="saveTemplateResponses" class="btn-save">Save Template Responses</button>
+                <button v-if="!isReadOnly" @click="clearTemplateResponses" class="btn-clear">Clear Template</button>
+              </div>
             </div>
           </div>
 
@@ -1348,6 +1351,22 @@ watch(action, () => { hasUnsavedChanges.value = true; }, { deep: true });
   };
 
 const sendBackCase = async () => {
+  // Check if template responses need to be saved first
+  if (userRole.value === 'others' && assignedTemplate.value) {
+    const validationResult = validateMandatoryQuestions();
+    if (!validationResult.isValid) {
+      window.showNotification('warning', 'Template Required', 'Please fill in all required template fields and click "Save Template Responses" before sending back.');
+      return;
+    }
+    
+    // Check if template responses have been saved
+    const hasTemplateResponses = await checkTemplateResponsesSaved();
+    if (!hasTemplateResponses) {
+      window.showNotification('warning', 'Template Not Saved', 'Please click "Save Template Responses" before sending back.');
+      return;
+    }
+  }
+
   // For "others" users, automatically trigger the Save functionality (files, data uploads, etc.) before sending back
   if (userRole.value === 'others' && hasUnsavedChanges.value) {
     try {
@@ -1798,6 +1817,13 @@ const handleTemplateFileUpload = (event, questionId) => {
 
 const saveTemplateResponses = async () => {
   try {
+    // Validate mandatory questions before saving
+    const validationResult = validateMandatoryQuestions();
+    if (!validationResult.isValid) {
+      window.showNotification('warning', 'Required Fields Missing', validationResult.message);
+      return;
+    }
+
     const caseId = parseInt(route.params.case_id);
     const token = localStorage.getItem('jwt');
     
@@ -1838,6 +1864,89 @@ const saveTemplateResponses = async () => {
   } catch (err) {
     window.showNotification('error', 'Save Failed', 'Failed to save template responses.');
     console.error('Failed to save template responses:', err);
+  }
+};
+
+// Validation function for mandatory questions
+const validateMandatoryQuestions = () => {
+  if (!assignedTemplate.value || !assignedTemplate.value.questions) {
+    return { isValid: true }; // No template assigned, no validation needed
+  }
+
+  const missingRequiredFields = [];
+  
+  assignedTemplate.value.questions.forEach(question => {
+    if (question.required) {
+      const responseValue = templateResponses.value[question.id];
+      
+      // Check if the response is empty or null
+      if (!responseValue || 
+          (typeof responseValue === 'string' && responseValue.trim() === '') ||
+          (Array.isArray(responseValue) && responseValue.length === 0)) {
+        missingRequiredFields.push(question.question);
+      }
+    }
+  });
+
+  if (missingRequiredFields.length > 0) {
+    const fieldList = missingRequiredFields.slice(0, 3).join(', ');
+    const moreFields = missingRequiredFields.length > 3 ? ` and ${missingRequiredFields.length - 3} more` : '';
+    
+    return {
+      isValid: false,
+      message: `Please fill in the following required fields: ${fieldList}${moreFields}`
+    };
+  }
+
+  return { isValid: true };
+};
+
+// Check if template responses have been saved for this case
+const checkTemplateResponsesSaved = async () => {
+  try {
+    const caseId = parseInt(route.params.case_id);
+    const token = localStorage.getItem('jwt');
+    const currentUsername = localStorage.getItem('username');
+    
+    if (!currentUsername) {
+      return false;
+    }
+    
+    const response = await axios.get(`/api/case/${caseId}/template-responses`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.data && response.data.success && response.data.responses) {
+      // Check if there's a saved response for this user and template
+      const userResponse = response.data.responses.find(resp => 
+        resp.assigned_to === currentUsername && 
+        resp.template_id === assignedTemplate.value.id
+      );
+      
+      return !!userResponse; // Return true if response exists, false otherwise
+    }
+    
+    return false;
+  } catch (err) {
+    console.error('Failed to check template responses:', err);
+    return false;
+  }
+};
+
+// Clear all template responses
+const clearTemplateResponses = () => {
+  if (window.confirm('Are you sure you want to clear all template responses? This action cannot be undone.')) {
+    // Reset all template responses to empty values
+    if (assignedTemplate.value && assignedTemplate.value.questions) {
+      assignedTemplate.value.questions.forEach(question => {
+        templateResponses.value[question.id] = '';
+      });
+    }
+    
+    // Clear template files
+    templateFiles.value = {};
+    
+    window.showNotification('info', 'Template Cleared', 'All template responses have been cleared.');
   }
 };
 
@@ -2213,6 +2322,33 @@ const getTemplateQuestionFiles = (questionId) => {
 
 .btn-assign:hover, .btn-save:hover, .btn-submit:hover {
   background: #0b5ed7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Template Actions */
+.template-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.btn-clear {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-clear:hover {
+  background: #c82333;
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
