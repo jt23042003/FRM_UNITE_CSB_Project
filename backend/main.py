@@ -39,6 +39,7 @@ from routers import (
 from routers.dashboard import router as dashboard_analytics_router
 from routers import assignment_router, case_history_router
 from routers.match_suspect_customer import router as match_suspect_customer_router
+from routers.email_ingest import router as email_ingest_router
 
 # Import all models to ensure they are registered
 from models import Base, create_tables
@@ -135,7 +136,7 @@ app.include_router(reason_list_router)
 app.include_router(match_suspect_customer_router, tags=["Suspect-Customer Match"])
 app.include_router(template_router.router, tags=["Template Management"])
 app.include_router(supervisor_router.router, tags=["Supervisor Template Review"])
-
+app.include_router(email_ingest_router, tags=["Email Ingest"])
 # --- This is your existing root endpoint ---
 @app.get("/")
 async def read_root():
