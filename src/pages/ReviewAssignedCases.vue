@@ -30,6 +30,20 @@
           <option value="10">Last 10 Days</option>
           <option value=">10">More than 10 Days</option>
         </select>
+
+        <select v-model="daysAssignedFilter" class="filter-input enhanced-status-select">
+          <option value="">All Days</option>
+          <option value="0">Today (0 days)</option>
+          <option value="1">1 day</option>
+          <option value="2">2 days</option>
+          <option value="3">3 days</option>
+          <option value="5">5 days</option>
+          <option value="7">7 days</option>
+          <option value="10">10 days</option>
+          <option value="15">15 days</option>
+          <option value="30">30 days</option>
+          <option value=">30">More than 30 days</option>
+        </select>
         
         <button @click="clearFilters" class="reset-btn">Clear All</button>
       </div>
@@ -38,7 +52,7 @@
       <div class="table-responsive">
         <table class="case-table">
         <colgroup>
-          <col style="width: 10%"> <col style="width: 12%"> <col style="width: 16%"> <col style="width: 10%"> <col style="width: 12%"> <col style="width: 12%"> <col style="width: 12%"> <col style="width: 14%"> <col style="width: 10%"> <col style="width: 14%">
+          <col style="width: 8%"> <col style="width: 10%"> <col style="width: 14%"> <col style="width: 8%"> <col style="width: 10%"> <col style="width: 10%"> <col style="width: 10%"> <col style="width: 12%"> <col style="width: 8%"> <col style="width: 8%"> <col style="width: 12%">
         </colgroup>
         <thead>
           <tr>
@@ -90,6 +104,12 @@
                 {{ sortDirection === 'asc' ? '↑' : '↓' }}
               </span>
             </th>
+            <th @click="sortBy('days_assigned')" class="sortable-header">
+              Days Assigned
+              <span v-if="sortColumn === 'days_assigned'" class="sort-icon">
+                {{ sortDirection === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
             <th @click="sortBy('status')" class="sortable-header">
               Status
               <span v-if="sortColumn === 'status'" class="sort-icon">
@@ -106,7 +126,7 @@
         </thead>
         <tbody>
           <tr v-if="loading">
-             <td colspan="10" style="padding: 12px;">
+             <td colspan="11" style="padding: 12px;">
                <div class="skeleton-table">
                  <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
                  <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
@@ -141,6 +161,12 @@
               </span>
               <span v-else>—</span>
             </td>
+            <td class="numeric">
+              <span v-if="caseItem.assign_date" class="days-assigned">
+                {{ calculateDaysAssigned(caseItem.assign_date) }}
+              </span>
+              <span v-else>—</span>
+            </td>
             <td>
               <span :class="['status-badge', caseItem.status ? caseItem.status.toLowerCase().replace(/ /g,'-') : '']">
                 {{ caseItem.status || '-' }}
@@ -154,7 +180,7 @@
             </td>
           </tr>
           <tr v-else>
-            <td colspan="10" style="padding: 12px;">
+            <td colspan="11" style="padding: 12px;">
               <div class="empty-state">
                 <div class="icon">📋</div>
                 <div class="title">No assigned cases</div>
@@ -196,6 +222,10 @@
           <div class="card-row">
             <span class="label">Assigned:</span>
             <span class="value">{{ formatDateTimeIST(caseItem.assign_date, caseItem.assign_time) }}</span>
+          </div>
+          <div class="card-row">
+            <span class="label">Days:</span>
+            <span class="value">{{ caseItem.assign_date ? calculateDaysAssigned(caseItem.assign_date) : '—' }}</span>
           </div>
           <div class="card-row footer">
             <span class="assigned">{{ caseItem.assigned_to || '—' }}</span>
@@ -247,6 +277,7 @@ const globalSearch = ref('');
 const sortColumn = ref('');
 const sortDirection = ref('asc');
 const timeFilter = ref('');
+const daysAssignedFilter = ref('');
 
 // --- API Fetching (Fetch ALL assigned cases) ---
 const fetchCases = async () => {
@@ -326,6 +357,28 @@ const formatDateTimeIST = (assignDate, assignTime) => {
   }
 };
 
+// --- Helper function to calculate days assigned ---
+const calculateDaysAssigned = (assignDate) => {
+  if (!assignDate) return 0;
+  
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    
+    const assignedDate = new Date(assignDate);
+    assignedDate.setHours(0, 0, 0, 0); // Reset time to start of day
+    
+    const timeDiff = today.getTime() - assignedDate.getTime();
+    const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
+    
+    // Return 0 if the date is in the future
+    return Math.max(0, dayDiff);
+  } catch (error) {
+    console.error('Error calculating days assigned:', error);
+    return 0;
+  }
+};
+
 // --- Global Search Function ---
 const handleGlobalSearch = () => {
   page.value = 1;
@@ -397,36 +450,59 @@ const filteredAndSortedCases = computed(() => {
     });
   }
 
+  // Days Assigned filter
+  if (daysAssignedFilter.value !== '') {
+    const selectedDays = daysAssignedFilter.value;
+
+    casesToProcess = casesToProcess.filter(caseItem => {
+      const daysAssigned = calculateDaysAssigned(caseItem.assign_date);
+      
+      if (selectedDays === '>30') {
+        return daysAssigned > 30;
+      } else {
+        const dayLimit = parseInt(selectedDays, 10);
+        if (dayLimit === 0) return daysAssigned === 0;
+        return daysAssigned === dayLimit;
+      }
+    });
+  }
+
   // Sorting
   if (sortColumn.value) {
     casesToProcess.sort((a, b) => {
       let aValue = a[sortColumn.value];
       let bValue = b[sortColumn.value];
 
-      // Handle null/undefined values
-      if (aValue === null || aValue === undefined) aValue = '';
-      if (bValue === null || bValue === undefined) bValue = '';
+      // Special handling for days_assigned (calculated field)
+      if (sortColumn.value === 'days_assigned') {
+        aValue = calculateDaysAssigned(a.assign_date);
+        bValue = calculateDaysAssigned(b.assign_date);
+      } else {
+        // Handle null/undefined values
+        if (aValue === null || aValue === undefined) aValue = '';
+        if (bValue === null || bValue === undefined) bValue = '';
 
-      // Convert to string for comparison
-      aValue = String(aValue).toLowerCase();
-      bValue = String(bValue).toLowerCase();
+        // Convert to string for comparison
+        aValue = String(aValue).toLowerCase();
+        bValue = String(bValue).toLowerCase();
 
-      // Special handling for numeric values
-      if (sortColumn.value === 'disputed_amount' || sortColumn.value === 'case_id') {
-        aValue = parseFloat(aValue) || 0;
-        bValue = parseFloat(bValue) || 0;
-      }
+        // Special handling for numeric values
+        if (sortColumn.value === 'disputed_amount' || sortColumn.value === 'case_id') {
+          aValue = parseFloat(aValue) || 0;
+          bValue = parseFloat(bValue) || 0;
+        }
 
-      // Special handling for dates
-      if (sortColumn.value === 'assign_date' || sortColumn.value === 'creation_date') {
-        aValue = new Date(aValue || 0);
-        bValue = new Date(bValue || 0);
-      }
+        // Special handling for dates
+        if (sortColumn.value === 'assign_date' || sortColumn.value === 'creation_date') {
+          aValue = new Date(aValue || 0);
+          bValue = new Date(bValue || 0);
+        }
 
-      // Special handling for boolean values
-      if (sortColumn.value === 'is_operational') {
-        aValue = aValue === 'true' || aValue === 'yes' ? 1 : 0;
-        bValue = bValue === 'true' || bValue === 'yes' ? 1 : 0;
+        // Special handling for boolean values
+        if (sortColumn.value === 'is_operational') {
+          aValue = aValue === 'true' || aValue === 'yes' ? 1 : 0;
+          bValue = bValue === 'true' || bValue === 'yes' ? 1 : 0;
+        }
       }
 
       if (sortDirection.value === 'asc') {
@@ -456,6 +532,7 @@ function clearFilters() {
   sortColumn.value = '';
   sortDirection.value = 'asc';
   timeFilter.value = '';
+  daysAssignedFilter.value = '';
   page.value = 1;
 }
 
@@ -568,6 +645,19 @@ onMounted(fetchCases);
   word-wrap: break-word;
   max-width: 250px;
   line-height: 1.3;
+}
+
+.days-assigned {
+  display: inline-block;
+  background: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  min-width: 35px;
+  text-align: center;
 }
 
 /* Chips and badges (match Case Details) */
