@@ -1,0 +1,55 @@
+Subject: URGENT FRAUD CASE - Process Immediately
+
+Dear Fraud Investigation Team,
+
+Critical fraud case requires immediate processing and action.
+
+**CASE IDENTIFICATION:**
+Acknowledgement No: ACK202509250004
+Customer Name: Priya Mehta
+
+**COMPLAINT DETAILS:**
+Sub Category: UPI/Wallet Frauds
+Transaction Date: 2025-09-24
+Complaint Date: 2025-09-25
+Reported Date: 2025-09-25 17:15
+State: Karnataka
+District: Bangalore Urban
+Police Station: Electronic City Police Station
+
+**PAYMENT INFORMATION:**
+Mode of Payment: UPI
+Transaction ID: TXN789123456XYZ
+Layers: Layer 3
+Transaction Amount: ₹95,000
+Disputed Amount: ₹95,000
+Action Taken Date: 2025-09-25
+
+**VICTIM DETAILS:**
+Victim Account Number: 777888999000111
+Card Number: 6666555544443333
+PAN: HIJKL9012M
+Aadhaar: 7654 3210 9876
+Mobile: 9876543210
+
+**SUSPECT BENEFICIARY:**
+Beneficiary Bank: Axis Bank
+Beneficiary Account Number: 333444555666777
+IFSC Code: UTIB0001234
+Beneficiary UPI ID: fraudulent@axisbank
+Beneficiary UTR: UTR987654321MNO
+Money Transfer TO Amount: ₹95,000
+
+**INCIDENT DESCRIPTION:**
+Customer Priya Mehta reported unauthorized UPI transfer of ₹95,000 from her account 777888999000111 to suspect beneficiary account 333444555666777. The fraudulent transaction was executed through UPI ID fraudulent@axisbank without customer knowledge or consent.
+
+**REQUIRED ACTION:**
+Action: Freeze Account
+Immediate freezing of beneficiary account 333444555666777 recommended.
+
+Investigation Priority: CRITICAL
+Case Status: AWAITING PROCESSING
+
+Best Regards,
+Digital Fraud Detection Unit
+Case ID: FRAUD-2025-0925-004

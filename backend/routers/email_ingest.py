@@ -2,15 +2,19 @@
 import os
 import json
 import base64
+import time
 import traceback
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request, Query
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request, Query, Depends
+from concurrent.futures import ThreadPoolExecutor
 from starlette.responses import PlainTextResponse
 
 from services.email_parser import EmailParser
+from db.matcher import CaseEntryMatcher
+from models.base_models import CaseEntryData, ECBCaseData
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -286,3 +290,282 @@ async def preview_fields(payload: dict = Body(...)):
         "fields": result["fields"],
         "evidence": result["evidence"],
     }
+
+def get_executor_dependency(request: Request) -> ThreadPoolExecutor:
+    """Dependency to get ThreadPoolExecutor instance"""
+    return request.app.state.executor
+
+@router.get("/api/email/test")
+async def test_email_endpoint():
+    """Simple test endpoint to verify the router is working"""
+    return {"status": "ok", "message": "Email router is working"}
+
+@router.post("/api/email/test-parsing")
+async def test_email_parsing(payload: dict = Body(...)):
+    """Test email parsing without case creation"""
+    try:
+        provider = payload.get("provider")
+        msg_id = payload.get("message_id")
+        
+        if not provider or not msg_id:
+            raise HTTPException(400, "provider and message_id are required")
+        
+        # Just return success without actually parsing for now
+        return {
+            "status": "success",
+            "provider": provider,
+            "message_id": msg_id,
+            "message": "Test parsing endpoint working"
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.post("/api/email/parse/create-cases")
+async def parse_email_and_create_cases(
+    payload: dict = Body(...),
+    executor: ThreadPoolExecutor = Depends(get_executor_dependency)
+):
+    """
+    Parse email content and automatically create fraud cases based on extracted data.
+    This endpoint combines email parsing with automatic case creation workflow.
+    """
+    try:
+        # Step 1: Parse the email (reuse existing logic)
+        provider = payload.get("provider")
+        msg_id = payload.get("message_id")
+        token = payload.get("access_token")
+        
+        if not provider or not msg_id:
+            raise HTTPException(400, "provider and message_id are required")
+        
+        if provider == "google":
+            token = _token_for_google(token)
+            if not token:
+                raise HTTPException(400, "No Google token available; set DEV_GOOGLE_ACCESS_TOKEN or pass access_token")
+            parsed_result = await PARSER.process_gmail_message(token, msg_id)
+        elif provider == "microsoft":
+            token = _token_for_ms(token)
+            if not token:
+                raise HTTPException(400, "No Microsoft token available; set DEV_MS_ACCESS_TOKEN or pass access_token")
+            parsed_result = await PARSER.process_graph_message(token, msg_id)
+        else:
+            raise HTTPException(400, "Unsupported provider")
+        
+        # Step 2: Create cases based on parsed data
+        case_matcher = CaseEntryMatcher(executor)
+        case_creation_results = await _create_cases_from_parsed_data(case_matcher, parsed_result["fields"])
+        
+        return {
+            "id": parsed_result["id"],
+            "provider": parsed_result["provider"],
+            "parsed_fields": parsed_result["fields"],
+            "evidence": parsed_result["evidence"],
+            "case_creation_results": case_creation_results
+        }
+    except Exception as e:
+        print(f"❌ Error in parse_email_and_create_cases: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal server error: {str(e)}")
+
+async def _create_cases_from_parsed_data(matcher: CaseEntryMatcher, fields: dict) -> dict:
+    """
+    Create fraud cases based on parsed email data.
+    Logic: Assuming beneficiary account received, create BM case and check for ECBT/ECBNT.
+    """
+    results = {
+        "bm_case": None,
+        "ecb_cases": [],
+        "errors": [],
+        "summary": ""
+    }
+    
+    try:
+        # Extract key fields from parsed data
+        bene_account = fields.get("toAccount")  # This is the beneficiary account from email
+        victim_account = fields.get("accountNumber")  # This is the victim account from email
+        ack_no = fields.get("ackNo", f"EMAIL_{int(time.time())}")
+        
+        # As per user requirement: "for now let's assume the account numbers he gets is a bene"
+        # So we focus on the beneficiary account (toAccount) for case creation
+        
+        if not bene_account:
+            results["errors"].append("No beneficiary account (toAccount) found in parsed email data")
+            return results
+        
+        # Step 1: Check if beneficiary account exists in our customer database (BM case)
+        bm_customer = await _find_customer_by_account(matcher, bene_account)
+        
+        if bm_customer:
+            # Create BM case for the beneficiary account
+            bm_case_data = _create_case_entry_data_from_fields(fields, bm_customer["cust_id"], "BM")
+            bm_result = await matcher.match_data(bm_case_data, created_by_user="EmailSystem")
+            results["bm_case"] = {
+                "account_number": bene_account,
+                "customer_id": bm_customer["cust_id"],
+                "case_result": bm_result
+            }
+            
+            # Step 2: Check for ECBT/ECBNT cases
+            # Find all other customers who have added this beneficiary account
+            ecb_results = await _create_ecb_cases_for_beneficiary(matcher, bene_account, ack_no, fields)
+            results["ecb_cases"] = ecb_results
+            
+            results["summary"] = f"Created BM case for beneficiary account {bene_account}. Found {len(ecb_results)} ECB cases."
+        else:
+            results["summary"] = f"No customer match found for beneficiary account {bene_account}. No cases created."
+            
+    except Exception as e:
+        results["errors"].append(f"Error creating cases: {str(e)}")
+        import traceback
+        traceback.print_exc()
+    
+    return results
+
+async def _find_customer_by_account(matcher: CaseEntryMatcher, account_number: str) -> Optional[dict]:
+    """Find customer by account number"""
+    from db.connection import get_db_connection, get_db_cursor
+    
+    def _sync_find_customer():
+        with get_db_connection() as conn:
+            with get_db_cursor(conn) as cur:
+                cur.execute("SELECT cust_id FROM account_customer WHERE acc_num = %s", (account_number,))
+                return cur.fetchone()
+    
+    try:
+        result = await matcher._execute_sync_db_op(_sync_find_customer)
+        return result
+    except Exception as e:
+        print(f"Error finding customer by account {account_number}: {e}")
+        return None
+
+def _create_case_entry_data_from_fields(fields: dict, customer_id: str, case_type: str) -> CaseEntryData:
+    """Convert parsed email fields to CaseEntryData for case creation"""
+    import time
+    from datetime import datetime, date
+    
+    # Handle date fields - convert to proper date objects
+    def parse_date(date_str):
+        if not date_str:
+            return date.today()
+        if isinstance(date_str, str):
+            try:
+                # Try different date formats
+                for fmt in ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"]:
+                    try:
+                        return datetime.strptime(date_str, fmt).date()
+                    except ValueError:
+                        continue
+            except:
+                pass
+        return date.today()
+    
+    # Handle reportDateTime - this is required for UPI payment mode
+    report_datetime = fields.get("reportDateTime")
+    if not report_datetime:
+        # If not found, create one from complaint date + time or use current datetime
+        complaint_date = fields.get("complaintDate")
+        if complaint_date:
+            report_datetime = f"{complaint_date} 10:00"  # Add default time
+        else:
+            report_datetime = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    # Ensure required numeric fields have default values
+    transaction_amount = fields.get("transactionAmount") or 0.0
+    disputed_amount = fields.get("disputedAmount") or transaction_amount
+    to_amount = fields.get("toAmount") or transaction_amount
+    
+    return CaseEntryData(
+        ackNo=fields.get("ackNo", f"EMAIL_{int(time.time())}"),
+        customerName=fields.get("customerName", "Unknown Customer"),
+        subCategory=fields.get("subCategory", "Others"),
+        complaintDate=parse_date(fields.get("complaintDate")),
+        reportDateTime=report_datetime,
+        state=fields.get("state", "Unknown"),
+        district=fields.get("district") or fields.get("state", "Unknown"),  # Use state as fallback for district
+        policestation=fields.get("policestation", "Unknown"),
+        paymentMode=fields.get("paymentMode", "UPI"),
+        transactionDate=parse_date(fields.get("transactionDate")),
+        transactionId=fields.get("transactionId", f"TXN{int(time.time())}"),
+        accountNumber=fields.get("accountNumber"),  # Victim account
+        cardNumber=fields.get("cardNumber"),
+        layers=fields.get("layers", "Layer 1"),
+        transactionAmount=float(transaction_amount),
+        disputedAmount=float(disputed_amount),
+        toBank=fields.get("toBank", "Unknown Bank"),
+        toAccount=fields.get("toAccount"),  # Beneficiary account  
+        ifsc=fields.get("ifsc"),
+        toTransactionId=fields.get("toTransactionId"),
+        toAmount=float(to_amount),
+        toUpiId=fields.get("toUpiId"),
+        action=fields.get("action"),
+        actionTakenDate=parse_date(fields.get("actionTakenDate")),
+        # Note: PAN, Aadhaar etc. are not part of CaseEntryData - they're handled separately
+    )
+
+async def _create_ecb_cases_for_beneficiary(matcher: CaseEntryMatcher, bene_account: str, ack_no: str, fields: dict) -> List[dict]:
+    """
+    Create ECBT/ECBNT cases by finding all customers who have added this beneficiary account
+    and checking if they have transactions with this beneficiary
+    """
+    from db.connection import get_db_connection, get_db_cursor
+    
+    def _sync_find_customers_with_beneficiary():
+        with get_db_connection() as conn:
+            with get_db_cursor(conn) as cur:
+                # Find all customers who have added this account as a beneficiary
+                cur.execute("""
+                    SELECT DISTINCT ac.cust_id, ac.acc_num as customer_account, ab.bene_acct_num
+                    FROM account_customer ac
+                    JOIN acc_bene ab ON ac.acc_num = ab.cust_acct_num  
+                    WHERE ab.bene_acct_num = %s
+                """, (bene_account,))
+                return cur.fetchall()
+    
+    try:
+        customers_with_bene = await matcher._execute_sync_db_op(_sync_find_customers_with_beneficiary)
+        ecb_results = []
+        
+        for customer in customers_with_bene:
+            cust_id = customer["cust_id"]
+            customer_account = customer["customer_account"]
+            
+            # Check if this customer has transactions with this beneficiary
+            has_transactions = await matcher._check_customer_beneficiary_transactions(customer_account, bene_account)
+            
+            # Create ECBT or ECBNT case
+            case_type = "ECBT" if has_transactions else "ECBNT"
+            ecb_case_ack = f"{case_type}_{ack_no}_{cust_id}_{int(time.time())}"
+            
+            ecb_data = ECBCaseData(
+                sourceAckNo=ecb_case_ack,
+                customerId=cust_id,
+                beneficiaryAccountNumber=bene_account,
+                beneficiaryMobile=fields.get("phoneNumber"),
+                beneficiaryEmail=fields.get("toUpiId"),  # Assuming UPI contains email-like format
+                beneficiaryPAN=fields.get("panCard"),
+                beneficiaryAadhar=fields.get("aadhaarNumber"), 
+                hasTransaction=has_transactions,
+                remarks=f"ECB case created from email parsing. Customer {cust_id} has {'transactions' if has_transactions else 'no transactions'} with beneficiary {bene_account}",
+                location=fields.get("state"),
+                disputedAmount=fields.get("disputedAmount")
+            )
+            
+            ecb_result = await matcher.create_ecb_case(ecb_data, created_by_user="EmailSystem")
+            
+            ecb_results.append({
+                "customer_id": cust_id,
+                "customer_account": customer_account,
+                "beneficiary_account": bene_account,
+                "case_type": case_type,
+                "has_transactions": has_transactions,
+                "case_result": ecb_result
+            })
+            
+        return ecb_results
+        
+    except Exception as e:
+        print(f"Error creating ECB cases for beneficiary {bene_account}: {e}")
+        import traceback
+        traceback.print_exc()
+        return []

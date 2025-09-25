@@ -454,6 +454,16 @@ def extract_form_fields(text: str) -> Dict[str, Any]:
     if st:
         setf("state", st, st, 0.6)
 
+    # district extraction
+    district = None
+    for lab in ["district", "district name", "dist"]:
+        m = re.search(rf'{lab}\s*[:\-]?\s*([A-Za-z\s\.\'\-]{{3,50}})(?=\n|$)', t, re.I)
+        if m:
+            district = m.group(1).strip()
+            break
+    if district:
+        setf("district", district, district, 0.6)
+
     ps = None
     for lab in ["police station", "ps", "thana", "outpost", "chowki"]:
         m = re.search(rf'{lab}\s*[:\-]?\s*([A-Za-z\s\.\'\-]{{3,100}})', t, re.I)

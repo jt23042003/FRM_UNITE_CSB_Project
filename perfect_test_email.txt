@@ -1,0 +1,73 @@
+Subject: URGENT: Fraud Case Report - UPI Transaction Fraud Alert
+
+Dear Risk Management Team,
+
+We have received a critical fraud complaint that requires immediate investigation and action. Please find the complete case details below for processing:
+
+**MANDATORY CASE INFORMATION:**
+Acknowledgement No.: ACK202509250001
+Customer Name: Rajesh Kumar Sharma
+Sub Category of Complaint: UPI/Wallet Frauds
+Transaction Date: 2025-09-24
+Complaint Date: 2025-09-25
+Date & Time of Reporting / Escalation: 2025-09-25 14:30
+State: Karnataka
+District: Bangalore Urban
+Policestation: Koramangala Police Station
+
+**PAYMENT & TRANSACTION DETAILS:**
+Mode of Payment: UPI
+Transaction Id / UTR Number: TXN123456789ABC
+Layers: Layer 2
+Transaction Amount: ₹50,000.00
+Disputed Amount: ₹50,000.00
+Action Taken Date: 2025-09-25
+
+**VICTIM ACCOUNT DETAILS:**
+Victim Account Number: 123456789012345
+Card Number: 4532123456789012
+Customer PAN Card: ABCDE1234F
+Customer Aadhaar Number: 2345 6789 0123
+Customer Mobile Number: 9876543210
+Passport Number: A1234567
+Voter ID Number: ABC1234567
+Driving License Number: KA0120151234567
+
+**BENEFICIARY ACCOUNT DETAILS (SUSPECT):**
+Money transfer TO Bank: ICICI Bank
+Money transfer TO Account: 987654321098765
+IFSC Code: ICIC0000123
+Money transfer TO Transaction Id / UTR Number: UTR999888777BBB  
+Money transfer TO Amount: ₹50,000.00
+Beneficiary UPI ID: suspect123@okicici
+
+**FRAUD INCIDENT DESCRIPTION:**
+The customer Mr. Rajesh Kumar Sharma has reported an unauthorized UPI transaction of ₹50,000 from his account number 123456789012345 to the suspect beneficiary account 987654321098765. The fraudulent transaction was executed using UPI without the customer's knowledge or consent.
+
+**RECOMMENDED ACTION:**
+Action: Freeze Account
+Immediate freezing of beneficiary account 987654321098765 is recommended to prevent further fraudulent activities.
+
+**ADDITIONAL INVESTIGATION DETAILS:**
+The customer noticed the unauthorized transaction on 2025-09-24 during his account statement review. He immediately contacted our customer service and filed this complaint on 2025-09-25. The transaction appears to be part of a sophisticated UPI fraud scheme targeting multiple customers.
+
+**IDENTITY VERIFICATION DOCUMENTS:**
+All customer identity documents have been verified:
+- PAN Card: ABCDE1234F (Verified)  
+- Aadhaar: 2345 6789 0123 (Verified)
+- Mobile: 9876543210 (Verified)
+- Passport: A1234567 (Valid)
+- Voter ID: ABC1234567 (Valid)
+- Driving License: KA0120151234567 (Valid)
+
+**ESCALATION PRIORITY:**
+This case has been escalated to Layer 2 for immediate processing due to the high transaction amount and potential for additional victims.
+
+Please process this case with highest priority and coordinate with ICICI Bank for immediate account freezing of the suspect beneficiary account.
+
+Best regards,
+Fraud Detection Team
+Digital Banking Security Division
+Email: fraudalert@securebank.com
+Case Reference: FRAUD-2025-0925-001
+Escalation Time: 2025-09-25 14:30:00
