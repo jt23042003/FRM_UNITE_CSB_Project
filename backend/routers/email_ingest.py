@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request, Query, Depends
 from concurrent.futures import ThreadPoolExecutor
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, JSONResponse
 
 from services.email_parser import EmailParser
 from db.matcher import CaseEntryMatcher
@@ -19,6 +19,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 router = APIRouter()
+
+# Health and reachability checks
+@router.get("/email/health")
+async def email_health():
+    # Expand with checks to Google/Graph if desired
+    return {"ok": True, "service": "email_ingest", "ts": datetime.now(timezone.utc).isoformat()}
+
+@router.get("/webhooks/google")
+async def gmail_webhook_get_probe():
+    # Helpful for Pub/Sub endpoint validation during setup
+    return PlainTextResponse("OK")
 
 # In-memory state; replace with DB in production
 STATE = {
@@ -143,7 +154,6 @@ async def gmail_webhook(req: Request):
             )
             if r.status_code == 404:
                 # Old/invalid anchor; create a fresh users.watch to obtain a new start point per Gmail docs
-                # This endpoint intentionally returns processed=0 so the caller can re-issue a watch if desired
                 break
             r.raise_for_status()
             data = r.json()
@@ -159,6 +169,8 @@ async def gmail_webhook(req: Request):
             if not page_token:
                 break
     STATE["google"][email]["last_history_id"] = str(hist_id)
+    # If you switch to background processing, return 202 and minimal JSON:
+    # return JSONResponse({"ok": True}, status_code=202)
     return {"ok": True, "processed": len(results), "results": results}
 
 # -------------------------

@@ -7,8 +7,12 @@ from datetime import datetime
 
 import httpx
 from PIL import Image
-import pytesseract
-from pdf2image import convert_from_bytes
+import numpy as np
+import fitz  # PyMuPDF
+import easyocr  # EasyOCR
+
+# Initialize EasyOCR reader once (CPU)
+EASYOCR_READER = easyocr.Reader(['en'], gpu=False)
 
 # ----------------------------
 # Constants and enumerations
@@ -93,28 +97,55 @@ RE_VOTER = re.compile(r'\b([A-Z]{3}[0-9]{7})\b')
 # NEW: Driving License (flexible): AA00[- ]?YYYY[- ]?NNNNNNN or AA00YYYYNNNNNNN
 RE_DL = re.compile(
     r'\b('
-    r'[A-Z]{2}\d{2}[- ]?\d{4}[- ]?\d{7}'        # e.g., HR06-1985-0034761 or HR06 1985 0034761
-    r'|[A-Z]{2}\d{2}\s?\d{11}'                  # e.g., HR06 19850034761
-    r'|[A-Z]{2}\d{13}'                          # e.g., HR0619850034761
+    r'[A-Z]{2}\d{2}[- ]?\d{4}[- ]?\d{7}'        # HR06-1985-0034761 or HR06 1985 0034761
+    r'|[A-Z]{2}\d{2}\s?\d{11}'                  # HR06 19850034761
+    r'|[A-Z]{2}\d{13}'                          # HR0619850034761
     r')\b'
 )
 
 # --------------------------------
-# Core OCR & message fetch helpers
+# Base64url helper
 # --------------------------------
 
-def ocr_bytes(data: bytes, mime: str) -> str:
-    if mime and mime.lower().startswith("image/"):
-        img = Image.open(io.BytesIO(data))
-        return pytesseract.image_to_string(img)
-    if mime and ("pdf" in mime.lower() or mime.lower() == "application/pdf"):
-        pages = convert_from_bytes(data)
-        return "\n".join(pytesseract.image_to_string(p) for p in pages)
+def b64url_decode(s: str) -> bytes:
+    s = s or ""
+    pad = (-len(s)) % 4
+    if pad:
+        s += "=" * pad
+    return base64.urlsafe_b64decode(s)
+
+# --------------------------------
+# OCR helpers (EasyOCR + PyMuPDF)
+# --------------------------------
+
+def ocr_image_bytes_easy(image_bytes: bytes) -> str:
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    arr = np.array(img)
+    lines = EASYOCR_READER.readtext(arr, detail=0, paragraph=True)
+    return "\n".join(lines)
+
+def ocr_pdf_bytes_easy(pdf_bytes: bytes, dpi: int = 200) -> str:
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    out: List[str] = []
+    for page in doc:
+        pix = page.get_pixmap(dpi=dpi)
+        png_bytes = pix.tobytes("png")
+        out.append(ocr_image_bytes_easy(png_bytes))
+    return "\n".join(out)
+
+def ocr_bytes(data: bytes, mime: str, filename: str = "") -> str:
+    mime_l = (mime or "").lower()
+    name_l = (filename or "").lower()
+    if "pdf" in mime_l or name_l.endswith(".pdf"):
+        return ocr_pdf_bytes_easy(data)
     try:
-        img = Image.open(io.BytesIO(data))
-        return pytesseract.image_to_string(img)
+        return ocr_image_bytes_easy(data)
     except Exception:
         return ""
+
+# --------------------------------
+# Gmail/Graph fetch helpers
+# --------------------------------
 
 async def gmail_get_message(client: httpx.AsyncClient, token: str, msg_id: str) -> Dict[str, Any]:
     r = await client.get(
@@ -133,36 +164,52 @@ async def gmail_get_attachment(client: httpx.AsyncClient, token: str, msg_id: st
         timeout=30,
     )
     r.raise_for_status()
-    data = r.json()
-    return base64.urlsafe_b64decode(data.get("data", ""))
+    js = r.json()
+    return b64url_decode(js.get("data", ""))
 
-def gmail_extract_parts(payload: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]]]:
+async def gmail_extract_full_text_and_attachments(
+    client: httpx.AsyncClient,
+    token: str,
+    payload: Dict[str, Any],
+    msg_id: str
+) -> Tuple[str, List[Dict[str, Any]]]:
     headers = {h.get("name","").lower(): h.get("value","") for h in (payload.get("headers") or [])}
     subject = headers.get("subject", "")
     attachments: List[Dict[str, Any]] = []
     body_texts: List[str] = []
 
-    def walk(part: Dict[str, Any]):
+    async def walk_async(part: Dict[str, Any]):
         mime = part.get("mimeType") or ""
         body = part.get("body") or {}
         filename = part.get("filename") or ""
-        if filename and "attachmentId" in body:
-            attachments.append({
-                "filename": filename,
-                "mimeType": mime or "application/octet-stream",
-                "attachmentId": body["attachmentId"],
-            })
+
+        # Large text parts via attachmentId
+        if body.get("attachmentId"):
+            if filename:
+                attachments.append({
+                    "filename": filename,
+                    "mimeType": mime or "application/octet-stream",
+                    "attachmentId": body["attachmentId"],
+                })
+            if mime.startswith("text/") and not body.get("data"):
+                data = await gmail_get_attachment(client, token, msg_id, body["attachmentId"])
+                try:
+                    body_texts.append(data.decode("utf-8", errors="ignore"))
+                except Exception:
+                    pass
+
+        # Inline text bodies
         if mime.startswith("text/") and body.get("data"):
             try:
-                txt = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="ignore")
-                body_texts.append(txt)
+                body_texts.append(b64url_decode(body["data"]).decode("utf-8", errors="ignore"))
             except Exception:
                 pass
+
         for p in part.get("parts") or []:
-            walk(p)
+            await walk_async(p)
 
     if payload:
-        walk(payload)
+        await walk_async(payload)
     return subject + "\n" + "\n".join(body_texts), attachments
 
 async def graph_get_message(client: httpx.AsyncClient, token: str, msg_id: str) -> Dict[str, Any]:
@@ -329,7 +376,6 @@ def _norm_upper_nospace(s: str) -> str:
 # ---------------------------------
 # The form field extraction function
 # ---------------------------------
-
 def extract_form_fields(text: str) -> Dict[str, Any]:
     fields: Dict[str, Any] = {
         # Step 1
@@ -354,9 +400,10 @@ def extract_form_fields(text: str) -> Dict[str, Any]:
             fields[k] = v
             evidence[k] = {"match": m or str(v), "confidence": round(c, 2)}
 
-    t = text or ""
+    # Basic pre-clean to reduce weird whitespace
+    t = (text or "").replace('\u00A0', ' ').replace('\u200B', '')
 
-    # ackNo: prefer labeled capture first, then standalone ACK#####
+    # ackNo
     m = NEAR_LABEL["ackNo"].search(t) or RE_ACK.search(t)
     if m:
         val = m.group(2) if m.lastindex and m.lastindex >= 2 else m.group(0)
@@ -375,25 +422,34 @@ def extract_form_fields(text: str) -> Dict[str, Any]:
     # account numbers
     m = NEAR_LABEL["accountNumber"].search(t) or RE_ACCOUNT.search(t)
     if m:
-        setf("accountNumber", m.group(1).strip(), m.group(0), 0.9)
+        # Prefer labeled capture group; else raw match
+        grp = m.group(1) if m.lastindex else m.group(0)
+        if RE_ACCOUNT.fullmatch(grp) or RE_ACCOUNT.fullmatch(m.group(0)):
+            setf("accountNumber", grp.strip(), m.group(0), 0.9)
 
     m = NEAR_LABEL["toAccount"].search(t)
     if m:
-        setf("toAccount", m.group(1).strip(), m.group(0), 0.9)
+        acct = m.group(1).strip()
+        if RE_ACCOUNT.fullmatch(acct):
+            setf("toAccount", acct, m.group(0), 0.9)
 
     # card number
     m = RE_CARD.search(t)
     if m:
-        setf("cardNumber", m.group(1).strip(), m.group(0), 0.75)
+        setf("cardNumber", re.sub(r'\D', '', m.group(0)).strip(), m.group(0), 0.75)
 
-    # ifsc and upi
+    # IFSC and UPI
     m = NEAR_LABEL["ifsc"].search(t) or RE_IFSC.search(t)
     if m:
-        setf("ifsc", m.group(1) if m.lastindex else m.group(0), m.group(0), 0.95)
+        code = m.group(1) if m.lastindex else m.group(0)
+        setf("ifsc", code.strip().upper(), m.group(0), 0.95)
 
     m = NEAR_LABEL["toUpiId"].search(t) or RE_UPI.search(t)
     if m:
-        setf("toUpiId", m.group(1) if m.lastindex else m.group(0), m.group(0), 0.9)
+        vpa = m.group(1) if m.lastindex else m.group(0)
+        # Heuristic: drop if domain looks like an email domain with dot
+        if '@' in vpa and '.' not in vpa.split('@', 1)[1]:
+            setf("toUpiId", vpa.strip(), m.group(0), 0.9)
 
     # amounts
     for k, rx in RE_AMOUNT_LABELLED.items():
@@ -454,16 +510,6 @@ def extract_form_fields(text: str) -> Dict[str, Any]:
     if st:
         setf("state", st, st, 0.6)
 
-    # district extraction
-    district = None
-    for lab in ["district", "district name", "dist"]:
-        m = re.search(rf'{lab}\s*[:\-]?\s*([A-Za-z\s\.\'\-]{{3,50}})(?=\n|$)', t, re.I)
-        if m:
-            district = m.group(1).strip()
-            break
-    if district:
-        setf("district", district, district, 0.6)
-
     ps = None
     for lab in ["police station", "ps", "thana", "outpost", "chowki"]:
         m = re.search(rf'{lab}\s*[:\-]?\s*([A-Za-z\s\.\'\-]{{3,100}})', t, re.I)
@@ -483,13 +529,13 @@ def extract_form_fields(text: str) -> Dict[str, Any]:
     # PAN
     m = RE_PAN.search(t)
     if m:
-        val = _norm_pan(m.group(1))
+        val = _norm_upper_nospace(m.group(0))
         setf("panCard", val, m.group(0), 0.95)
 
     # Aadhaar
     m = RE_AADHAAR.search(t)
     if m:
-        raw = m.group(1)
+        raw = m.group(0)
         val = _norm_aadhaar(raw)
         if re.fullmatch(r'[2-9]\d{11}', val):
             setf("aadhaarNumber", val, m.group(0), 0.95)
@@ -499,29 +545,155 @@ def extract_form_fields(text: str) -> Dict[str, Any]:
     # Indian phone
     m = RE_PHONE_IN.search(t)
     if m:
-        raw = m.group(0)
-        local10 = _norm_phone_in(raw)
+        local10 = _norm_phone_in(m.group(0))
         if re.fullmatch(r'[6-9]\d{9}', local10):
             setf("phoneNumber", local10, m.group(0), 0.9)
 
     # NEW: Passport
     m = RE_PASSPORT.search(t)
     if m:
-        val = _norm_upper_nospace(m.group(1))
+        val = _norm_upper_nospace(m.group(0))
         setf("passportNumber", val, m.group(0), 0.95)
 
     # NEW: Voter ID (EPIC)
     m = RE_VOTER.search(t)
     if m:
-        val = _norm_upper_nospace(m.group(1))
+        val = _norm_upper_nospace(m.group(0))
         setf("voterIdNumber", val, m.group(0), 0.95)
 
     # NEW: Driving License
     m = RE_DL.search(t)
     if m:
-        val = _norm_upper_nospace(m.group(1))
+        val = _norm_upper_nospace(m.group(0))
         setf("drivingLicenseNumber", val, m.group(0), 0.9)
 
+    # Drop this block into services/email_parser.py inside extract_form_fields(), AFTER the existing single-value setters.
+    # It adds arrays (e.g., phoneNumbers) and preserves primary fields (e.g., phoneNumber).
+
+        # -----------------------------
+        # Collect ALL matches with context windows (arrays)
+        # -----------------------------
+        def _unique(seq):
+            seen = set()
+            out = []
+            for x in seq:
+                k = x if isinstance(x, str) else x.get("value")
+                if k not in seen:
+                    seen.add(k)
+                    out.append(x)
+            return out
+
+        # Build line index to create small context windows
+        lines = (t or "").splitlines()
+        idx_offsets = []
+        off = 0
+        for ln in lines:
+            idx_offsets.append((off, off + len(ln)))
+            off += len(ln) + 1  # include newline
+
+        def _context_for_span(span: tuple, radius: int = 2) -> Dict[str, Any]:
+            start, end = span
+            line_idx = 0
+            for i, (a, b) in enumerate(idx_offsets):
+                if a <= start <= b:
+                    line_idx = i
+                    break
+            left = max(0, line_idx - radius)
+            right = min(len(lines), line_idx + radius + 1)
+            ctx = "\n".join(lines[left:right])
+            ctx_low = ctx.lower()
+            role = "beneficiary" if ("beneficiary" in ctx_low or "to a/c" in ctx_low or "to account" in ctx_low) else (
+                "victim" if ("victim" in ctx_low or "from a/c" in ctx_low or "from account" in ctx_low) else None)
+            return {"lineIndex": line_idx, "role": role, "text": ctx}
+
+        # PAN candidates
+        pan_candidates = []
+        for m in RE_PAN.finditer(t):
+            val = _norm_upper_nospace(m.group(0))
+            pan_candidates.append({"value": val, "evidence": m.group(0), "context": _context_for_span(m.span())})
+        pan_candidates = _unique(pan_candidates)
+
+        # Aadhaar candidates
+        aadhaar_candidates = []
+        for m in RE_AADHAAR.finditer(t):
+            raw = m.group(0)
+            val = _norm_aadhaar(raw)
+            if re.fullmatch(r'[2-9]\d{11}', val):
+                aadhaar_candidates.append({"value": val, "evidence": m.group(0), "context": _context_for_span(m.span())})
+        aadhaar_candidates = _unique(aadhaar_candidates)
+
+        # Phone candidates
+        phone_candidates = []
+        for m in RE_PHONE_IN.finditer(t):
+            local10 = _norm_phone_in(m.group(0))
+            if re.fullmatch(r'[6-9]\d{9}', local10):
+                phone_candidates.append({"value": local10, "evidence": m.group(0), "context": _context_for_span(m.span())})
+        phone_candidates = _unique(phone_candidates)
+
+        # Passport candidates
+        passport_candidates = []
+        for m in RE_PASSPORT.finditer(t):
+            val = _norm_upper_nospace(m.group(0))
+            passport_candidates.append({"value": val, "evidence": m.group(0), "context": _context_for_span(m.span())})
+        passport_candidates = _unique(passport_candidates)
+
+        # Voter ID candidates
+        voter_candidates = []
+        for m in RE_VOTER.finditer(t):
+            val = _norm_upper_nospace(m.group(0))
+            voter_candidates.append({"value": val, "evidence": m.group(0), "context": _context_for_span(m.span())})
+        voter_candidates = _unique(voter_candidates)
+
+        # DL candidates
+        dl_candidates = []
+        for m in RE_DL.finditer(t):
+            val = _norm_upper_nospace(m.group(0))
+            dl_candidates.append({"value": val, "evidence": m.group(0), "context": _context_for_span(m.span())})
+        dl_candidates = _unique(dl_candidates)
+
+        # Attach arrays to fields (backward compatible: keep single fields too)
+        fields["panCards"] = [c["value"] for c in pan_candidates]
+        fields["aadhaarNumbers"] = [c["value"] for c in aadhaar_candidates]
+        fields["phoneNumbers"] = [c["value"] for c in phone_candidates]
+        fields["passportNumbers"] = [c["value"] for c in passport_candidates]
+        fields["voterIdNumbers"] = [c["value"] for c in voter_candidates]
+        fields["drivingLicenseNumbers"] = [c["value"] for c in dl_candidates]
+
+        # Prefer candidate by role if a primary field is still empty
+        def _prefer_role(cands, want):
+            for c in cands:
+                if c["context"]["role"] == want:
+                    return c["value"]
+            return cands[0]["value"] if cands else None
+
+        if not fields.get("panCard") and pan_candidates:
+            fields["panCard"] = _prefer_role(pan_candidates, "beneficiary")
+            evidence["panCard"] = {"match": pan_candidates[0]["evidence"], "confidence": 0.9}
+        if not fields.get("aadhaarNumber") and aadhaar_candidates:
+            fields["aadhaarNumber"] = _prefer_role(aadhaar_candidates, "beneficiary")
+            evidence["aadhaarNumber"] = {"match": aadhaar_candidates[0]["evidence"], "confidence": 0.9}
+        if not fields.get("phoneNumber") and phone_candidates:
+            fields["phoneNumber"] = _prefer_role(phone_candidates, "beneficiary")
+            evidence["phoneNumber"] = {"match": phone_candidates[0]["evidence"], "confidence": 0.9}
+        if not fields.get("passportNumber") and passport_candidates:
+            fields["passportNumber"] = _prefer_role(passport_candidates, "beneficiary")
+            evidence["passportNumber"] = {"match": passport_candidates[0]["evidence"], "confidence": 0.9}
+        if not fields.get("voterIdNumber") and voter_candidates:
+            fields["voterIdNumber"] = _prefer_role(voter_candidates, "beneficiary")
+            evidence["voterIdNumber"] = {"match": voter_candidates[0]["evidence"], "confidence": 0.9}
+        if not fields.get("drivingLicenseNumber") and dl_candidates:
+            fields["drivingLicenseNumber"] = _prefer_role(dl_candidates, "beneficiary")
+            evidence["drivingLicenseNumber"] = {"match": dl_candidates[0]["evidence"], "confidence": 0.9}
+
+        # Store candidate evidence for UI/debug
+        evidence["panCard_candidates"] = pan_candidates
+        evidence["aadhaar_candidates"] = aadhaar_candidates
+        evidence["phone_candidates"] = phone_candidates
+        evidence["passport_candidates"] = passport_candidates
+        evidence["voter_candidates"] = voter_candidates
+        evidence["dl_candidates"] = dl_candidates
+
+    
     return {"fields": fields, "evidence": evidence}
 
 # --------------------------------------
@@ -536,12 +708,12 @@ class EmailParser:
         async with httpx.AsyncClient() as client:
             msg = await gmail_get_message(client, token, msg_id)
             payload = msg.get("payload") or {}
-            body_text, attachments = gmail_extract_parts(payload)
+            body_text, attachments = await gmail_extract_full_text_and_attachments(client, token, payload, msg["id"])
 
             ocr_texts = []
             for att in attachments:
                 data = await gmail_get_attachment(client, token, msg["id"], att["attachmentId"])
-                ocr_texts.append(ocr_bytes(data, att.get("mimeType") or "application/octet-stream"))
+                ocr_texts.append(ocr_bytes(data, att.get("mimeType") or "application/octet-stream", att.get("filename") or ""))
 
             combined = "\n\n".join([body_text] + ocr_texts)
             extracted = extract_form_fields(combined)
@@ -570,7 +742,7 @@ class EmailParser:
                     parsed = graph_attachment_to_bytes(att)
                     if parsed:
                         data, name, mime = parsed
-                        ocr_texts.append(ocr_bytes(data, mime))
+                        ocr_texts.append(ocr_bytes(data, mime, name))
 
             combined = "\n\n".join([base_text] + ocr_texts)
             extracted = extract_form_fields(combined)
