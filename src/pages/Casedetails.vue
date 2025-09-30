@@ -20,15 +20,16 @@
               <line x1="16.5" y1="16.5" x2="21" y2="21"/>
             </svg>
           </span>
-                      <input
-              v-model="globalSearch"
-              placeholder="Search across all columns or by account number..."
-              class="filter-input enhanced-search-input"
-              @input="handleGlobalSearch"
-            />
+          <input
+            v-model="globalSearch"
+            placeholder="Search across all columns or by account number..."
+            class="filter-input enhanced-search-input"
+            @keyup.enter="handleSearch"
+          />
+          <button @click="handleSearch" class="search-submit-btn">Submit</button>
         </div>
         
-        <button @click="clearFilters" class="reset-btn">Clear All</button>
+        <button @click="clearFilters" class="reset-btn">Clear Search</button>
         <button @click="toggleHelpDesk" class="help-desk-btn" :class="{ active: showHelpDesk }">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="12" cy="12" r="10"/>
@@ -56,7 +57,8 @@
           </span>
         </div>
         <div class="selection-actions">
-          <button @click="selectAllCases" class="select-all-btn">Select All</button>
+          <button @click="selectAllCases" class="select-all-btn">Select All on Page</button>
+          <button @click="selectAllAcrossPages" class="select-all-btn">Select All Across Pages</button>
           <button @click="clearSelection" class="clear-selection-btn">Clear Selection</button>
         </div>
       </div>
@@ -467,6 +469,7 @@ const pageSize = 15;
 const loading = ref(true);
 const error = ref(null);
 const totalItems = ref(0);
+const totalPages = ref(0);
 const userType = ref('');
 
 // Global search and sorting
@@ -477,6 +480,8 @@ const sortDirection = ref('asc');
 // --- Bulk Action State ---
 const isBulkActionMode = ref(false);
 const selectedCases = ref([]);
+const allSelectableCaseIds = ref([]); // All case IDs across all pages
+const isSelectAllAcrossPages = ref(false);
 const showAssignment = ref(false);
 const showClose = ref(false);
 const departments = ref([]);
@@ -567,7 +572,7 @@ const bulkClose = ref({
   accountBlocked: 'No'
 });
 
-// --- API Fetching (Fetch ALL cases for client-side processing) ---
+// --- API Fetching (Server-side pagination, search, and sorting) ---
 const fetchCases = async () => {
   loading.value = true;
   error.value = null;
@@ -575,18 +580,32 @@ const fetchCases = async () => {
     const token = localStorage.getItem('jwt');
     if (!token) throw new Error("Authentication token not found");
 
-    // Fetch ALL cases with a large limit to get complete dataset
+    // Build query parameters
+    const params = {
+      page: page.value,
+      page_size: pageSize,
+    };
+
+    // Add search parameter if search is active
+    if (globalSearch.value.trim()) {
+      params.search = globalSearch.value.trim();
+    }
+
+    // Add sorting parameters if sorting is active
+    if (sortColumn.value) {
+      params.sort_column = sortColumn.value;
+      params.sort_direction = sortDirection.value;
+    }
+
     const response = await axios.get(API_ENDPOINTS.NEW_CASE_LIST, {
       headers: { 'Authorization': `Bearer ${token}` },
-      params: {
-        skip: 0,
-        limit: 10000, // Large limit to get all cases
-      },
+      params: params,
     });
 
     if (response.data && Array.isArray(response.data.cases)) {
       cases.value = response.data.cases;
-      totalItems.value = response.data.cases.length;
+      totalItems.value = response.data.total_count;
+      totalPages.value = response.data.total_pages;
     } else {
       throw new Error("Invalid response format");
     }
@@ -595,8 +614,36 @@ const fetchCases = async () => {
     if (err.response?.status === 401) router.push('/login');
     cases.value = [];
     totalItems.value = 0;
+    totalPages.value = 0;
   } finally {
     loading.value = false;
+  }
+};
+
+// --- Fetch all case IDs for bulk operations ---
+const fetchAllCaseIds = async () => {
+  try {
+    const token = localStorage.getItem('jwt');
+    if (!token) throw new Error("Authentication token not found");
+
+    const params = {};
+    if (globalSearch.value.trim()) {
+      params.search = globalSearch.value.trim();
+    }
+
+    const response = await axios.get('/api/new-case-list/all-case-ids', {
+      headers: { 'Authorization': `Bearer ${token}` },
+      params: params,
+    });
+
+    if (response.data && Array.isArray(response.data.case_ids)) {
+      allSelectableCaseIds.value = response.data.case_ids;
+    } else {
+      allSelectableCaseIds.value = [];
+    }
+  } catch (err) {
+    console.error('Failed to fetch all case IDs:', err);
+    allSelectableCaseIds.value = [];
   }
 };
 
@@ -606,12 +653,16 @@ const toggleHelpDesk = () => {
 };
 
 // --- Bulk Action Functions ---
-const toggleBulkAction = () => {
+const toggleBulkAction = async () => {
   isBulkActionMode.value = !isBulkActionMode.value;
   if (!isBulkActionMode.value) {
     selectedCases.value = [];
     showAssignment.value = false;
     showClose.value = false;
+    isSelectAllAcrossPages.value = false;
+  } else {
+    // Fetch all case IDs when entering bulk action mode
+    await fetchAllCaseIds();
   }
 };
 
@@ -619,10 +670,17 @@ const selectAllCases = () => {
   selectedCases.value = paginatedCases.value
     .filter(caseItem => caseItem.status !== 'Closed')
     .map(caseItem => caseItem.case_id);
+  isSelectAllAcrossPages.value = false;
+};
+
+const selectAllAcrossPages = () => {
+  selectedCases.value = [...allSelectableCaseIds.value];
+  isSelectAllAcrossPages.value = true;
 };
 
 const clearSelection = () => {
   selectedCases.value = [];
+  isSelectAllAcrossPages.value = false;
 };
 
 const toggleSelectAll = () => {
@@ -974,15 +1032,20 @@ const formatDateTimeIST = (creationDate, creationTime) => {
   }
 };
 
-// --- Global Search Function ---
-const handleGlobalSearch = () => {
+// --- Search Function ---
+const handleSearch = async () => {
   // Reset to page 1 when searching
   page.value = 1;
-  // The filtering is handled by computed property
+  // Fetch cases with search
+  await fetchCases();
+  // If in bulk action mode, also fetch all case IDs
+  if (isBulkActionMode.value) {
+    await fetchAllCaseIds();
+  }
 };
 
 // --- Sorting Function ---
-const sortBy = (column) => {
+const sortBy = async (column) => {
   if (sortColumn.value === column) {
     // Toggle direction if same column
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -993,118 +1056,42 @@ const sortBy = (column) => {
   }
   // Reset to page 1 when sorting
   page.value = 1;
+  // Fetch cases with new sorting
+  await fetchCases();
 };
 
-// --- Client-Side Processing (Filtering and Sorting on ALL data) ---
-const filteredAndSortedCases = computed(() => {
-  let casesToProcess = [...cases.value];
-
-  // Global search across all columns
-  if (globalSearch.value.trim()) {
-    const searchTerm = globalSearch.value.toLowerCase().trim();
-    casesToProcess = casesToProcess.filter(caseItem => {
-      // Check if search term matches any direct field values
-      const directMatch = Object.values(caseItem).some(value => {
-        if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().includes(searchTerm);
-      });
-
-      // If direct match found, include the case
-      if (directMatch) return true;
-
-      // Special handling for account number search
-      // Check if the search term looks like an account number (contains only digits)
-      if (isAccountNumber(searchTerm)) {
-        // Search in i4c_data fields if available
-        if (caseItem.i4c_data) {
-          const toAccount = caseItem.i4c_data.to_account;
-          const accountNumber = caseItem.i4c_data.account_number;
-          
-          // Check if search term matches either account number field
-          if ((toAccount && String(toAccount).includes(searchTerm)) ||
-              (accountNumber && String(accountNumber).includes(searchTerm))) {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    });
-  }
-
-  // Sorting
-  if (sortColumn.value) {
-    casesToProcess.sort((a, b) => {
-      let aValue = a[sortColumn.value];
-      let bValue = b[sortColumn.value];
-
-      // Handle null/undefined values
-      if (aValue === null || aValue === undefined) aValue = '';
-      if (bValue === null || bValue === undefined) bValue = '';
-
-      // Convert to string for comparison
-      aValue = String(aValue).toLowerCase();
-      bValue = String(bValue).toLowerCase();
-
-      // Special handling for numeric values
-      if (sortColumn.value === 'disputed_amount' || sortColumn.value === 'case_id') {
-        aValue = parseFloat(aValue) || 0;
-        bValue = parseFloat(bValue) || 0;
-      }
-
-      // Special handling for dates
-      if (sortColumn.value === 'creation_date') {
-        aValue = new Date(aValue || 0);
-        bValue = new Date(bValue || 0);
-      }
-
-      // Special handling for boolean values
-      if (sortColumn.value === 'is_operational') {
-        aValue = aValue === 'true' || aValue === 'yes' ? 1 : 0;
-        bValue = bValue === 'true' || bValue === 'yes' ? 1 : 0;
-      }
-
-      if (sortDirection.value === 'asc') {
-        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-      } else {
-        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
-      }
-    });
-  }
-
-  return casesToProcess;
-});
-
-// --- Pagination for filtered results ---
-const paginatedCases = computed(() => {
-  const startIndex = (page.value - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  return filteredAndSortedCases.value.slice(startIndex, endIndex);
-});
-
-// --- Updated total items based on filtered results ---
-const totalFilteredItems = computed(() => filteredAndSortedCases.value.length);
+// --- Server-side processing - no client-side filtering needed ---
+const paginatedCases = computed(() => cases.value);
+const totalFilteredItems = computed(() => totalItems.value);
 
 // --- Actions and Pagination ---
-function clearFilters() {
+const clearFilters = async () => {
   globalSearch.value = '';
   sortColumn.value = '';
   sortDirection.value = 'asc';
   page.value = 1;
-  // No need to fetch again since we have all data
-}
-
-const totalPages = computed(() => Math.ceil(totalFilteredItems.value / pageSize));
-
-const prevPage = () => {
-  if (page.value > 1) {
-    page.value--;
+  // Clear bulk selection
+  selectedCases.value = [];
+  isSelectAllAcrossPages.value = false;
+  // Fetch cases without filters
+  await fetchCases();
+  // If in bulk action mode, also fetch all case IDs
+  if (isBulkActionMode.value) {
+    await fetchAllCaseIds();
   }
 };
 
-const nextPage = () => {
+const prevPage = async () => {
+  if (page.value > 1) {
+    page.value--;
+    await fetchCases();
+  }
+};
+
+const nextPage = async () => {
   if (page.value < totalPages.value) {
     page.value++;
+    await fetchCases();
   }
 };
 
@@ -1146,6 +1133,34 @@ onMounted(async () => {
 .header-content { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .header-content h2 { margin: 0; color: #1e293b; font-size: 1.875rem; font-weight: 600; }
 .user-avatar img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #e2e8f0; }
+
+/* Search Bar Styles */
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-submit-btn {
+  padding: 10px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.search-submit-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
 
 .table-responsive { width: 100%; overflow-x: auto; }
 .case-table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 1000px; }

@@ -2067,6 +2067,385 @@ class CaseEntryMatcher:
         
         return await self._execute_sync_db_op(_sync_fetch_new_cases_list)
 
+    # NEW METHOD: Fetch cases with server-side pagination, search, and sorting
+    async def fetch_new_cases_list_paginated(self, skip: int = 0, limit: int = 15,
+                                            search: Optional[str] = None,
+                                            sort_column: Optional[str] = None,
+                                            sort_direction: str = "asc",
+                                            current_logged_in_username: Optional[str] = None,
+                                            current_logged_in_user_type: Optional[str] = None
+                                            ) -> Dict[str, Any]:
+        """
+        Fetch cases with server-side pagination, search, and sorting
+        """
+        def _sync_fetch_new_cases_list_paginated():
+            with get_db_connection() as conn:
+                with get_db_cursor(conn) as cur:
+                    # Base query - simplified to avoid duplicates
+                    base_query = """
+                        SELECT DISTINCT
+                            cm.case_id,
+                            cm.case_type,
+                            cm.source_ack_no,
+                            cm.source_bene_accno,
+                            cm.acc_num,
+                            cm.cust_id,
+                            cm.creation_date,
+                            cm.creation_time,
+                            cm.is_operational,
+                            cm.status,
+                            cm.short_dn,
+                            cm.long_dn,
+                            cm.decision_type,
+                            cm.created_by,
+                            cm.disputed_amount,
+                            cm.location,
+                            latest_assignment.assigned_to
+                        FROM case_main cm
+                        LEFT JOIN case_entry_form cef ON (
+                            cef.ack_no = cm.source_ack_no 
+                            OR cef.ack_no = SPLIT_PART(cm.source_ack_no, '_', 1)
+                            OR cef.ack_no = SUBSTRING(cm.source_ack_no, 1, GREATEST(1, POSITION('_' IN cm.source_ack_no) - 1))
+                        )
+                        LEFT JOIN (
+                            SELECT DISTINCT ON (case_id) 
+                                case_id, 
+                                assigned_to,
+                                assign_date,
+                                assign_time
+                            FROM assignment 
+                            WHERE COALESCE(is_active, TRUE) = TRUE
+                            ORDER BY case_id, assign_date DESC, assign_time DESC
+                        ) latest_assignment ON latest_assignment.case_id = cm.case_id
+                    """
+                    
+                    count_query = """
+                        SELECT COUNT(DISTINCT cm.case_id)
+                        FROM case_main cm
+                        LEFT JOIN case_entry_form cef ON (
+                            cef.ack_no = cm.source_ack_no 
+                            OR cef.ack_no = SPLIT_PART(cm.source_ack_no, '_', 1)
+                            OR cef.ack_no = SUBSTRING(cm.source_ack_no, 1, GREATEST(1, POSITION('_' IN cm.source_ack_no) - 1))
+                        )
+                        LEFT JOIN (
+                            SELECT DISTINCT ON (case_id) 
+                                case_id, 
+                                assigned_to,
+                                assign_date,
+                                assign_time
+                            FROM assignment 
+                            WHERE COALESCE(is_active, TRUE) = TRUE
+                            ORDER BY case_id, assign_date DESC, assign_time DESC
+                        ) latest_assignment ON latest_assignment.case_id = cm.case_id
+                    """
+                    
+                    where_clauses = []
+                    params = []
+                    
+                    # Add search filter across multiple fields
+                    if search:
+                        search_clause = """
+                            (
+                                cm.case_id::text ILIKE %s OR
+                                cm.source_ack_no ILIKE %s OR
+                                cm.case_type ILIKE %s OR
+                                cm.status ILIKE %s OR
+                                cm.created_by ILIKE %s OR
+                                latest_assignment.assigned_to ILIKE %s OR
+                                cm.location ILIKE %s OR
+                                cm.acc_num ILIKE %s OR
+                                cm.cust_id::text ILIKE %s
+                            )
+                        """
+                        where_clauses.append(search_clause)
+                        search_param = f"%{search}%"
+                        # Add search parameter 9 times for each field
+                        params.extend([search_param] * 9)
+                    
+                    # Role-based filtering (same logic as original method)
+                    if current_logged_in_username and current_logged_in_user_type:
+                        if current_logged_in_user_type in ('CRO', 'super_user'):
+                            pass  # CRO and super_user can see all cases
+                        elif current_logged_in_user_type == 'risk_officer':
+                            # Risk officer filtering
+                            try:
+                                cur.execute("""
+                                    SELECT 1 FROM information_schema.columns 
+                                    WHERE table_schema = 'public' AND table_name = 'assignment' AND column_name = 'is_active'
+                                """)
+                                has_is_active = cur.fetchone() is not None
+                            except Exception:
+                                has_is_active = False
+
+                            if has_is_active:
+                                where_clauses.append("""
+                                    (
+                                        latest_assignment.assigned_to = %s
+                                        OR
+                                        latest_assignment.assigned_to IS NULL
+                                    )
+                                """)
+                                params.append(current_logged_in_username)
+                            else:
+                                where_clauses.append("""
+                                    (
+                                        EXISTS (
+                                            SELECT 1 FROM assignment a2 
+                                            WHERE a2.case_id = cm.case_id 
+                                            AND a2.assigned_to = %s
+                                        )
+                                        OR
+                                        NOT EXISTS (
+                                            SELECT 1 FROM assignment a3 
+                                            WHERE a3.case_id = cm.case_id
+                                        )
+                                    )
+                                    AND
+                                    NOT EXISTS (
+                                        SELECT 1 FROM assignment a4
+                                        WHERE a4.case_id = cm.case_id
+                                        AND a4.assigned_by = %s
+                                        AND a4.assigned_to != %s
+                                    )
+                                """)
+                                params.extend([current_logged_in_username, current_logged_in_username, current_logged_in_username])
+                        elif current_logged_in_user_type in ('others', 'supervisor'):
+                            # Others can only see cases assigned to them
+                            base_query = """
+                                SELECT DISTINCT
+                                    cm.case_id,
+                                    cm.case_type,
+                                    cm.source_ack_no,
+                                    cm.source_bene_accno,
+                                    cm.acc_num,
+                                    cm.cust_id,
+                                    cm.creation_date,
+                                    cm.creation_time,
+                                    cm.is_operational,
+                                    cm.status,
+                                    cm.short_dn,
+                                    cm.long_dn,
+                                    cm.decision_type,
+                                    cm.created_by,
+                                    a.assigned_to,
+                                    a.assigned_by,
+                                    cm.disputed_amount,
+                                    cm.location
+                                FROM case_main cm
+                                INNER JOIN assignment a ON cm.case_id = a.case_id AND a.assigned_to = %s
+                                LEFT JOIN case_entry_form cef ON (
+                                    cef.ack_no = cm.source_ack_no 
+                                    OR cef.ack_no = SPLIT_PART(cm.source_ack_no, '_', 1)
+                                    OR cef.ack_no = SUBSTRING(cm.source_ack_no, 1, GREATEST(1, POSITION('_' IN cm.source_ack_no) - 1))
+                                )
+                            """
+                            count_query = """
+                                SELECT COUNT(DISTINCT cm.case_id)
+                                FROM case_main cm
+                                INNER JOIN assignment a ON cm.case_id = a.case_id AND a.assigned_to = %s
+                                LEFT JOIN case_entry_form cef ON (
+                                    cef.ack_no = cm.source_ack_no 
+                                    OR cef.ack_no = SPLIT_PART(cm.source_ack_no, '_', 1)
+                                    OR cef.ack_no = SUBSTRING(cm.source_ack_no, 1, GREATEST(1, POSITION('_' IN cm.source_ack_no) - 1))
+                                )
+                            """
+                            params.insert(0, current_logged_in_username)
+                        else:
+                            where_clauses.append("FALSE")  # Unknown user type
+                    else:
+                        pass  # No user info, show all cases
+                    
+                    # Add where clauses to both queries
+                    where_clause = ""
+                    if where_clauses:
+                        where_clause = " WHERE " + " AND ".join(where_clauses)
+                    
+                    # Add where clause to count query
+                    count_query += where_clause
+                    
+                    # Execute count query first
+                    cur.execute(count_query, params)
+                    count_result = cur.fetchone()
+                    total_count = list(count_result.values())[0] if count_result else 0
+                    
+                    # Add ordering and pagination to main query
+                    order_clause = "ORDER BY cm.creation_date DESC, cm.creation_time DESC"
+                    if sort_column:
+                        # Validate sort column to prevent SQL injection
+                        valid_sort_columns = {
+                            'case_id', 'case_type', 'source_ack_no', 'status', 
+                            'creation_date', 'assigned_to', 'created_by', 'disputed_amount',
+                            'is_operational', 'location'
+                        }
+                        if sort_column in valid_sort_columns:
+                            sort_dir = "ASC" if sort_direction.lower() == "asc" else "DESC"
+                            if sort_column == 'assigned_to':
+                                order_clause = f"ORDER BY latest_assignment.assigned_to {sort_dir}, cm.creation_date DESC"
+                            else:
+                                order_clause = f"ORDER BY cm.{sort_column} {sort_dir}, cm.creation_date DESC"
+                    
+                    base_query += where_clause + f"""
+                        {order_clause}
+                        LIMIT %s OFFSET %s
+                    """
+                    params.extend([limit, skip])
+                    
+                    cur.execute(base_query, params)
+                    rows = cur.fetchall()
+                    
+                    cases = [dict(row) for row in rows]
+                    total_pages = (total_count + limit - 1) // limit  # Ceiling division
+                    
+                    return {
+                        "cases": cases,
+                        "total_count": total_count,
+                        "total_pages": total_pages
+                    }
+        
+        return await self._execute_sync_db_op(_sync_fetch_new_cases_list_paginated)
+
+    # NEW METHOD: Fetch all case IDs for bulk operations
+    async def fetch_all_case_ids_for_bulk(self, search: Optional[str] = None,
+                                         current_logged_in_username: Optional[str] = None,
+                                         current_logged_in_user_type: Optional[str] = None
+                                         ) -> Dict[str, Any]:
+        """
+        Fetch all case IDs that match search criteria for bulk operations
+        """
+        def _sync_fetch_all_case_ids_for_bulk():
+            with get_db_connection() as conn:
+                with get_db_cursor(conn) as cur:
+                    # Base query - only select case_id and status
+                    base_query = """
+                        SELECT DISTINCT
+                            cm.case_id,
+                            cm.status
+                        FROM case_main cm
+                        LEFT JOIN case_entry_form cef ON (
+                            cef.ack_no = cm.source_ack_no 
+                            OR cef.ack_no = SPLIT_PART(cm.source_ack_no, '_', 1)
+                            OR cef.ack_no = SUBSTRING(cm.source_ack_no, 1, GREATEST(1, POSITION('_' IN cm.source_ack_no) - 1))
+                        )
+                        LEFT JOIN (
+                            SELECT DISTINCT ON (case_id) 
+                                case_id, 
+                                assigned_to,
+                                assign_date,
+                                assign_time
+                            FROM assignment 
+                            WHERE COALESCE(is_active, TRUE) = TRUE
+                            ORDER BY case_id, assign_date DESC, assign_time DESC
+                        ) latest_assignment ON latest_assignment.case_id = cm.case_id
+                    """
+                    
+                    where_clauses = []
+                    params = []
+                    
+                    # Add search filter across multiple fields
+                    if search:
+                        search_clause = """
+                            (
+                                cm.case_id::text ILIKE %s OR
+                                cm.source_ack_no ILIKE %s OR
+                                cm.case_type ILIKE %s OR
+                                cm.status ILIKE %s OR
+                                cm.created_by ILIKE %s OR
+                                latest_assignment.assigned_to ILIKE %s OR
+                                cm.location ILIKE %s OR
+                                cm.acc_num ILIKE %s OR
+                                cm.cust_id::text ILIKE %s
+                            )
+                        """
+                        where_clauses.append(search_clause)
+                        search_param = f"%{search}%"
+                        # Add search parameter 9 times for each field
+                        params.extend([search_param] * 9)
+                    
+                    # Role-based filtering (same logic as paginated method)
+                    if current_logged_in_username and current_logged_in_user_type:
+                        if current_logged_in_user_type in ('CRO', 'super_user'):
+                            pass  # CRO and super_user can see all cases
+                        elif current_logged_in_user_type == 'risk_officer':
+                            # Risk officer filtering
+                            try:
+                                cur.execute("""
+                                    SELECT 1 FROM information_schema.columns 
+                                    WHERE table_schema = 'public' AND table_name = 'assignment' AND column_name = 'is_active'
+                                """)
+                                has_is_active = cur.fetchone() is not None
+                            except Exception:
+                                has_is_active = False
+
+                            if has_is_active:
+                                where_clauses.append("""
+                                    (
+                                        latest_assignment.assigned_to = %s
+                                        OR
+                                        latest_assignment.assigned_to IS NULL
+                                    )
+                                """)
+                                params.append(current_logged_in_username)
+                            else:
+                                where_clauses.append("""
+                                    (
+                                        EXISTS (
+                                            SELECT 1 FROM assignment a2 
+                                            WHERE a2.case_id = cm.case_id 
+                                            AND a2.assigned_to = %s
+                                        )
+                                        OR
+                                        NOT EXISTS (
+                                            SELECT 1 FROM assignment a3 
+                                            WHERE a3.case_id = cm.case_id
+                                        )
+                                    )
+                                    AND
+                                    NOT EXISTS (
+                                        SELECT 1 FROM assignment a4
+                                        WHERE a4.case_id = cm.case_id
+                                        AND a4.assigned_by = %s
+                                        AND a4.assigned_to != %s
+                                    )
+                                """)
+                                params.extend([current_logged_in_username, current_logged_in_username, current_logged_in_username])
+                        elif current_logged_in_user_type in ('others', 'supervisor'):
+                            # Others can only see cases assigned to them
+                            base_query = """
+                                SELECT DISTINCT
+                                    cm.case_id,
+                                    cm.status
+                                FROM case_main cm
+                                INNER JOIN assignment a ON cm.case_id = a.case_id AND a.assigned_to = %s
+                                LEFT JOIN case_entry_form cef ON (
+                                    cef.ack_no = cm.source_ack_no 
+                                    OR cef.ack_no = SPLIT_PART(cm.source_ack_no, '_', 1)
+                                    OR cef.ack_no = SUBSTRING(cm.source_ack_no, 1, GREATEST(1, POSITION('_' IN cm.source_ack_no) - 1))
+                                )
+                            """
+                            params.insert(0, current_logged_in_username)
+                        else:
+                            where_clauses.append("FALSE")  # Unknown user type
+                    else:
+                        pass  # No user info, show all cases
+                    
+                    # Add where clauses
+                    if where_clauses:
+                        base_query += " WHERE " + " AND ".join(where_clauses)
+                    
+                    # Execute query
+                    cur.execute(base_query, params)
+                    rows = cur.fetchall()
+                    
+                    case_ids = [row['case_id'] for row in rows if row['status'] != 'Closed']
+                    total_count = len(case_ids)
+                    
+                    return {
+                        "case_ids": case_ids,
+                        "total_count": total_count
+                    }
+        
+        return await self._execute_sync_db_op(_sync_fetch_all_case_ids_for_bulk)
+
     # NEW METHOD: Fetch detailed case info from new tables (for /api/new-case-details/{case_id})
     async def fetch_new_case_details(self, case_id: int) -> Optional[Dict[str, Any]]:
         def _sync_fetch_new_case_details():

@@ -53,19 +53,20 @@ def get_executor_dependency(request: Request) -> ThreadPoolExecutor:
 def get_case_matcher_instance(executor: Annotated[ThreadPoolExecutor, Depends(get_executor_dependency)]) -> CaseEntryMatcher:
     return CaseEntryMatcher(executor=executor)
 
-# --- API Endpoint for New Case List ---
+# --- API Endpoint for New Case List with Server-side Pagination, Search, and Sorting ---
 @router.get("/api/new-case-list")
 async def get_new_case_list(
     matcher: Annotated[CaseEntryMatcher, Depends(get_case_matcher_instance)],
     logged_in_username: Annotated[str, Depends(get_current_username)],
-    skip: int = Query(0),
-    limit: int = Query(25),
-    search_source_ack_no: Optional[str] = Query(None, description="Search by Source Acknowledgement Number"),
-    status_filter: Optional[str] = Query(None, description="Filter by case status (e.g., 'New', 'Assigned', 'Closed')")
-) -> Dict[str, Any]: # FIX: Changed return type to Dict[str, Any] as it's no longer just a List
+    page: int = Query(1, description="Page number (1-based)"),
+    page_size: int = Query(15, description="Number of cases per page"),
+    search: Optional[str] = Query(None, description="Search across all fields"),
+    sort_column: Optional[str] = Query(None, description="Column to sort by"),
+    sort_direction: Optional[str] = Query("asc", description="Sort direction: asc or desc")
+) -> Dict[str, Any]:
     """
     Fetches a paginated list of cases from the new case management system,
-    filtered by logged-in user's role and assignment.
+    with server-side search, sorting, and pagination.
     """
     user_type = None
     if logged_in_username:
@@ -74,22 +75,29 @@ async def get_new_case_list(
             print(f"WARNING: User '{logged_in_username}' not found in user_table. No role-based filtering applied.", flush=True)
 
     try:
-        cases_data = await matcher.fetch_new_cases_list(
+        # Calculate skip from page and page_size
+        skip = (page - 1) * page_size
+        
+        # Call the updated matcher method with new parameters
+        result = await matcher.fetch_new_cases_list_paginated(
             skip=skip,
-            limit=limit,
-            search_source_ack_no=search_source_ack_no,
-            status_filter=status_filter,
+            limit=page_size,
+            search=search,
+            sort_column=sort_column,
+            sort_direction=sort_direction,
             current_logged_in_username=logged_in_username,
             current_logged_in_user_type=user_type
         )
 
-        if not cases_data:
-            print("INFO: No cases found in the new case management system for the dashboard.")
-            # FIX: Return user_type and username even if no cases
-            return {"cases": [], "logged_in_user_type": user_type, "logged_in_username": logged_in_username} 
-        
-        # FIX: Include user_type and username in the response
-        return {"cases": cases_data, "logged_in_user_type": user_type, "logged_in_username": logged_in_username}
+        return {
+            "cases": result.get("cases", []),
+            "total_count": result.get("total_count", 0),
+            "total_pages": result.get("total_pages", 0),
+            "current_page": page,
+            "page_size": page_size,
+            "logged_in_user_type": user_type,
+            "logged_in_username": logged_in_username
+        }
 
     except HTTPException:
         raise
@@ -97,6 +105,44 @@ async def get_new_case_list(
         print(f"UNEXPECTED ERROR in /api/new-case-list: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Failed to retrieve new case list due to an internal server error.")
+
+# NEW API ENDPOINT: Get all case IDs for bulk operations
+@router.get("/api/new-case-list/all-case-ids")
+async def get_all_case_ids(
+    matcher: Annotated[CaseEntryMatcher, Depends(get_case_matcher_instance)],
+    logged_in_username: Annotated[str, Depends(get_current_username)],
+    search: Optional[str] = Query(None, description="Search across all fields")
+) -> Dict[str, Any]:
+    """
+    Get all case IDs that match the search criteria for bulk operations.
+    This is used for "select all across pages" functionality.
+    """
+    user_type = None
+    if logged_in_username:
+        user_type = await matcher.fetch_user_type(logged_in_username)
+        if user_type is None:
+            print(f"WARNING: User '{logged_in_username}' not found in user_table. No role-based filtering applied.", flush=True)
+
+    try:
+        result = await matcher.fetch_all_case_ids_for_bulk(
+            search=search,
+            current_logged_in_username=logged_in_username,
+            current_logged_in_user_type=user_type
+        )
+
+        return {
+            "case_ids": result.get("case_ids", []),
+            "total_count": result.get("total_count", 0),
+            "logged_in_user_type": user_type,
+            "logged_in_username": logged_in_username
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"UNEXPECTED ERROR in /api/new-case-list/all-case-ids: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to retrieve case IDs for bulk operations.")
 
 @router.post("/api/case/submit")
 async def submit_case(
