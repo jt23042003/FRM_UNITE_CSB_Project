@@ -245,6 +245,10 @@ async def operational_confirm_api(
         except json.JSONDecodeError:
             raise ValueError("checked_documents is not a valid JSON string.")
         
+        # Validate that at least one document is checked
+        if len(parsed_document_statuses) == 0:
+            raise ValueError("At least one document must be selected before saving or submitting.")
+        
         # Determine case_ack_no from case_id
         case_main_record = await matcher.fetch_single_case_details_from_case_main_by_case_id(case_id)
         if not case_main_record:
@@ -255,6 +259,17 @@ async def operational_confirm_api(
         screenshot_file_name = None
         screenshot_file_location = None
         if screenshot:
+            # Validate file type
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if screenshot.content_type not in allowed_types:
+                raise ValueError(f"Invalid file type '{screenshot.content_type}'. Only image files (PNG, JPG, JPEG, GIF, WebP) are allowed.")
+            
+            # Validate file size (max 10MB)
+            max_size = 10 * 1024 * 1024  # 10MB
+            file_content = await screenshot.read()
+            if len(file_content) > max_size:
+                raise ValueError(f"File too large. Maximum allowed size is 10MB. Your file is {len(file_content) / (1024*1024):.1f}MB.")
+            
             UPLOAD_DIR = "./fraud_uploads" 
             os.makedirs(UPLOAD_DIR, exist_ok=True)
             file_extension = os.path.splitext(screenshot.filename)[1]
@@ -266,7 +281,7 @@ async def operational_confirm_api(
                 with open(screenshot_file_location, "wb") as buffer:
                     buffer.write(content_bytes)
             
-            await asyncio.get_running_loop().run_in_executor(executor, _sync_save_screenshot, await screenshot.read())
+            await asyncio.get_running_loop().run_in_executor(executor, _sync_save_screenshot, file_content)
             print(f"DEBUG: Screenshot '{screenshot_file_name}' saved to disk at {screenshot_file_location}", flush=True)
             
             await insert_uploaded_document( 

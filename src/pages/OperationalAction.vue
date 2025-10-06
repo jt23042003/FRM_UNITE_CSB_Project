@@ -74,8 +74,11 @@
         <div v-else class="action-section-grid">
           
           <div class="document-checklist">
-            <h4>I4C Requirements</h4>
-            <ul class="document-list">
+            <h4>I4C Requirements <span class="required-indicator">*</span></h4>
+            <div v-if="documentList.length === 0" class="no-documents-message">
+              No documents available for this case.
+            </div>
+            <ul v-else class="document-list">
               <li v-for="doc in documentList" :key="doc.id">
                 <label>
                   <input type="checkbox" v-model="doc.checked" :disabled="isReadOnly" />
@@ -83,6 +86,12 @@
                 </label>
               </li>
             </ul>
+            <div v-if="documentList.length > 0" class="document-validation-message">
+              <small class="text-muted">
+                <span v-if="!hasSelectedDocuments" class="validation-warning">⚠️ Please select at least one document to proceed.</span>
+                <span v-else class="validation-success">✅ {{ documentList.filter(doc => doc.checked).length }} document(s) selected</span>
+              </small>
+            </div>
           </div>
 
           <div class="reference-upload">
@@ -96,6 +105,12 @@
                 <button @click="triggerFileInput" :disabled="isReadOnly" class="btn-browse">Browse...</button>
                 <input ref="fileInputRef" type="file" @change="handleFileSelect" accept="image/*" class="hidden-file-input" />
                 <span class="file-name-display">{{ screenshotFile ? screenshotFile.name : 'No file selected' }}</span>
+              </div>
+              <div v-if="screenshotFile" class="file-validation-success">
+                <small class="text-success">✅ File validated successfully</small>
+              </div>
+              <div class="file-help-text">
+                <small class="text-muted">Supported formats: PNG, JPG, JPEG, GIF, WebP (Max: 10MB)</small>
               </div>
             </div>
           </div>
@@ -177,14 +192,14 @@
         <button @click="nextStep" v-if="currentStep < steps.length" class="btn-nav btn-next">Next</button>
       </div>
       <div class="action-buttons">
-        <button v-if="!isReadOnly" @click="saveAction" class="btn-save" :disabled="isSaving">
+        <button v-if="!isReadOnly" @click="saveAction" class="btn-save" :disabled="isSaving || !hasSelectedDocuments">
           {{ isSaving ? 'Saving...' : 'Save' }}
         </button>
         <button
           v-if="!isReadOnly"
           @click="submitAction"
           class="btn-submit"
-          :disabled="isSaving"
+          :disabled="isSaving || !hasSelectedDocuments"
         >
           {{ isSaving ? 'Submitting...' : 'Submit & Close Case' }}
         </button>
@@ -212,6 +227,7 @@ const savedActionData = ref(null);
 const caseStatus = ref('New');
 const isReadOnly = computed(() => caseStatus.value === 'Closed'); // Only closed cases should be read-only
 const isAssignmentDisabled = computed(() => caseStatus.value === 'Reopened'); // Only assignment is disabled for reopened cases
+const hasSelectedDocuments = computed(() => documentList.value.some(doc => doc.checked));
 
 // --- Stepper Logic ---
 const currentStep = ref(1);
@@ -330,7 +346,31 @@ const triggerFileInput = () => {
 };
 
 const handleFileSelect = (event) => {
-  screenshotFile.value = event.target.files[0] || null;
+  const file = event.target.files[0];
+  if (!file) {
+    screenshotFile.value = null;
+    return;
+  }
+
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    window.showNotification('error', 'Invalid File Type', 'Please select an image file (PNG, JPG, JPEG, GIF, or WebP).');
+    event.target.value = ''; // Clear the input
+    screenshotFile.value = null;
+    return;
+  }
+
+  // Validate file size (max 10MB)
+  const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+  if (file.size > maxSize) {
+    window.showNotification('error', 'File Too Large', 'Please select an image file smaller than 10MB.');
+    event.target.value = ''; // Clear the input
+    screenshotFile.value = null;
+    return;
+  }
+
+  screenshotFile.value = file;
 };
 
 // --- Action Buttons ---
@@ -351,6 +391,13 @@ const createActionPayload = () => {
 };
 
 const saveAction = async () => {
+  // Validate that at least one document is checked
+  const checkedDocs = documentList.value.filter(doc => doc.checked);
+  if (checkedDocs.length === 0) {
+    window.showNotification('error', 'Validation Error', 'Please select at least one document before saving.');
+    return;
+  }
+
   isSaving.value = true;
   const formData = createActionPayload();
   formData.append('confirmation_action_status', 'saved');
@@ -381,13 +428,37 @@ const saveAction = async () => {
     }
   } catch (err) {
     console.error('Save action error:', err);
-    window.showNotification('error', 'Save Failed', `Failed to save data: ${err.message}`);
+    
+    // Provide better error messages based on error type
+    let errorMessage = 'Failed to save data';
+    if (err.response?.status === 422) {
+      errorMessage = 'Invalid file format or file too large. Please check your screenshot file.';
+    } else if (err.response?.status === 400) {
+      errorMessage = err.response.data?.detail || 'Invalid data provided. Please check your inputs.';
+    } else if (err.response?.status === 413) {
+      errorMessage = 'File too large. Please upload a smaller screenshot.';
+    } else if (err.response?.status === 415) {
+      errorMessage = 'Unsupported file type. Please upload an image file (PNG, JPG, JPEG).';
+    } else if (err.response?.data?.detail) {
+      errorMessage = err.response.data.detail;
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    window.showNotification('error', 'Save Failed', errorMessage);
   } finally {
     isSaving.value = false;
   }
 };
 
 const submitAction = async () => {
+  // Validate that at least one document is checked
+  const checkedDocs = documentList.value.filter(doc => doc.checked);
+  if (checkedDocs.length === 0) {
+    window.showNotification('error', 'Validation Error', 'Please select at least one document before submitting.');
+    return;
+  }
+
   isSaving.value = true;
   const formData = createActionPayload();
   formData.append('confirmation_action_status', 'submitted');
@@ -423,7 +494,24 @@ const submitAction = async () => {
     }
   } catch (err) {
     console.error('Submit action error:', err);
-    window.showNotification('error', 'Submit Failed', `Failed to submit case: ${err.message}`);
+    
+    // Provide better error messages based on error type
+    let errorMessage = 'Failed to submit case';
+    if (err.response?.status === 422) {
+      errorMessage = 'Invalid file format or file too large. Please check your screenshot file.';
+    } else if (err.response?.status === 400) {
+      errorMessage = err.response.data?.detail || 'Invalid data provided. Please check your inputs.';
+    } else if (err.response?.status === 413) {
+      errorMessage = 'File too large. Please upload a smaller screenshot.';
+    } else if (err.response?.status === 415) {
+      errorMessage = 'Unsupported file type. Please upload an image file (PNG, JPG, JPEG).';
+    } else if (err.response?.data?.detail) {
+      errorMessage = err.response.data.detail;
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    window.showNotification('error', 'Submit Failed', errorMessage);
   } finally {
     isSaving.value = false;
   }
@@ -541,12 +629,21 @@ const submitAction = async () => {
 .document-list li { margin-bottom: 12px; }
 .document-list label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
 .document-list input[type="checkbox"] { width: 18px; height: 18px; accent-color: #0d6efd; }
+.required-indicator { color: #dc3545; font-weight: bold; }
+.no-documents-message { color: #6c757d; font-style: italic; padding: 8px 0; }
+.document-validation-message { margin-top: 12px; padding-top: 8px; border-top: 1px solid #dee2e6; }
+.text-muted { color: #6c757d; }
+.validation-warning { color: #dc3545; font-weight: 500; }
+.validation-success { color: #28a745; font-weight: 500; }
 .reference-upload { display: flex; flex-direction: column; gap: 24px; }
 .action-input { padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; background: #fff; }
 .screenshot-uploader { display: flex; align-items: center; gap: 12px; }
 .btn-browse { padding: 6px 12px; border: 1px solid #0d6efd; background-color: #e7f3ff; color: #0d6efd; border-radius: 4px; cursor: pointer; font-weight: 500; }
 .hidden-file-input { display: none; }
 .file-name-display { font-size: 13px; color: #6c757d; font-style: italic; }
+.file-validation-success { margin-top: 4px; }
+.text-success { color: #28a745; font-weight: 500; }
+.file-help-text { margin-top: 4px; }
 
 /* Saved Data Section */
 .saved-data-section {
