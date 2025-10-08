@@ -1,0 +1,25 @@
+{
+  "acknowledgement_no": "316082300001TEST",
+  "sub_category": "Aadhar Enabled Payment System (AEPS) Related Frauds",
+  "instrument": {
+    "requestor": "I4C-MHA",
+    "payer_bank": "Central Bank of India",
+    "payer_bank_code": 10,
+    "mode_of_payment": "Debit/Credit",
+    "payer_mobile_number": "9874545124",
+    "payer_account_number": "7000000000000001",
+    "state": "DELHI",
+    "district": "South Delhi",
+    "transaction_type": ""
+  },
+  "incidents": [
+    {
+      "amount": "12500.00",
+      "rrn": "7000000001",
+      "transaction_date": "02-01-2023",
+      "transaction_time": "15:02:00",
+      "disputed_amount": "12500.00",
+      "layer": 0
+    }
+  ]
+}

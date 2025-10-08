@@ -35,19 +35,26 @@
           <div class="details-section">
             <h4>Customer Details - {{ isMMTriggered ? 'Mobile Number Match' : 'I4C' }}</h4>
             <div v-if="!isMMTriggered" class="details-row">
-               <div class="field-group">
-                 <label>Name</label>
-                 <input type="text" v-model="i4cDetails.name" readonly />
-               </div>
-               <div class="field-group">
-                 <label>Mobile</label>
-                 <input type="text" v-model="i4cDetails.mobile" readonly />
-               </div>
-                <div class="field-group">
-                 <label>Email</label>
-                 <input type="text" v-model="i4cDetails.email" readonly />
-               </div>
-             </div>
+              <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
+              <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
+              <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
+            </div>
+            <div v-if="!isMMTriggered" class="details-row">
+              <div class="field-group"><label>Bank A/c #</label><input type="text" v-model="i4cDetails.bankAc" readonly /></div>
+              <div class="field-group"><label>Sub Category</label><input type="text" v-model="i4cDetails.subCategory" readonly /></div>
+            </div>
+            <div v-if="!isMMTriggered" class="details-row">
+              <div class="field-group"><label>Requestor</label><input type="text" v-model="i4cDetails.requestor" readonly /></div>
+              <div class="field-group"><label>Payer Bank</label><input type="text" v-model="i4cDetails.payerBank" readonly /></div>
+            </div>
+            <div v-if="!isMMTriggered" class="details-row">
+              <div class="field-group"><label>Mode of Payment</label><input type="text" v-model="i4cDetails.modeOfPayment" readonly /></div>
+              <div class="field-group"><label>State</label><input type="text" v-model="i4cDetails.state" readonly /></div>
+            </div>
+            <div v-if="!isMMTriggered" class="details-row">
+              <div class="field-group"><label>District</label><input type="text" v-model="i4cDetails.district" readonly /></div>
+              <div class="field-group"><label>Transaction Type</label><input type="text" v-model="i4cDetails.transactionType" readonly /></div>
+            </div>
             
             <!-- Mobile Number Match Details (for MM-triggered cases) -->
             <div v-if="isMMTriggered && reverificationData" class="reverification-details">
@@ -75,20 +82,6 @@
                   <label>Distribution Details</label>
                   <input type="text" :value="reverificationData.distribution_details" readonly />
                 </div>
-              </div>
-            </div>
-            <div v-if="!isMMTriggered" class="details-row">
-              <div class="field-group">
-                <label>Bank Account</label>
-                <input type="text" v-model="i4cDetails.bankAc" readonly />
-              </div>
-              <div class="field-group">
-                <label>Transaction Amount</label>
-                <input type="text" v-model="i4cDetails.transactionAmount" readonly />
-              </div>
-              <div class="field-group">
-                <label>Transaction Date</label>
-                <input type="text" v-model="i4cDetails.transactionDate" readonly />
               </div>
             </div>
           </div>
@@ -162,17 +155,18 @@
 
         <!-- Transaction Table for ECBT -->
         <div v-if="transactions.length > 0" class="transaction-section">
-          <h4>Transaction History - Victim to Beneficiary</h4>
+          <h4>Transaction History - I4C Incidents</h4>
           <div class="transaction-table-container">
             <table class="transaction-table">
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Time</th>
-                  <th>Transaction Type</th>
+                  <th>RRN / Reference</th>
                   <th>Amount</th>
-                  <th>Description</th>
-                  <th>Reference</th>
+                  <th>Disputed Amount</th>
+                  <th>Layer</th>
+                  <th>Channel</th>
                   <th>Beneficiary Match</th>
                 </tr>
               </thead>
@@ -184,10 +178,11 @@
                 >
                   <td>{{ formatDate(transaction.txn_date) }}</td>
                   <td>{{ formatTime(transaction.txn_time) }}</td>
-                  <td>{{ transaction.txn_type }}</td>
-                  <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
-                  <td>{{ transaction.descr }}</td>
                   <td>{{ transaction.txn_ref }}</td>
+                  <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
+                  <td class="amount-cell">{{ formatAmount(transaction.disputed_amount) }}</td>
+                  <td>{{ transaction.layer }}</td>
+                  <td>{{ transaction.channel }}</td>
                   <td class="match-indicator">
                     <span v-if="transaction.is_bene_match" class="match-badge">✓ Match</span>
                     <span v-else class="no-match-badge">-</span>
@@ -199,12 +194,13 @@
           <div class="transaction-summary">
             <p><strong>Total Transactions:</strong> {{ transactions.length }}</p>
             <p><strong>Matching Transactions:</strong> {{ transactions.filter(t => t.is_bene_match).length }}</p>
+            <p><strong>Total Value at Risk:</strong> {{ formatAmount(calculateTotalValueAtRisk()) }}</p>
           </div>
         </div>
         <div v-else class="transaction-section">
-          <h4>Transaction History - Victim to Beneficiary</h4>
+          <h4>Transaction History - I4C Incidents</h4>
           <div class="no-transactions">
-            <p>No transactions found between victim and beneficiary accounts.</p>
+            <p>No transaction data available for this case.</p>
           </div>
         </div>
       </div>
@@ -1275,6 +1271,23 @@ const fetchCaseDetails = async () => {
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
+    // Try to fetch banks_v2 transaction data if we have a source_ack_no
+    let banksV2Transactions = [];
+    if (source_ack_no) {
+      try {
+        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        const banksV2Res = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        if (banksV2Res.data?.success) {
+          banksV2Transactions = banksV2Res.data.data.transactions || [];
+        }
+      } catch (error) {
+        console.log('No banks_v2 transaction data found for this case:', error.message);
+      }
+    }
+    
     // Check if this is an MM-triggered case by looking at remarks
     let remarks = '';
     if (action_details && action_details.remarks) {
@@ -1305,14 +1318,57 @@ const fetchCaseDetails = async () => {
       };
     }
     
-    // Load transactions for ECBT
-    transactions.value = caseTransactions || [];
-    i4cDetails.value = { 
-      name: i4c_data?.customer_name || 'N/A', 
-      mobile: i4c_data?.mobile || 'N/A', 
-      email: i4c_data?.email || 'N/A', 
-      bankAc: i4c_data?.account_number || 'N/A' 
-    };
+    // Load transactions for ECBT - use banks_v2 data if available, otherwise fallback to original transactions
+    transactions.value = banksV2Transactions.length > 0 ? banksV2Transactions : caseTransactions || [];
+    
+    // Try to fetch banks_v2 case data for I4C details if we have a source_ack_no
+    let banksV2Data = null;
+    if (source_ack_no) {
+      try {
+        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        const banksV2Res = await axios.get(`/api/v2/banks/case-data/${baseAckNo}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (banksV2Res.data?.success) {
+          banksV2Data = banksV2Res.data.data;
+        }
+      } catch (error) {
+        console.log('No banks_v2 data found for this case:', error.message);
+      }
+    }
+    
+    // Populate I4C details with banks_v2 data if available, otherwise fallback to original data
+    if (banksV2Data) {
+      i4cDetails.value = {
+        name: banksV2Data.instrument?.payer_account_number ? `Account ${banksV2Data.instrument.payer_account_number}` : 'N/A',
+        mobileNumber: banksV2Data.instrument?.payer_mobile_number || 'N/A',
+        bankAc: banksV2Data.instrument?.payer_account_number || 'N/A',
+        email: 'N/A', // Not available in banks_v2 data
+        subCategory: banksV2Data.sub_category || 'N/A',
+        requestor: banksV2Data.instrument?.requestor || 'N/A',
+        payerBank: banksV2Data.instrument?.payer_bank || 'N/A',
+        modeOfPayment: banksV2Data.instrument?.mode_of_payment || 'N/A',
+        state: banksV2Data.instrument?.state || 'N/A',
+        district: banksV2Data.instrument?.district || 'N/A',
+        transactionType: banksV2Data.instrument?.transaction_type || 'N/A'
+      };
+    } else {
+      // Fallback to original I4C data
+      i4cDetails.value = {
+        name: i4c_data?.customer_name || 'N/A',
+        mobileNumber: i4c_data?.mobile || 'N/A',
+        bankAc: i4c_data?.account_number || 'N/A',
+        email: i4c_data?.email || 'N/A',
+        subCategory: 'N/A',
+        requestor: 'N/A',
+        payerBank: 'N/A',
+        modeOfPayment: 'N/A',
+        state: 'N/A',
+        district: 'N/A',
+        transactionType: 'N/A'
+      };
+    }
     bankDetails.value = { 
       name: `${customer_details?.fname || ''} ${customer_details?.mname || ''} ${customer_details?.lname || ''}`.trim() || 'N/A', 
       mobile: customer_details?.mobile || 'N/A', 
@@ -2099,6 +2155,14 @@ const getTemplateQuestionFiles = (questionId) => {
   const uploadBlock = action.value.dataUploads.find(block => block.comment === questionComment);
   
   return uploadBlock ? uploadBlock.files : [];
+};
+
+const calculateTotalValueAtRisk = () => {
+  if (!transactions.value || transactions.value.length === 0) return 0;
+  return transactions.value.reduce((total, txn) => {
+    const amount = typeof txn.amount === 'string' ? parseFloat(txn.amount) : txn.amount;
+    return total + (isNaN(amount) ? 0 : amount);
+  }, 0);
 };
 </script>
 

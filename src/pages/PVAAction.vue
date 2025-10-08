@@ -485,22 +485,40 @@
         throw new Error('No authentication token found');
       }
   
-      // Uncomment when API is ready
-      // const response = await axios.get(`${API_ENDPOINTS.CASE_DETAILS}/${caseId}`, {
-      //   headers: { 'Authorization': `Bearer ${token}` }
-      // });
+      // Fetch case data to get source_ack_no
+      const response = await axios.get(`/api/combined-case-data/${caseId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
   
-      // if (response.data) {
-      //   const data = response.data;
-      //   Object.assign(i4cDetails.value, data.i4c_details || {});
-      //   Object.assign(bankDetails.value, data.bank_details || {});
-      //   if (data.action_details) {
-      //     Object.assign(action.value, data.action_details);
-      //   }
-      //   if (data.transactions) {
-      //     transactions.value = data.transactions;
-      //   }
-      // }
+      if (response.data) {
+        const { source_ack_no } = response.data;
+        
+        // Try to fetch banks_v2 transaction data if we have a source_ack_no
+        if (source_ack_no) {
+          try {
+            // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+            const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+            const banksV2Res = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, { 
+              headers: { Authorization: `Bearer ${token}` } 
+            });
+            if (banksV2Res.data?.success) {
+              const banksV2Transactions = banksV2Res.data.data.transactions || [];
+              // Convert banks_v2 format to PVAAction format
+              transactions.value = banksV2Transactions.map(txn => ({
+                date: txn.txn_date || 'N/A',
+                time: txn.txn_time || 'N/A',
+                beneficiary: txn.bene_acct_num || 'N/A',
+                amount: `₹${Number(txn.amount).toLocaleString('en-IN')}`,
+                mode: txn.channel || 'N/A',
+                refNumber: txn.txn_ref || 'N/A',
+                description: txn.descr || 'N/A'
+              }));
+            }
+          } catch (error) {
+            console.log('No banks_v2 transaction data found for this case:', error.message);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching case details:', error);
     }
