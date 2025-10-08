@@ -698,6 +698,23 @@ const fetchCaseDetails = async () => {
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
+    // Try to fetch banks_v2 transaction data if we have a source_ack_no
+    let banksV2Transactions = [];
+    if (source_ack_no) {
+      try {
+        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        const banksV2Res = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        if (banksV2Res.data?.success) {
+          banksV2Transactions = banksV2Res.data.data.transactions || [];
+        }
+      } catch (error) {
+        console.log('No banks_v2 transaction data found for this case:', error.message);
+      }
+    }
+    
     i4cDetails.value = {
         name: i4c_data.customer_name || 'N/A',
         mobileNumber: i4c_data.mobile || 'N/A',
@@ -726,7 +743,8 @@ const fetchCaseDetails = async () => {
         addl4: account_details.addl4 || 'N/A'
     };
     
-    transactionDetails.value = transactions;
+    // Use banks_v2 transaction data if available, otherwise fallback to original transactions
+    transactionDetails.value = banksV2Transactions.length > 0 ? banksV2Transactions : transactions;
 
     if (action_details) {
       Object.assign(action.value, action_details);

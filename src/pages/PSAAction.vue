@@ -35,32 +35,25 @@
           <div class="details-section">
             <h4>Customer Details - I4C</h4>
             <div class="details-row">
-              <div class="field-group">
-                <label>Name</label>
-                <input type="text" v-model="i4cDetails.name" readonly />
-              </div>
-              <div class="field-group">
-                <label>Mobile</label>
-                <input type="text" v-model="i4cDetails.mobile" readonly />
-              </div>
-               <div class="field-group">
-                <label>Email</label>
-                <input type="text" v-model="i4cDetails.email" readonly />
-              </div>
+              <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
+              <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
+              <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
             </div>
             <div class="details-row">
-              <div class="field-group">
-                <label>PAN</label>
-                <input type="text" v-model="i4cDetails.pan" :readonly="isReadOnly" />
-              </div>
-              <div class="field-group">
-                <label>Aadhaar</label>
-                <input type="text" v-model="i4cDetails.aadhaar" :readonly="isReadOnly" />
-              </div>
-              <div class="field-group">
-                <label>GST</label>
-                <input type="text" v-model="i4cDetails.gst" :readonly="isReadOnly" />
-              </div>
+              <div class="field-group"><label>Bank A/c #</label><input type="text" v-model="i4cDetails.bankAc" readonly /></div>
+              <div class="field-group"><label>Sub Category</label><input type="text" v-model="i4cDetails.subCategory" readonly /></div>
+            </div>
+            <div class="details-row">
+              <div class="field-group"><label>Requestor</label><input type="text" v-model="i4cDetails.requestor" readonly /></div>
+              <div class="field-group"><label>Payer Bank</label><input type="text" v-model="i4cDetails.payerBank" readonly /></div>
+            </div>
+            <div class="details-row">
+              <div class="field-group"><label>Mode of Payment</label><input type="text" v-model="i4cDetails.modeOfPayment" readonly /></div>
+              <div class="field-group"><label>State</label><input type="text" v-model="i4cDetails.state" readonly /></div>
+            </div>
+            <div class="details-row">
+              <div class="field-group"><label>District</label><input type="text" v-model="i4cDetails.district" readonly /></div>
+              <div class="field-group"><label>Transaction Type</label><input type="text" v-model="i4cDetails.transactionType" readonly /></div>
             </div>
           </div>
 
@@ -94,6 +87,50 @@
                 <input type="text" v-model="bankDetails.availBal" :readonly="isReadOnly" />
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Transaction Table for PSA (from banks_v2 incidents) -->
+        <div v-if="transactions.length > 0" class="transaction-section">
+          <h4>Transaction History - I4C Incidents</h4>
+          <div class="transaction-table-container">
+            <table class="transaction-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>RRN / Reference</th>
+                  <th>Amount</th>
+                  <th>Disputed Amount</th>
+                  <th>Layer</th>
+                  <th>Channel</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr 
+                  v-for="transaction in transactions" 
+                  :key="transaction.txn_ref || transaction.rrn"
+                >
+                  <td>{{ formatDate(transaction.txn_date) }}</td>
+                  <td>{{ formatTime(transaction.txn_time) }}</td>
+                  <td>{{ transaction.txn_ref }}</td>
+                  <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
+                  <td class="amount-cell">{{ formatAmount(transaction.disputed_amount) }}</td>
+                  <td>{{ transaction.layer }}</td>
+                  <td>{{ transaction.channel }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="transaction-summary">
+            <p><strong>Total Transactions:</strong> {{ transactions.length }}</p>
+            <p><strong>Total Value at Risk:</strong> {{ formatAmount(calculateTotalValueAtRisk()) }}</p>
+          </div>
+        </div>
+        <div v-else class="transaction-section">
+          <h4>Transaction History - I4C Incidents</h4>
+          <div class="no-transactions">
+            <p>No transaction data available for this case.</p>
           </div>
         </div>
       </div>
@@ -848,12 +885,20 @@ watch([userRole, isReviewMode], ([role, reviewMode]) => {
 // --- Data Models ---
 const i4cDetails = ref({
   name: '',
-  mobile: '',
+  mobileNumber: '',
   email: '',
-  pan: '',
-  aadhaar: '',
-  gst: ''
+  bankAc: '',
+  subCategory: '',
+  requestor: '',
+  payerBank: '',
+  modeOfPayment: '',
+  state: '',
+  district: '',
+  transactionType: ''
 });
+
+// Transaction data for PSA
+const transactions = ref([]);
 const bankDetails = ref({
   name: '',
   mobile: '',
@@ -957,6 +1002,39 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Transaction formatting functions
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  // Handle DD-MM-YYYY format from banks_v2
+  if (typeof dateString === 'string' && dateString.includes('-')) {
+    return dateString; // Already in DD-MM-YYYY format
+  }
+  return new Date(dateString).toLocaleDateString();
+};
+
+const formatTime = (timeString) => {
+  if (!timeString) return '-';
+  return timeString;
+};
+
+const formatAmount = (amount) => {
+  if (!amount) return '-';
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(numAmount)) return '-';
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR'
+  }).format(numAmount);
+};
+
+const calculateTotalValueAtRisk = () => {
+  if (!transactions.value || transactions.value.length === 0) return 0;
+  return transactions.value.reduce((total, txn) => {
+    const amount = typeof txn.amount === 'string' ? parseFloat(txn.amount) : txn.amount;
+    return total + (isNaN(amount) ? 0 : amount);
+  }, 0);
 };
 
 const triggerFileInput = (blockIndex) => {
@@ -1135,12 +1213,75 @@ const fetchCaseDetails = async () => {
     const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
-    i4cDetails.value = { 
-      name: i4c_data?.customer_name || 'N/A', 
-      mobile: i4c_data?.mobile || 'N/A', 
-      email: i4c_data?.email || 'N/A', 
-      bankAc: i4c_data?.account_number || 'N/A' 
-    };
+    
+    // Try to fetch banks_v2 transaction data if we have a source_ack_no
+    let banksV2Transactions = [];
+    if (source_ack_no) {
+      try {
+        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        const banksV2Res = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (banksV2Res.data?.success) {
+          banksV2Transactions = banksV2Res.data.data.transactions || [];
+        }
+      } catch (error) {
+        console.log('No banks_v2 transaction data found for this case:', error.message);
+      }
+    }
+    
+    // Populate transactions array
+    transactions.value = banksV2Transactions;
+    
+    // Try to fetch banks_v2 case data for I4C details if we have a source_ack_no
+    let banksV2Data = null;
+    if (source_ack_no) {
+      try {
+        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        const banksV2Res = await axios.get(`/api/v2/banks/case-data/${baseAckNo}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (banksV2Res.data?.success) {
+          banksV2Data = banksV2Res.data.data;
+        }
+      } catch (error) {
+        console.log('No banks_v2 data found for this case:', error.message);
+      }
+    }
+    
+    // Populate I4C details with banks_v2 data if available, otherwise fallback to original data
+    if (banksV2Data) {
+      i4cDetails.value = {
+        name: banksV2Data.instrument?.payer_account_number ? `Account ${banksV2Data.instrument.payer_account_number}` : 'N/A',
+        mobileNumber: banksV2Data.instrument?.payer_mobile_number || 'N/A',
+        bankAc: banksV2Data.instrument?.payer_account_number || 'N/A',
+        email: 'N/A', // Not available in banks_v2 data
+        subCategory: banksV2Data.sub_category || 'N/A',
+        requestor: banksV2Data.instrument?.requestor || 'N/A',
+        payerBank: banksV2Data.instrument?.payer_bank || 'N/A',
+        modeOfPayment: banksV2Data.instrument?.mode_of_payment || 'N/A',
+        state: banksV2Data.instrument?.state || 'N/A',
+        district: banksV2Data.instrument?.district || 'N/A',
+        transactionType: banksV2Data.instrument?.transaction_type || 'N/A'
+      };
+    } else {
+      // Fallback to original I4C data
+      i4cDetails.value = {
+        name: i4c_data?.customer_name || 'N/A',
+        mobileNumber: i4c_data?.mobile || 'N/A',
+        bankAc: i4c_data?.account_number || 'N/A',
+        email: i4c_data?.email || 'N/A',
+        subCategory: 'N/A',
+        requestor: 'N/A',
+        payerBank: 'N/A',
+        modeOfPayment: 'N/A',
+        state: 'N/A',
+        district: 'N/A',
+        transactionType: 'N/A'
+      };
+    }
     bankDetails.value = { 
       name: `${customer_details?.fname || ''} ${customer_details?.mname || ''} ${customer_details?.lname || ''}`.trim() || 'N/A', 
       mobile: customer_details?.mobile || 'N/A', 
@@ -3497,5 +3638,95 @@ const getTemplateQuestionFiles = (questionId) => {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Transaction Table Styles */
+.transaction-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.transaction-section h4 {
+  margin: 0 0 16px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.transaction-table-container {
+  overflow-x: auto;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  background: white;
+}
+
+.transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.transaction-table th {
+  background: #e9ecef;
+  color: #495057;
+  font-weight: 600;
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.transaction-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f1f3f4;
+  vertical-align: top;
+}
+
+.transaction-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.amount-cell {
+  text-align: right;
+  font-weight: 600;
+  color: #28a745;
+}
+
+.transaction-summary {
+  margin-top: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.transaction-summary p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.no-transactions {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Responsive transaction table */
+@media (max-width: 768px) {
+  .transaction-table th,
+  .transaction-table td {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  
+  .transaction-table th:nth-child(n+5),
+  .transaction-table td:nth-child(n+5) {
+    display: none;
+  }
 }
 </style>
