@@ -1,0 +1,75 @@
+{
+  "summary": {
+    "total": 2,
+    "success": 0,
+    "failed": 2
+  },
+  "errors": [
+    {
+      "index": 0,
+      "ackNo": "ACK_Testing_333",
+      "error_type": "value",
+      "error_message": "Database error inserting case into case_main: duplicate key value violates unique constraint \"case_main_source_ack_no_key\"\nDETAIL:  Key (source_ack_no)=(ACK_Testing_333_VM) already exists.\n",
+      "fields": [],
+      "record": {
+        "ackNo": "ACK_Testing_333",
+        "customerName": "VM Test Customer",
+        "subCategory": "Fraud",
+        "transactionDate": "2025-07-15",
+        "complaintDate": "2025-07-16",
+        "reportDateTime": "2025-07-16 10:30:00",
+        "state": "Maharashtra",
+        "district": "Mumbai",
+        "policestation": "Andheri",
+        "paymentMode": "UPI",
+        "accountNumber": "6192487232532596",
+        "cardNumber": "1234567890123456",
+        "transactionId": "TXN_VM_001",
+        "layers": "3",
+        "transactionAmount": 50000.0,
+        "disputedAmount": 50000.0,
+        "action": "Block",
+        "toBank": "HDFC",
+        "toAccount": "9999999999999999",
+        "ifsc": "HDFC0001234",
+        "toTransactionId": "TXN_VM_001",
+        "toAmount": 50000.0,
+        "actionTakenDate": "2025-07-16",
+        "toUpiId": "test@paytm"
+      }
+    },
+    {
+      "index": 1,
+      "ackNo": "ACK_Testing_555",
+      "error_type": "value",
+      "error_message": "Database error inserting case into case_main: duplicate key value violates unique constraint \"case_main_source_ack_no_key\"\nDETAIL:  Key (source_ack_no)=(ACK_Testing_555_VM) already exists.\n",
+      "fields": [],
+      "record": {
+        "ackNo": "ACK_Testing_555",
+        "customerName": "ECBNT Test Customer",
+        "subCategory": "Fraud",
+        "transactionDate": "2025-07-15",
+        "complaintDate": "2025-07-16",
+        "reportDateTime": "2025-07-16 10:30:00",
+        "state": "Maharashtra",
+        "district": "Mumbai",
+        "policestation": "Andheri",
+        "paymentMode": "UPI",
+        "accountNumber": "3361310840409939",
+        "cardNumber": "1234567890123456",
+        "transactionId": "TXN_ECBNT_001",
+        "layers": "3",
+        "transactionAmount": 40000.0,
+        "disputedAmount": 40000.0,
+        "action": "Block",
+        "toBank": "Axis",
+        "toAccount": "3361310840409939",
+        "ifsc": "AXIS0001234",
+        "toTransactionId": "TXN_ECBNT_001",
+        "toAmount": 40000.0,
+        "actionTakenDate": "2025-07-16",
+        "toUpiId": "test@axis"
+      }
+    }
+  ]
+}

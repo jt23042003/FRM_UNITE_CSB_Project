@@ -1,0 +1,51 @@
+Subject: FRAUD ALERT - Immediate Processing Required
+
+Dear Risk Management Team,
+
+We have received a critical fraud complaint requiring immediate action.
+
+**CASE DETAILS:**
+Acknowledgement No: ACK202509250003
+Customer Name: Amit Sharma
+
+**COMPLAINT INFORMATION:**
+Sub Category: UPI/Wallet Frauds
+Transaction Date: 2025-09-24
+Complaint Date: 2025-09-25
+Reported Date: 2025-09-25 16:30
+State: Karnataka
+District: Bangalore Urban
+Police Station: HSR Layout Police Station
+
+**TRANSACTION DETAILS:**
+Mode of Payment: UPI
+Transaction ID: TXN456789123DEF
+Layers: Layer 2
+Transaction Amount: ₹85,000
+Disputed Amount: ₹85,000
+Action Taken Date: 2025-09-25
+
+**VICTIM ACCOUNT:**
+Victim Account Number: 555666777888999
+Card Number: 4444333322221111
+PAN: DEFGH5678I
+Aadhaar: 8765 4321 0987
+Mobile: 9987654321
+
+**BENEFICIARY DETAILS:**
+Beneficiary Bank: SBI Bank
+Beneficiary Account Number: 222333444555666
+IFSC Code: SBIN0012345
+Beneficiary UPI ID: suspect@phonepe
+Beneficiary UTR: UTR789456123GHI
+Money Transfer TO Amount: ₹85,000
+
+**FRAUD SUMMARY:**
+Customer Amit Sharma reported unauthorized UPI payment of ₹85,000 from victim account 555666777888999 to beneficiary account 222333444555666. Transaction processed without authorization through UPI ID suspect@phonepe.
+
+**ACTION REQUIRED:**
+Action: Freeze Account
+Priority: URGENT
+
+Investigation Team
+Reference: FRAUD-25-09-2025-003

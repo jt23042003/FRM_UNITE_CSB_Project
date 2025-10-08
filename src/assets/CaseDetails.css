@@ -1,394 +1,298 @@
 /* General Body and Container Styling */
 body {
-    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-    background-color: #f0f2f5; /* Light grey background */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f8f9fa;
     margin: 0;
     padding: 0;
-    line-height: 1.6;
-    color: #333;
+    line-height: 1.5;
+    color: #212529;
 }
 
 .dashboard-bg {
-    padding: 20px;
-    max-width: 1400px; /* Max width for content */
-    margin: 30px auto; /* Center the dashboard with top/bottom margin */
+    padding: 20px 24px;
+    margin: 0;
     background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); /* Softer, more pronounced shadow */
-    transition: all 0.3s ease;
+    height: 100vh;
+    overflow-y: auto;
 }
 
 /* Dashboard Header and Filters */
 .dashboard-header {
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #e0e0e0; /* Subtle separator */
+    margin-bottom: 20px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 16px;
 }
 
 .dashboard-header h2 {
-    font-size: 2em;
-    color: #2c3e50;
+    font-size: 22px;
+    color: #212529;
     margin: 0;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .filters-row {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-    gap: 15px; /* Space between filter elements */
+    gap: 12px;
     align-items: center;
+    background-color: #fff;
+    padding: 12px 16px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
 }
 
 .search-bar-container {
     position: relative;
-    flex-grow: 1; /* Allow it to take available space */
-    min-width: 280px; /* Minimum width for search input */
+    width: 280px;
 }
 
 .search-icon {
     position: absolute;
-    left: 12px;
+    left: 10px;
     top: 50%;
     transform: translateY(-50%);
-    pointer-events: none; /* Make sure it doesn't block clicks on input */
-    color: #999; /* Softer grey */
-    font-size: 1.1em; /* Make it slightly larger */
-}
-/* Ensure the SVG is styled properly if it's directly inserted, otherwise this targets it */
-.search-icon svg {
-    display: block; /* Remove extra space below SVG */
+    pointer-events: none;
 }
 
-/* --- ENHANCED INPUT & SELECT STYLING --- */
+.search-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke: #6c757d;
+}
+
+/* Input & Select Styling */
 .filter-input {
-    padding: 10px 10px 10px 40px; /* Left padding for icon */
-    border: 1px solid #c2c9d6; /* Softer, slightly darker border */
-    border-radius: 8px;
-    font-size: 1rem;
-    color: #333; /* Darker text */
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    width: 100%; /* Take full width of its container */
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
-    -webkit-appearance: none; /* Remove default browser styling for select */
-    -moz-appearance: none;
-    appearance: none;
-    background-color: #fff; /* Explicit background for consistency */
+    padding: 6px 10px 6px 32px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #212529;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #fff;
 }
 
 .filter-input::placeholder {
-    color: #888; /* Darker placeholder text */
-    opacity: 0.8;
+    color: #adb5bd;
 }
 
 .filter-input:hover {
-    border-color: #a4b2c2; /* Slight border change on hover */
+    border-color: #adb5bd;
 }
 
 .filter-input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25); /* More prominent focus ring */
+    border-color: #6c757d;
+    box-shadow: 0 0 0 2px rgba(108, 117, 125, 0.1);
     outline: none;
 }
 
-/* Specific styling for select dropdowns to add custom arrow */
-.enhanced-status-select, .enhanced-type-select { /* Applied to both type and status select */
-    padding: 10px 15px; /* Adjust padding for selects, no left padding for icon */
-    min-width: 180px; /* Slightly wider for better readability */
-    background-color: #fff;
-    cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+.enhanced-status-select,
+.enhanced-type-select {
+    padding: 6px 28px 6px 10px;
+    width: 160px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236c757d'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-position: right 8px center;
     background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 18px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 10px; /* Space between buttons */
-}
-
-/* --- ENHANCED BUTTON STYLING --- */
-.search-btn, .reset-btn, .pagination-row button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
+    background-size: 14px;
     cursor: pointer;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
-    white-space: nowrap; /* Prevent button text from wrapping */
-    font-weight: 500; /* Slightly bolder text */
+}
+
+/* Button Styling */
+.search-btn,
+.reset-btn {
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .search-btn {
-    background-color: #2563eb; /* Blue-600 */
+    background-color: #212529;
     color: #ffffff;
-    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2); /* Initial subtle shadow */
+    border: none;
 }
 
 .search-btn:hover {
-    background-color: #1d4ed8; /* Darker blue */
-    box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3); /* Lifted shadow */
-    transform: translateY(-2px); /* Slight lift */
-}
-
-.search-btn:active {
-    background-color: #1e40af; /* Even darker blue */
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); /* Recessed shadow */
-    transform: translateY(0); /* Press down */
+    background-color: #343a40;
 }
 
 .reset-btn {
-    background-color: #6b7280; /* Gray-500 */
-    color: #ffffff;
-    box-shadow: 0 4px 8px rgba(107, 114, 128, 0.2);
+    background-color: #fff;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
 }
 
 .reset-btn:hover {
-    background-color: #4b5563; /* Darker grey */
-    box-shadow: 0 6px 12px rgba(107, 114, 128, 0.3);
-    transform: translateY(-2px);
-}
-
-.reset-btn:active {
-    background-color: #374151; /* Even darker grey */
-    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2);
-    transform: translateY(0);
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
 }
 
 /* Table Styling */
 .dashboard-table-card {
-    background-color: #ffffff;
-    border-radius: 8px;
-    overflow-x: auto; /* Enable horizontal scrolling for small screens */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Lighter shadow for table card */
+    background-color: #fff;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    overflow: hidden;
 }
 
 .case-table {
     width: 100%;
-    border-collapse: collapse;
-    min-width: 1000px; /* Ensure table doesn't get too cramped - adjusted for more columns */
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
 }
 
 .case-table th,
 .case-table td {
-    padding: 12px 18px; /* More generous padding */
+    padding: 10px 14px;
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .case-table th {
-    background-color: #f8f9fa; /* Light header background */
+    background-color: #f8f9fa;
     color: #495057;
-    font-weight: 600;
-    font-size: 0.95em;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    position: sticky; /* Sticky header */
-    top: 0;
-    z-index: 1;
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: nowrap;
 }
 
 .case-table tbody tr:hover {
-    background-color: #f5f7fa; /* Hover effect for rows */
-}
-
-.case-table tbody tr:last-child td {
-    border-bottom: none; /* No border for the last row */
+    background-color: #f8f9fa;
 }
 
 .ack-link {
-    color: #2563eb;
+    color: #212529;
     text-decoration: none;
     font-weight: 500;
-    transition: color 0.2s;
 }
 
 .ack-link:hover {
+    color: #343a40;
     text-decoration: underline;
-    color: #1d4ed8;
 }
 
 /* Status Badges */
 .status-badge {
-    display: inline-block;
-    padding: 5px 12px;
-    border-radius: 20px; /* Pill shape */
-    font-size: 0.85em;
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
     text-transform: capitalize;
-    color: #fff; /* Default text color */
 }
 
-/* Operational/Non-Operational badge for `is_operational` */
+.status-badge.new { 
+    background-color: #e3f2fd; 
+    color: #1976d2; 
+}
+.status-badge.open { 
+    background-color: #fff3e0; 
+    color: #f57c00; 
+}
+.status-badge.closed { 
+    background-color: #e8f5e9; 
+    color: #2e7d32; 
+}
+.status-badge.pending { 
+    background-color: #fce4ec; 
+    color: #c2185b; 
+}
+.status-badge.assigned { 
+    background-color: #f3e5f5; 
+    color: #7b1fa2; 
+}
+.status-badge.resolved { 
+    background-color: #e8eaf6; 
+    color: #3f51b5; 
+}
+
+/* Operational Badge */
 .badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 15px;
-    font-size: 0.8em;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
     font-weight: 500;
-    color: #fff;
-    text-align: center;
 }
 
 .badge.operational {
-    background-color: #10b981; /* Green for Yes */
+    background-color: #e8f5e9;
+    color: #2e7d32;
 }
 
 .badge.non-operational {
-    background-color: #ef4444; /* Red for No */
+    background-color: #ffebee;
+    color: #c62828;
 }
-
-
-.status-badge.new {
-    background-color: #f59e0b; /* Yellow-500 */
-}
-
-.status-badge.open {
-    background-color: #3b82f6; /* Blue-500 */
-}
-
-.status-badge.assigned {
-    background-color: #6366f1; /* Indigo-500 */
-}
-
-.status-badge.closed {
-    background-color: #10b981; /* Green-500 */
-}
-
-.status-badge.pending {
-    background-color: #f97316; /* Orange-500 for pending */
-}
-
-.status-badge.resolved {
-    background-color: #0d9488; /* Teal-600 for resolved */
-}
-
 
 /* Pagination */
 .pagination-row {
     display: flex;
-    justify-content: flex-end; /* Align to right */
+    justify-content: space-between;
     align-items: center;
-    padding: 20px;
-    gap: 15px; /* Space between elements */
-    border-top: 1px solid #e0e0e0;
-    background-color: #ffffff; /* Ensure background matches card */
-    border-bottom-left-radius: 8px; /* Match card radius */
-    border-bottom-right-radius: 8px; /* Match card radius */
+    padding: 12px 14px;
+    gap: 12px;
+    border-top: 1px solid #dee2e6;
+    background-color: #fff;
 }
 
 .pagination-row button {
-    padding: 8px 16px;
-    border: 1px solid #dcdfe6;
-    border-radius: 6px;
-    background-color: #ffffff;
-    color: #333;
+    padding: 4px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #495057;
+    font-size: 13px;
     cursor: pointer;
-    transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.1s; /* Add box-shadow and transform */
+    transition: all 0.2s ease;
 }
 
 .pagination-row button:hover:not(:disabled) {
-    background-color: #f0f2f5;
-    border-color: #a7b7c7;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle lift on hover */
-    transform: translateY(-1px);
-}
-
-.pagination-row button:active:not(:disabled) {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle press effect */
-    transform: translateY(0);
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
 }
 
 .pagination-row button:disabled {
-    opacity: 0.5; /* Reduce opacity to show disabled state more clearly */
+    opacity: 0.5;
     cursor: not-allowed;
-    background-color: #f8f9fa;
-    color: #999;
-    box-shadow: none; /* No shadow when disabled */
-    transform: none; /* No transform when disabled */
 }
 
 .pagination-row span {
-    font-size: 0.95em;
-    color: #555;
-    font-weight: 500;
+    font-size: 13px;
+    color: #6c757d;
 }
 
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
     .dashboard-bg {
-        margin: 20px;
-        padding: 15px;
+        padding: 16px;
     }
-
-    .dashboard-header h2 {
-        font-size: 1.8em;
-    }
-
+    
     .filters-row {
-        flex-direction: column;
-        align-items: stretch;
+        flex-wrap: wrap;
     }
-
-    .search-bar-container,
-    .enhanced-status-select,
-    .enhanced-type-select { /* Include enhanced-type-select */
-        min-width: unset; /* Remove min-width to allow shrinking */
+    
+    .search-bar-container {
         width: 100%;
-    }
-
-    .action-buttons {
-        flex-direction: row; /* Keep buttons in a row if space allows */
-        justify-content: flex-end; /* Align buttons to the right */
-        width: 100%;
-    }
-
-    .search-btn, .reset-btn {
-        flex-grow: 1; /* Allow buttons to expand if needed */
     }
 }
 
 @media (max-width: 768px) {
-    .dashboard-bg {
-        margin: 15px;
-        padding: 15px;
-        border-radius: 8px;
+    .enhanced-status-select,
+    .enhanced-type-select {
+        width: 100%;
     }
-
-    .dashboard-header h2 {
-        font-size: 1.6em;
-    }
-
-    .filter-input,
+    
     .search-btn,
     .reset-btn {
-        padding: 8px 15px;
-        font-size: 0.95rem;
-    }
-
-    .case-table th,
-    .case-table td {
-        padding: 10px 12px;
-        font-size: 0.9em;
-    }
-}
-
-@media (max-width: 480px) {
-    .dashboard-bg {
-        margin: 10px;
-        padding: 10px;
-    }
-    .action-buttons {
-        flex-direction: column; /* Stack buttons vertically on very small screens */
-    }
-    .pagination-row {
-        flex-direction: column;
-        gap: 10px;
-    }
-    .pagination-row button {
         width: 100%;
     }
 }

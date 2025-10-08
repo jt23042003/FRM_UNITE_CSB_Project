@@ -31,3 +31,6 @@ coverage
 venv/
 __pycache__/
 *.pyc
+.vscode/
+.env.development
+.env.production

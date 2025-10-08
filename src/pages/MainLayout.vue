@@ -1,51 +1,61 @@
 <template>
   <div class="app">
-    <aside class="sidebar">
-      <div class="logo">
-        UNITE Hub Technologies
-        <img src="@/assets/unite_hub_tech_logo.png" class="logo-img" alt="Logo" />
-      </div>
-      <nav>
-        <ul>
-          <li><router-link to="/dashboard">Dashboard</router-link></li>
-          <li><router-link to="/bulk-upload">File Upload</router-link></li>
-          <li><router-link to="/data-entry">Data Entry</router-link></li>
-          <li><router-link to="/case-details">Case Details</router-link></li>
-          </ul>
-      </nav>
-
-      <button @click="logout" class="logout-btn">
-        Logout
+    <div class="topbar" v-if="isMobile">
+      <button class="hamburger" @click="openSidebar" aria-label="Open menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-    </aside>
-    
-    <main class="main">
-      <router-view />
-    </main>
+      <div class="topbar-title">Unite Hub</div>
+    </div>
+    <Sidebar />
+    <div class="main">
+      <router-view></router-view>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
-import axios from 'axios'; // Import axios to clear the default header
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import Sidebar from '@/components/Sidebar.vue';
 
-const router = useRouter();
+const isMobile = ref(false);
+function updateIsMobile() { isMobile.value = window.innerWidth <= 900; }
+function openSidebar() { window.dispatchEvent(new CustomEvent('toggle-sidebar')); }
 
-const logout = () => {
-  // 1. Remove the token from local storage
-  localStorage.removeItem('jwt');
-
-  // 2. Remove the default Authorization header from future axios requests
-  delete axios.defaults.headers.common['Authorization'];
-
-  // 3. Redirect the user to the login page
-  router.push('/login');
-};
+onMounted(() => { updateIsMobile(); window.addEventListener('resize', updateIsMobile); });
+onBeforeUnmount(() => { window.removeEventListener('resize', updateIsMobile); });
 </script>
 
 <style scoped>
-/* Assuming you have global styles, we'll just add to them */
-@import '@/assets/styles.css';
+.app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
 
-/* Make the sidebar a flex container to position the logout button */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  background: #23252b;
+  color: #fff;
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  z-index: 1100;
+}
+.hamburger { background: none; border: none; color: #fff; padding: 6px; border-radius: 6px; }
+.topbar-title { font-weight: 700; letter-spacing: 0.3px; }
+
+.main {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+@media (max-width: 900px) {
+  .topbar { display: flex; }
+  .app { padding-top: 56px; }
+}
 </style>

@@ -1,0 +1,28 @@
+[
+  {
+    "ackNo": "ACK2024061245Test",
+    "customerName": "John Doe",
+    "subCategory": "Phishing",
+    "transactionDate": "2024-06-10",
+    "complaintDate": "2024-06-11",
+    "reportDateTime": "2024-06-11T10:00",
+    "state": "Delhi",
+    "district": "New Delhi",
+    "policestation": "Connaught Place",
+    "paymentMode": "UPI",
+    "accountNumber": "2948117407461300",
+    "cardNumber": "",
+    "transactionId": "TXN123456",
+    "layers": "Layer 1",
+    "transactionAmount": 1000,
+    "disputedAmount": 1000,
+    "action": "",
+    "toBank": "HDFC Bank",
+    "toAccount": "2948117407461300",
+    "ifsc": "HDFC0000001",
+    "toTransactionId": "TXN654321",
+    "toUpiId": "johndoe@upi",
+    "toAmount": 1000,
+    "actionTakenDate": "2024-06-12"
+  }
+]

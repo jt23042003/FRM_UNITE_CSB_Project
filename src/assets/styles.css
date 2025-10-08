@@ -1,22 +1,21 @@
 /* RESET & BASE */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   width: 100%;
-  min-height: 100vh;
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif; /* Prefer Inter, fallback to Segoe UI */
-  background: #f0f2f5; /* Light background */
-  color: #333; /* Darker text for readability */
+  height: 100vh;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: #f8f9fa;
+  color: #212529;
   line-height: 1.6;
+  overflow: hidden;
 }
 a { text-decoration: none; color: inherit; }
 ul { list-style-type: none; }
 
 /* SIDEBAR & LAYOUT */
-.app { display: flex; min-height: 100vh; width: 100%; }
+.app { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
 .sidebar {
   width: 220px; /* Slightly wider sidebar */
   background: #1A202C; /* Darker background */
@@ -72,39 +71,25 @@ ul { list-style-type: none; }
   box-shadow: 0 4px 10px rgba(63, 114, 175, 0.2);
   transform: translateX(5px);
 }
-.sidebar nav a:hover {
+.sidebar nav a:hover { 
     background: #2D3748; /* Darker hover for more contrast */
     color: #6A99D4; /* Lighter blue on hover */
     transform: translateX(3px);
 }
 
-/* MAIN CONTENT - MODIFIED SECTION */
-/* If your <main> in MainLayout.vue uses class="main", apply these styles directly */
-.main { /* This targets the <main> tag itself in your MainLayout.vue */
-  flex: 1; /* Allow it to grow and take available space */
-  margin-left: 220px; /* Ensure content starts after the fixed sidebar */
-  min-height: 100vh;
-  background: #f0f2f5;
-  padding: 3rem 2rem 2.5rem 2rem; /* Consistent padding */
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  margin-left: 220px; /* Adjust margin for wider sidebar */
+  height: 100vh;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
   box-sizing: border-box;
-  /* Removed: overflow-x: hidden; */ /* ALLOW HORIZONTAL SCROLLING */
-  /* Removed: display: flex; and align-items: center; from here
-     because it might restrict content width. Components inside should manage their layout. */
+  overflow: hidden;
 }
-
-/* If you have a .main-content class that wraps the router-view, you might
-   also need to adjust that. Assuming .main is the direct container for now. */
-/* Example if you had a wrapper div inside <main class="main-wrapper"> with class="main-content" */
-/* If you use a class called 'main-content' on your <main> tag, apply these to it. */
-.main-content { /* Assuming this class is used somewhere inside <main> to contain content */
-  /* You may not need this if .main above handles the layout */
-  /* If this exists and is problematic, adjust its properties like: */
-  /* width: 100%; */
-  /* max-width: 100%; */
-  /* display: block; or display: unset; */
-  /* overflow-x: auto; if you want it to scroll */
-}
-
 
 /* TOPBAR */
 .topbar {
@@ -282,10 +267,7 @@ ul { list-style-type: none; }
   .entry-card { padding: 2rem; }
 }
 @media (max-width: 768px) {
-  .main { /* Adjust margin for smaller screens */
-    margin-left: 0;
-    padding: 1.5rem 1rem;
-  }
+  .main-content { margin-left: 0; padding: 1.5rem 1rem; }
   .sidebar {
     width: 100%;
     height: auto;

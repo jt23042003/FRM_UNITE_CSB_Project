@@ -1,401 +1,1802 @@
 <template>
-  <div class="action-page-bg">
-    <h1 class="screen-header">Alert - Potential Victim Account - Fresh transaction for the day</h1>
+  <div class="pma-container">
+    <div v-if="isReadOnly" class="readonly-banner">
+      <span>This case is closed. Editing is disabled.</span>
+    </div>
+    <div class="steps-header">
+      <div class="steps-container">
+        <div
+          v-for="(step, index) in steps"
+          :key="index"
+          :class="['step', { active: currentStep === index + 1, completed: currentStep > index + 1 }]"
+          @click="goToStep(index + 1)"
+        >
+          <div class="step-number">{{ index + 1 }}</div>
+          <div class="step-title">{{ step.title }}</div>
+        </div>
+      </div>
+    </div>
 
-    <div v-if="loading" class="loading-container">Loading Case Data...</div>
-    <div v-else-if="error" class="error-container">{{ error }}</div>
+    <div class="step-content">
+      <div v-if="currentStep === 1" class="step-panel">
+        <h3>Alert - NAB Action</h3>
 
-    <div v-else class="content-wrapper">
-      <section class="card-section">
-        <div class="side-by-side-container">
-          <div class="profile-column">
-            <h3 class="column-header">Customer Details - I4C</h3>
-            <table class="inner-details-table">
-              <thead>
-                <tr><th>Name</th><th>Mobile Number</th><th>Email</th><th>IFSC Code</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{{ riskEntity.i4c.name || '-' }}</td>
-                  <td>{{ riskEntity.i4c.mobileNumber || '-' }}</td>
-                  <td>{{ riskEntity.i4c.email || '-' }}</td>
-                  <td>{{ riskEntity.i4c.ifscCode || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="separator-row-full"></div>
-            <table class="inner-details-table">
-              <thead>
-                <tr><th>Beneficiary Account Number</th><th>Bank Name</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{{ riskEntity.i4c.beneficiaryAccount || '-' }}</td>
-                  <td>{{ riskEntity.i4c.bankName || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="profile-column">
-             <h3 class="column-header">Customer Details - Bank</h3>
-              <table class="inner-details-table">
-                <thead>
-                  <tr><th>Name</th><th>Mobile Number</th><th>Email</th><th>IFSC Code</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td :class="{ 'highlight-match': isMatched('name') }">{{ riskEntity.bank.name || '-' }}</td>
-                    <td :class="{ 'highlight-match': isMatched('mobileNumber') }">{{ riskEntity.bank.mobileNumber || '-' }}</td>
-                    <td :class="{ 'highlight-match': isMatched('email') }">{{ riskEntity.bank.email || '-' }}</td>
-                    <td :class="{ 'highlight-match': isMatched('ifscCode') }">{{ riskEntity.bank.ifscCode || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="separator-row-full"></div>
-               <table class="inner-details-table">
-                <thead>
-                  <tr><th>Beneficiary Account Number</th><th>Bank Name</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td :class="{ 'highlight-match': isMatched('beneficiaryAccount') }">{{ riskEntity.bank.beneficiaryAccount || '-' }}</td>
-                    <td :class="{ 'highlight-match': isMatched('bankName') }">{{ riskEntity.bank.bankName || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="separator-row-full"></div>
-              <table class="inner-details-table">
-                <thead>
-                  <tr><th>Customer ID</th><th>AQB</th><th>Avail. Bal.</th><th>Product Code</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{{ riskEntity.bank.customerId || '-' }}</td>
-                    <td>{{ riskEntity.bank.aqb || '-' }}</td>
-                    <td>{{ riskEntity.bank.availBal || '-' }}</td>
-                    <td>{{ riskEntity.bank.productCode || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="separator-row-full"></div>
-              <table class="inner-details-table">
-                <thead>
-                  <tr><th>Rel. Value</th><th>MOB / Vintage</th><th>A/c Status</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{{ riskEntity.bank.relValue || '-' }}</td>
-                    <td>{{ riskEntity.bank.mobVintage || '-' }}</td>
-                    <td>{{ riskEntity.bank.acStatus || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="separator-row-full"></div>
-              <table class="inner-details-table">
-                  <thead>
-                    <tr><th>Addl field1</th><th>Addl field2</th><th>Addl field4</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{{ riskEntity.bank.addl1 || '-' }}</td>
-                      <td>{{ riskEntity.bank.addl2 || '-' }}</td>
-                      <td>{{ riskEntity.bank.addl4 || '-' }}</td>
-                    </tr>
-                  </tbody>
-              </table>
+        <div v-if="isLoading" class="loading-indicator">
+          Loading Case Details...
+          <div class="skeleton-table" style="margin-top: 12px;">
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
+            <div class="row"><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div><div class="cell skeleton skeleton-line"></div></div>
           </div>
         </div>
-      </section>
+        <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
-      <section class="card-section">
-        <h2>Transaction details</h2>
-        <div class="table-container">
-          <table class="details-table">
-            <thead>
-              <tr><th>Date</th><th>Time</th><th>Beneficiary</th><th>Amount</th><th>Mode</th><th>Txn. Ref #</th><th>Txn Description</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="txn in transactionDetails" :key="txn.id">
-                <td>{{ txn.txn_date || '-' }}</td>
-                <td>{{ txn.txn_time || '-' }}</td>
-                <td>{{ txn.bene_acct_num || '-' }}</td>
-                <td>{{ txn.amount ? '₹' + Number(txn.amount).toLocaleString('en-IN') : '-' }}</td>
-                <td>{{ txn.channel || '-' }}</td>
-                <td>{{ txn.txn_ref || '-' }}</td>
-                <td>{{ txn.descr || '-' }}</td>
-              </tr>
-              <tr v-if="!transactionDetails.length"><td colspan="7" style="text-align:center;">No transactions found.</td></tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="6">Total Value @ Risk</td>
-                <td>₹{{ totalValueAtRisk ? totalValueAtRisk.toLocaleString('en-IN') : '0.00' }}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </section>
-
-      <section class="card-section">
-        <h2>Action</h2>
-        <div v-if="caseStatus !== 'Closed'">
-          <table class="action-table">
-            <tr>
-              <td class="action-label">Analysis / Investigation Update</td>
-              <td colspan="4">
-                <div class="action-row">
-                  <select v-model="initialFeedbackLOV" class="form-input"><option value="">-- Select Feedback --</option></select>
-                  <input type="text" v-model="initialFeedbackText" placeholder="Update text..." class="form-input"/>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="action-label" :rowspan="reassignments.length + 1">Reassignment if required</td>
-              <td colspan="4">
-                <div v-for="reassignment in reassignments" :key="reassignment.id" class="reassignment-row">
-                  <span>Forward to:</span>
-                  <select v-model="reassignment.dept" class="form-input">
-                    <option value="">-- Select Department --</option>
-                    <option v-for="dept in deptOptions" :key="dept.name" :value="dept.name">{{ dept.name }}</option>
-                  </select>
-                  <select v-model="reassignment.userId" class="form-input" :disabled="!reassignment.dept">
-                    <option value="">-- Select User --</option>
-                    <option v-for="user in reassignment.userList" :key="user.id" :value="user.id">{{ user.name }}</option>
-                  </select>
-                  <input type="text" v-model="reassignment.freeFlow" placeholder="Update..." class="form-input"/>
-                  <button @click="removeReassignment(reassignment.id)" class="remove-btn" v-if="reassignments.length > 1">×</button>
-                </div>
-                <button @click="addReassignment" class="add-btn">+ Add Assignment</button>
-              </td>
-            </tr>
-            <tr>
-              <td class="action-label">Alert Final Closure remarks</td>
-              <td colspan="4">
-                <div class="action-row">
-                  <select v-model="finalClosureRemarksLOV" class="form-input"><option value="">-- Select Remark --</option></select>
-                  <input type="text" v-model="finalClosureRemarksText" placeholder="Update text..." class="form-input"/>
-                </div>
-              </td>
-            </tr>
-          </table>
-          <div class="final-closure-grid">
-              <label>Confirmed Victim</label>
-              <div class="radio-group"><label><input type="radio" v-model="confirmedVictim" value="yes"> Yes</label><label><input type="radio" v-model="confirmedVictim" value="no"> No</label></div>
-              <label>Digital Channel blocked</label>
-              <div class="radio-group"><label><input type="radio" v-model="digitalChannelBlocked" value="yes"> Yes</label><label><input type="radio" v-model="digitalChannelBlocked" value="no"> No</label></div>
-              <label>A/c fully blocked and closed</label>
-              <div class="radio-group"><label><input type="radio" v-model="accountBlocked" value="yes"> Yes</label><label><input type="radio" v-model="accountBlocked" value="no"> No</label></div>
-          </div>
-          <div class="action-buttons">
-            <button @click="saveActionData" class="save-btn" :disabled="isSaving">Save</button>
-            <button @click="submitFinalClosure" class="submit-btn" :disabled="isSaving">Submit</button>
-          </div>
-        </div>
         <div v-else>
+            <div class="comparison-grid">
+                <div class="details-section">
+                    <h4>Customer Details - I4C</h4>
+                    <div class="details-row">
+                        <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
+                        <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
+                        <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
+                    </div>
+                    <div class="details-row">
+                        <div class="field-group"><label>IFSC Code</label><input type="text" v-model="i4cDetails.ifscCode" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Beneficiary A/c</label><input type="text" v-model="i4cDetails.beneficiaryAccount" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Bank Name</label><input type="text" v-model="i4cDetails.bankName" :readonly="isReadOnly" /></div>
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <h4>Customer Details - Bank</h4>
+                    <div class="details-row">
+                        <div class="field-group highlight"><label>Name</label><input type="text" v-model="bankDetails.name" readonly /></div>
+                        <div class="field-group highlight"><label>Mobile</label><input type="text" v-model="bankDetails.mobileNumber" readonly /></div>
+                        <div class="field-group highlight"><label>Email</label><input type="text" v-model="bankDetails.email" readonly /></div>
+                    </div>
+                     <div class="details-row">
+                        <div class="field-group"><label>IFSC Code</label><input type="text" v-model="bankDetails.ifscCode" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Beneficiary A/c</label><input type="text" v-model="bankDetails.beneficiaryAccount" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Bank Name</label><input type="text" v-model="bankDetails.bankName" :readonly="isReadOnly" /></div>
+                    </div>
+                    <div class="details-row">
+                        <div class="field-group"><label>Customer ID</label><input type="text" v-model="bankDetails.customerId" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Account Status</label><input type="text" v-model="bankDetails.acStatus" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Product Code</label><input type="text" v-model="bankDetails.productCode" :readonly="isReadOnly" /></div>
+                    </div>
+                    <div class="details-row">
+                        <div class="field-group"><label>AQB</label><input type="text" v-model="bankDetails.aqb" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Available Balance</label><input type="text" v-model="bankDetails.availBal" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Relationship Value</label><input type="text" v-model="bankDetails.relValue" :readonly="isReadOnly" /></div>
+                    </div>
+                    <div class="details-row">
+                        <div class="field-group"><label>Vintage (MoB)</label><input type="text" v-model="bankDetails.mobVintage" :readonly="isReadOnly" /></div>
+                         <div class="field-group"><label>Addl field1</label><input type="text" v-model="bankDetails.addl1" :readonly="isReadOnly" /></div>
+                        <div class="field-group"><label>Addl field2</label><input type="text" v-model="bankDetails.addl2" :readonly="isReadOnly" /></div>
+                    </div>
+                    <div class="details-row">
+                       <div class="field-group"><label>Addl field4</label><input type="text" v-model="bankDetails.addl4" :readonly="isReadOnly" /></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-section beneficiary-table-section">
+                <h4>Transaction Details</h4>
+                <div class="table-container">
+                    <table class="details-table">
+                    <thead>
+                        <tr><th>Date</th><th>Time</th><th>Beneficiary</th><th>Amount</th><th>Mode</th><th>Txn. Ref #</th><th>Txn Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="txn in transactionDetails" :key="txn.txn_ref" :class="{ 'highlight-row': txn.is_bene_match }">
+                            <td>{{ txn.txn_date || '-' }}</td>
+                            <td>{{ txn.txn_time || '-' }}</td>
+                            <td>{{ txn.bene_acct_num || '-' }}</td>
+                            <td>{{ txn.amount ? '₹' + Number(txn.amount).toLocaleString('en-IN') : '-' }}</td>
+                            <td>{{ txn.channel || '-' }}</td>
+                            <td>{{ txn.txn_ref || '-' }}</td>
+                            <td>{{ txn.descr || '-' }}</td>
+                        </tr>
+                        <tr v-if="!transactionDetails.length"><td colspan="7" class="no-data-cell">No transactions found.</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6">Total Value @ Risk</td>
+                            <td>₹{{ totalValueAtRisk ? totalValueAtRisk.toLocaleString('en-IN') : '0.00' }}</td>
+                        </tr>
+                    </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div v-if="currentStep === 2" class="step-panel">
+        <h3>Analysis & Investigation</h3>
+        
+        <!-- Loading indicator for analysis data -->
+        <div v-if="isLoadingAdditionalDetails && !isAnalysisDataLoaded" class="section-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading analysis data...</span>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-section">
+            <div class="field-group">
+              <label>Analysis Update</label>
+              <div class="input-row">
+                <select v-model="action.analysisLOV" :disabled="isReadOnly" class="compact-select">
+                  <option value="">Select Reason</option>
+                  <option v-for="item in analysisReasons" :key="item.reason" :value="item.reason">{{ item.reason }}</option>
+                </select>
+                <textarea v-model="action.analysisUpdate" :disabled="isReadOnly" placeholder="Update details" class="compact-textarea"></textarea>
+              </div>
+            </div>
+            
+            <div class="field-group">
+              <label>Data Uploads</label>
+              
+              <div v-for="(uploadBlock, blockIndex) in action.dataUploads" :key="uploadBlock.id" class="data-upload-block">
+                
+                <button @click="removeDataUploadBlock(blockIndex)" v-if="action.dataUploads.length > 1" :disabled="isReadOnly" class="btn-remove-row" title="Remove Upload Section">×</button>
+
+                <div class="upload-comment-row">
+                  <div class="file-drop-zone"
+                    :class="{ 'drag-over': uploadBlock.isDragOver, 'has-files': uploadBlock.files.length > 0 }"
+                    @dragover.prevent="onDragOver(blockIndex)"
+                    @dragleave.prevent="onDragLeave(blockIndex)"
+                    @drop.prevent="onFileDrop($event, blockIndex)"
+                    @click="triggerFileInput(blockIndex)"
+                    :disabled="isReadOnly"
+                  >
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">
+                      <strong>Drop files here or click to browse</strong>
+                      <p>Supports: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (Max 10MB each)</p>
+                    </div>
+                    <input
+                      :ref="el => { if (el) fileInputRefs[blockIndex] = el }"
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                      @change="onFileSelect($event, blockIndex)"
+                      class="hidden-file-input"
+                      :disabled="isReadOnly"
+                    />
+                  </div>
+                  
+                  <textarea v-model="uploadBlock.comment" :disabled="isReadOnly" placeholder="Add comments for your uploads..." class="compact-textarea data-uploads-textarea"></textarea>
+                </div>
+                
+                <div v-if="uploadBlock.files.length > 0" class="uploaded-files-list">
+                  <div class="files-header">
+                    <span>Uploaded Files ({{ uploadBlock.files.length }})</span>
+                  </div>
+                  <div
+                    v-for="(file, fileIndex) in uploadBlock.files"
+                    :key="fileIndex"
+                    class="file-item"
+                  >
+                    <div class="file-info">
+                      <div class="file-icon">{{ getFileIcon(file.type) }}</div>
+                      <div class="file-details">
+                        <div class="file-name-container">
+                          <input
+                            v-if="file.isRenaming"
+                            v-model="file.newName"
+                            @blur="saveFileName(blockIndex, fileIndex)"
+                            @keyup.enter="saveFileName(blockIndex, fileIndex)"
+                            @keyup.escape="cancelRename(blockIndex, fileIndex)"
+                            class="file-name-input"
+                            placeholder="Enter new name"
+                            :disabled="isReadOnly"
+                          />
+                          <span v-else class="file-name">{{ file.displayName }}</span>
+                        </div>
+                        <div class="file-meta">
+                          {{ formatFileSize(file.size) }} • {{ file.type.split('/')[1].toUpperCase() }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="file-actions">
+                       <button
+                        v-if="!file.isRenaming"
+                        @click="startRename(blockIndex, fileIndex)"
+                        class="btn-file-action btn-rename"
+                        title="Rename file"
+                        :disabled="isReadOnly"
+                      >✏️</button>
+                      <button
+                        v-if="file.isRenaming"
+                        @click="saveFileName(blockIndex, fileIndex)"
+                        class="btn-file-action btn-save"
+                        title="Save name"
+                        :disabled="isReadOnly"
+                      >✅</button>
+                      <button
+                        v-if="file.isRenaming"
+                        @click="cancelRename(blockIndex, fileIndex)"
+                        class="btn-file-action btn-cancel"
+                        title="Cancel rename"
+                        :disabled="isReadOnly"
+                      >❌</button>
+                      <button
+                        @click="removeFile(blockIndex, fileIndex)"
+                        class="btn-file-action btn-remove"
+                        title="Remove file"
+                        :disabled="isReadOnly"
+                      >🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button @click="addDataUploadBlock" :disabled="isReadOnly" class="btn-add-row">+ Add Upload Section</button>
+            </div>
+            </div>
+
+                      <!-- Warning for reopened cases -->
+            <div v-if="status === 'Reopened'" class="reopened-warning">
+              <div class="warning-icon">⚠️</div>
+              <div class="warning-text">
+                <strong>Case Reopened:</strong> This case was reopened by a super_user. <strong>Only assignment functionality is disabled</strong> - all other features remain editable.
+              </div>
+            </div>
+          
+          <div class="form-section">
+            <div class="field-group">
+              <label v-if="userRole !== 'others'">Assignments</label>
+              <label v-else>Send Back to Risk Officer</label>
+              <div v-if="userRole !== 'others'">
+                <div class="review-comment-row">
+                  <div class="comment-user-selection-row">
+                    <select v-model="action.reviews[0].selectedDepartment" :disabled="isAssignmentDisabled" class="compact-select" @change="handleDepartmentChange(action.reviews[0])">
+                      <option value="">Select Department</option>
+                      <option v-for="dept in departments" :key="dept.id" :value="dept.name">
+                        {{ dept.name }}
+                      </option>
+                    </select>
+                    <select v-model="action.reviews[0].userId" :disabled="isAssignmentDisabled || !action.reviews[0].selectedDepartment" class="compact-select">
+                      <option value="">Select User</option>
+                      <option v-for="user in action.reviews[0].userList" :key="user.id" :value="user.name">
+                        {{ user.name }}
+                      </option>
+                    </select>
+                  </div>
+                  <textarea v-model="action.reviews[0].text" :disabled="isAssignmentDisabled" placeholder="Add comments..." class="compact-textarea"></textarea>
+                </div>
+                <button v-if="!isAssignmentDisabled" @click="assignCase" class="btn-assign btn-assign-prominent">
+                  <span class="assignment-icon">⚡</span>
+                  <span>Proceed with Assignment</span>
+                </button>
+              </div>
+              <div v-else>
+                <textarea v-model="sendBackComment" :disabled="isReadOnly" placeholder="Add comments for send back..." class="compact-textarea"></textarea>
+                <button v-if="!isReadOnly" @click="sendBackCase" class="btn-assign">Send Back</button>
+              </div>
+            </div>
           </div>
-      </section>
+        </div>
+      </div>
+
+      <div v-if="userRole !== 'others' && currentStep === 3" class="step-panel">
+        <h3>Final Closure</h3>
+        
+        <!-- Loading indicator for closure data -->
+        <div v-if="isLoadingAdditionalDetails && !isClosureDataLoaded" class="section-loading">
+          <div class="loading-spinner"></div>
+          <span>Loading closure data...</span>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-section">
+            <div class="field-group">
+              <label>Closure Remarks</label>
+              <div class="input-row">
+                <select v-model="action.closureLOV" :disabled="isReadOnly" class="compact-select">
+                  <option value="">Select Reason</option>
+                  <option v-for="item in closureReasons" :key="item.reason" :value="item.reason">
+                    {{ item.reason }}
+                  </option>
+                </select>
+                <textarea v-model="action.closureRemarks" :disabled="isReadOnly" placeholder="Closure remarks" class="compact-textarea"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="userRole !== 'others' && currentStep === 4" class="step-panel">
+        <h3>Confirmation</h3>
+        <div v-if="!canAccessConfirmation" class="locked-section-warning" 
+             style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 8px; display: flex; align-items: center; gap: 15px;">
+          <span class="warning-icon" style="font-size: 24px; color: #b45309;">🔒</span>
+          <span class="warning-text" style="color: #b45309; font-size: 16px; font-weight: 600;">
+            <strong style="color: #b45309; font-weight: 700;">Section Locked:</strong> Please complete the closure section first before accessing confirmation.
+          </span>
+        </div>
+        <div class="confirmation-grid" :class="{ 'locked-section': !canAccessConfirmation }">
+          <div class="confirm-section">
+            <div class="confirm-row">
+              <label>Confirmed Mule</label>
+              <div class="radio-group">
+                <label><input type="radio" v-model="action.confirmedMule" value="Yes" name="confirmedMule" :disabled="isReadOnly || !canAccessConfirmation" /> Yes</label>
+                <label><input type="radio" v-model="action.confirmedMule" value="No" name="confirmedMule" :disabled="isReadOnly || !canAccessConfirmation" /> No</label>
+              </div>
+            </div>
+            <div class="confirm-row">
+              <label>Funds Saved</label>
+              <input
+                type="number"
+                v-model="action.fundsSaved"
+                :disabled="isReadOnly || !canAccessConfirmation"
+                class="compact-input"
+                placeholder="Amount (INR)"
+                min="0"
+                step="0.01"
+              />
+            </div>
+          </div>
+          <div class="confirm-section">
+            <div class="confirm-row">
+              <label>Digital Channel Blocked</label>
+              <div class="radio-group">
+                <label><input type="radio" v-model="action.digitalBlocked" value="Yes" name="digitalBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> Yes</label>
+                <label><input type="radio" v-model="action.digitalBlocked" value="No" name="digitalBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> No</label>
+              </div>
+            </div>
+            <div class="confirm-row">
+              <label>Account Blocked</label>
+              <div class="radio-group">
+                <label><input type="radio" v-model="action.accountBlocked" value="Yes" name="accountBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> Yes</label>
+                <label><input type="radio" v-model="action.accountBlocked" value="No" name="accountBlocked" :disabled="isReadOnly || !canAccessConfirmation" /> No</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="currentStep === 2">
+        <div v-if="previouslyUploadedFiles.length > 0" class="uploaded-files-list improved-upload-list">
+          <h4>Previously Uploaded Files</h4>
+          <ul>
+            <li v-for="file in previouslyUploadedFiles" :key="file.id" class="uploaded-file-item">
+              <a :href="`/fraud_uploads/${file.file_location.split('/').pop()}`" target="_blank" class="file-link">
+                <span class="download-icon">⬇️</span> {{ file.original_filename }}
+              </a>
+              <div class="file-meta-small">
+                Uploaded: {{ new Date(file.uploaded_at).toLocaleString() }}
+                <span v-if="file.comment">- {{ file.comment }}</span>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div v-else class="uploaded-files-list improved-upload-list">
+          <div class="empty-state">
+            <div class="icon">📄</div>
+            <div class="title">No documents uploaded</div>
+            <div class="hint">Upload supporting documents in Analysis to see them listed here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="caseLogs.length > 0" class="case-logs-section">
+      <h4>Case Activity Log</h4>
+      <ul class="case-log-list">
+        <li v-for="log in caseLogs" :key="log.id" class="case-log-item">
+          <span class="log-time">{{ new Date(log.created_at).toLocaleString() }}</span>
+          <span class="log-user">{{ log.user_name }}</span>
+          <span class="log-action">[{{ log.action }}]</span>
+          <span class="log-details">{{ log.details }}</span>
+        </li>
+      </ul>
+    </div>
+    <div v-else class="case-logs-section">
+      <div class="empty-state">
+        <div class="icon">📝</div>
+        <div class="title">No activity yet</div>
+        <div class="hint">Actions and updates will appear here.</div>
+      </div>
+    </div>
+
+    <div class="bottom-navigation">
+      <div class="nav-buttons">
+        <button
+          @click="previousStep"
+          :disabled="currentStep === 1 || isReadOnly"
+          class="btn-nav btn-prev"
+        >
+          Previous
+        </button>
+        <button
+          @click="nextStep"
+          v-if="currentStep < steps.length"
+          class="btn-nav btn-next"
+        >
+          Next
+        </button>
+      </div>
+      <div class="action-buttons">
+        <button v-if="!isReadOnly" @click="saveAction" class="btn-save">Save</button>
+        <button v-if="!isReadOnly && userRole !== 'others' && showSubmitButton" @click="submitAction" class="btn-submit">Submit</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-
-import { ref, reactive, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
-import '../assets/OperationalAction.css'; // Reusing styles
 
-// --- Initialization ---
 const route = useRoute();
 const router = useRouter();
-const case_id = route.params.case_id;
-const caseStatus = computed(() => route.query.status);
 
 // --- State Management ---
-const loading = ref(true);
-const error = ref('');
-const isSaving = ref(false);
-const riskEntity = reactive({ i4c: {}, bank: {} });
+const isLoading = ref(true);
+const fetchError = ref(null);
+const currentStep = ref(1);
+
+// --- Dropdown Data ---
+const analysisReasons = ref([]);
+const departments = ref([]);
+const closureReasons = ref([]);
+
+const userRole = ref('');
+const status = ref('New'); // Track case status
+
+// Fetch user role on mount (from lightweight /api/user/profile)
+const fetchUserRole = async () => {
+  // First try localStorage (faster, no API call needed)
+  const storedRole = localStorage.getItem('user_type');
+  if (storedRole) {
+    userRole.value = storedRole;
+    return;
+  }
+  
+  // Fallback to lightweight user profile API (much faster than new-case-list)
+  const token = localStorage.getItem('jwt');
+  const response = await axios.get('/api/user/profile', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (response.data && response.data.logged_in_user_type) {
+    userRole.value = response.data.logged_in_user_type;
+    // Store in localStorage for future use
+    localStorage.setItem('user_type', response.data.logged_in_user_type);
+  }
+};
+
+// Adjust steps based on userRole
+const steps = ref([
+  { title: 'Alert Details' },
+  { title: 'Analysis' },
+  { title: 'Closure' },
+  { title: 'Confirmation' }
+]);
+
+watch(userRole, (role) => {
+  if (role === 'others') {
+    steps.value = [
+      { title: 'Alert Details' },
+      { title: 'Analysis' }
+    ];
+    if (currentStep.value > 2) currentStep.value = 2;
+  } else {
+    steps.value = [
+      { title: 'Alert Details' },
+      { title: 'Analysis' },
+      { title: 'Closure' },
+      { title: 'Confirmation' }
+    ];
+  }
+});
+
+// --- Data Models for NAB ---
+const i4cDetails = ref({
+    name: '', mobileNumber: '', email: '', ifscCode: '',
+    beneficiaryAccount: '', bankName: ''
+});
+const bankDetails = ref({
+  name: '', mobileNumber: '', email: '', ifscCode: '', beneficiaryAccount: '', bankName: '',
+  customerId: '', acStatus: '', aqb: '', availBal: '', productCode: '', relValue: '',
+  mobVintage: '', addl1: '', addl2: '', addl4: ''
+});
 const transactionDetails = ref([]);
-const submittedAction = ref(null);
+const action = ref({
+  analysisLOV: '',
+  analysisUpdate: '',
+  dataUploads: [{ id: Date.now(), comment: '', files: [], isDragOver: false }],
+  reviews: [{ id: Date.now(), selectedDepartment: '', userId: '', text: '', userList: [] }],
+  closureLOV: '',
+  closureRemarks: '',
+  confirmedMule: 'No',
+  fundsSaved: null,
+  digitalBlocked: 'No',
+  accountBlocked: 'No',
+});
 
-// --- Action Form State ---
-const initialFeedbackLOV = ref('');
-const initialFeedbackText = ref('');
-const reassignments = ref([{ id: 1, userId: '', dept: '', lov: '', freeFlow: '', userList: [] }]);
-const finalClosureRemarksLOV = ref('');
-const finalClosureRemarksText = ref('');
-const confirmedVictim = ref(''); // For this page's form
-const digitalChannelBlocked = ref('');
-const accountBlocked = ref('');
-const deptOptions = ref([]);
-
-// --- Computed Properties ---
+// --- Computed Property for Total ---
 const totalValueAtRisk = computed(() => {
   return transactionDetails.value.reduce((total, txn) => total + Number(txn.amount || 0), 0);
 });
-const departmentSelections = computed(() => reassignments.value.map(r => r.dept));
 
 
-// --- Helper Functions & Watchers ---
-function isMatched(key) {
-  const i4cValue = riskEntity.i4c ? riskEntity.i4c[key] : undefined;
-  const bankValue = riskEntity.bank ? riskEntity.bank[key] : undefined;
-  return i4cValue && bankValue && String(i4cValue).trim() === String(bankValue).trim();
-}
+// --- Dynamic Row Logic (Reviews) ---
+const handleDepartmentChange = async (review) => {
+  review.userId = '';
+  review.userList = [];
+  if (review.selectedDepartment) {
+    try {
+      const response = await axios.get(`/api/users?department_name=${review.selectedDepartment}`);
+      if (response.data && Array.isArray(response.data)) {
+        review.userList = response.data;
+      }
+    } catch (err) {
+      console.error(`Failed to fetch users for department ${review.selectedDepartment}:`, err);
+    }
+  }
+};
 
-function addReassignment() {
-  reassignments.value.push({ id: Date.now(), userId: '', dept: '', lov: '', freeFlow: '', userList: [] });
-}
+// --- Dynamic Upload Block Logic ---
+const addDataUploadBlock = () => {
+  action.value.dataUploads.push({
+    id: Date.now(),
+    comment: '',
+    files: [],
+    isDragOver: false
+  });
+};
+const removeDataUploadBlock = (blockIndex) => {
+  if (action.value.dataUploads.length > 1) {
+    action.value.dataUploads.splice(blockIndex, 1);
+  }
+};
 
-function removeReassignment(id) {
-  reassignments.value = reassignments.value.filter(r => r.id !== id);
-}
+// --- File Upload Logic ---
+const fileInputRefs = ref([]); // Use an array of refs for file inputs
 
-async function fetchUsersForDepartment(reassignment) {
-  if (!reassignment.dept) {
-    reassignment.userList = [];
-    reassignment.userId = '';
+const getFileIcon = (type) => {
+  if (type.startsWith('image/')) return '📸';
+  if (type.startsWith('application/pdf')) return '📄';
+  if (type.startsWith('application/msword') || type.startsWith('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) return '📝';
+  if (type.startsWith('application/vnd.ms-excel') || type.startsWith('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) return '📊';
+  return '📁';
+};
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const triggerFileInput = (blockIndex) => {
+  if(fileInputRefs.value[blockIndex] && !isReadOnly.value) {
+    fileInputRefs.value[blockIndex].click();
+  }
+};
+
+const addFiles = (files, blockIndex) => {
+  const uploadBlock = action.value.dataUploads[blockIndex];
+  files.forEach(file => {
+    uploadBlock.files.push({ file, displayName: file.name, newName: file.name, size: file.size, type: file.type, isRenaming: false });
+  });
+};
+
+const onFileSelect = (event, blockIndex) => {
+  if (!isReadOnly.value) {
+    addFiles(Array.from(event.target.files), blockIndex);
+  }
+  event.target.value = '';
+};
+
+const onDragOver = (blockIndex) => action.value.dataUploads[blockIndex].isDragOver = true;
+const onDragLeave = (blockIndex) => action.value.dataUploads[blockIndex].isDragOver = false;
+const onFileDrop = (event, blockIndex) => {
+  action.value.dataUploads[blockIndex].isDragOver = false;
+  if (!isReadOnly.value) {
+    addFiles(Array.from(event.dataTransfer.files), blockIndex);
+  }
+};
+
+const startRename = (blockIndex, fileIndex) => action.value.dataUploads[blockIndex].files[fileIndex].isRenaming = true;
+const saveFileName = (blockIndex, fileIndex) => {
+  const file = action.value.dataUploads[blockIndex].files[fileIndex];
+  file.displayName = file.newName;
+  file.isRenaming = false;
+};
+const cancelRename = (blockIndex, fileIndex) => {
+  const file = action.value.dataUploads[blockIndex].files[fileIndex];
+  file.newName = file.displayName;
+  file.isRenaming = false;
+};
+const removeFile = (blockIndex, fileIndex) => {
+  if (!isReadOnly.value) {
+    action.value.dataUploads[blockIndex].files.splice(fileIndex, 1);
+  }
+};
+
+
+// --- API Integration ---
+const fetchAnalysisReasons = async () => {
+  try {
+    const response = await axios.get('http://34.47.219.225:9000/reasons/api/investigation-review');
+    if (response.data) analysisReasons.value = response.data;
+  } catch (err) { console.error("Failed to fetch analysis reasons:", err); }
+};
+
+const fetchDepartments = async () => {
+  try {
+    const response = await axios.get('/api/departments');
+    if (response.data) departments.value = response.data;
+  } catch (err) { console.error("Failed to fetch departments:", err); }
+};
+
+const fetchClosureReasons = async () => {
+  try {
+    const response = await axios.get('http://34.47.219.225:9000/reasons/api/final-closure');
+    if (response.data) closureReasons.value = response.data;
+  } catch (err) { console.error("Failed to fetch closure reasons:", err); }
+};
+
+// Section-based loading flags
+const isAnalysisDataLoaded = ref(false);
+const isClosureDataLoaded = ref(false);
+const isLoadingAdditionalDetails = ref(false);
+
+// Load analysis section data when user navigates to step 2
+const loadAnalysisData = async () => {
+  if (isAnalysisDataLoaded.value) return;
+  
+  isLoadingAdditionalDetails.value = true;
+  try {
+    // Load basic analysis data (NAB is simpler - no templates)
+    await Promise.all([
+      fetchAnalysisReasons(),
+      fetchDepartments()
+    ]);
+    
+    isAnalysisDataLoaded.value = true;
+  } catch (error) {
+    console.error('Error loading analysis data:', error);
+  } finally {
+    isLoadingAdditionalDetails.value = false;
+  }
+};
+
+// Load closure section data when user navigates to step 3
+const loadClosureData = async () => {
+  if (isClosureDataLoaded.value) return;
+  
+  isLoadingAdditionalDetails.value = true;
+  try {
+    await fetchClosureReasons();
+    isClosureDataLoaded.value = true;
+  } catch (error) {
+    console.error('Error loading closure data:', error);
+  } finally {
+    isLoadingAdditionalDetails.value = false;
+  }
+};
+
+const caseAckNo = ref('');
+
+const fetchCaseDetails = async () => {
+  const caseId = route.params.case_id;
+  const token = localStorage.getItem('jwt');
+  if (!token) throw new Error('No authentication token found');
+
+  const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  
+  if (response.data) {
+    // Corrected data handling to prevent null errors
+    const i4c_data = response.data.i4c_data || {};
+    const customer_details = response.data.customer_details || {};
+    const account_details = response.data.account_details || {};
+    const { transactions = [], action_details, status: caseStatus, source_ack_no, source_bene_accno } = response.data;
+
+    caseAckNo.value = source_ack_no || '';
+    status.value = caseStatus || 'New'; // Update the status ref
+    
+    i4cDetails.value = {
+        name: i4c_data.customer_name || 'N/A',
+        mobileNumber: i4c_data.mobile || 'N/A',
+        email: i4c_data.email || 'N/A',
+        ifscCode: i4c_data.ifsc || 'N/A',
+        beneficiaryAccount: i4c_data.to_account || 'N/A',
+        bankName: i4c_data.to_bank || 'N/A'
+    };
+    
+    bankDetails.value = {
+        name: `${customer_details.fname || ''} ${customer_details.mname || ''} ${customer_details.lname || ''}`.trim() || 'N/A',
+        mobileNumber: customer_details.mobile || 'N/A',
+        email: customer_details.email || 'N/A',
+        ifscCode: customer_details.ifsc || 'N/A',
+        beneficiaryAccount: source_bene_accno || 'N/A',
+        bankName: i4c_data.to_bank || 'N/A',
+        customerId: customer_details.cust_id || 'N/A',
+        acStatus: account_details.acc_status || 'N/A',
+        aqb: account_details.aqb || 'N/A',
+        availBal: account_details.availBal || 'N/A',
+        productCode: account_details.productCode || 'N/A',
+        relValue: customer_details.rel_value || 'N/A',
+        mobVintage: customer_details.mob || 'N/A',
+        addl1: account_details.addl1 || 'N/A',
+        addl2: account_details.addl2 || 'N/A',
+        addl4: account_details.addl4 || 'N/A'
+    };
+    
+    transactionDetails.value = transactions;
+
+    if (action_details) {
+      Object.assign(action.value, action_details);
+      if (!Array.isArray(action.value.dataUploads) || action.value.dataUploads.length === 0) {
+        action.value.dataUploads = [{ id: Date.now(), comment: '', files: [], isDragOver: false }];
+      }
+    }
+    
+    // Set isReadOnly based on real case status (only closed cases should be read-only)
+    if (typeof status === 'string' && status.trim().toLowerCase() === 'closed') {
+      isReadOnly.value = true;
+    } else {
+      isReadOnly.value = false;
+    }
+  } else { 
+    throw new Error('Received no data for this case.'); 
+  }
+};
+
+const previouslyUploadedFiles = ref([]);
+const isReadOnly = ref(false);
+const isAssignmentDisabled = computed(() => status.value === 'Reopened'); // Only assignment is disabled for reopened cases
+const caseLogs = ref([]);
+
+// --- Workflow Logic ---
+const hasClosureActivity = computed(() => {
+  return !!(action.value.closureLOV || action.value.closureRemarks?.trim());
+});
+
+const canAccessConfirmation = computed(() => {
+  return hasClosureActivity.value;
+});
+
+const showSubmitButton = computed(() => {
+  return hasClosureActivity.value;
+});
+
+const sendBackComment = ref('');
+const hasUnsavedChanges = ref(false);
+
+watch(action, () => { hasUnsavedChanges.value = true; }, { deep: true });
+
+const sendBackCase = async () => {
+  if (hasUnsavedChanges.value) {
+    window.showNotification('warning', 'Unsaved Changes', 'Please click on Save before Send Back.');
+    return;
+  }
+  if (!sendBackComment.value.trim()) {
+    window.showNotification('warning', 'Missing Comment', 'Please enter a comment before sending back.');
+    return;
+  }
+  const ackNo = caseAckNo.value;
+  const token = localStorage.getItem('jwt');
+  try {
+    await axios.post(`/api/case/${ackNo}/send-back`, { comment: sendBackComment.value }, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    window.showNotification('success', 'Case Sent Back', 'Case sent back successfully!');
+    sendBackComment.value = '';
+    const caseId = route.params.case_id;
+    const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    caseLogs.value = logsResp.data.logs || [];
+    await fetchUserRole();
+    window.location.href = `/case-details`;
+  } catch (err) {
+    window.showNotification('error', 'Send Back Failed', 'Failed to send back case.');
+    console.error('Send back error:', err);
+  }
+};
+
+const goToStep = async (step) => {
+  if (isLoading.value) return;
+  if (userRole.value === 'others' && step > 2) return;
+  
+  // Prevent direct access to confirmation step (step 4) without closure activity
+  if (step === 4 && !canAccessConfirmation.value) {
+    if (window.showNotification) {
+      window.showNotification('Please complete the closure section before accessing confirmation.', 'warning');
+    }
+    return;
+  }
+  
+  currentStep.value = step;
+  
+  // Load data based on the step user is navigating to
+  if (step === 2) {
+    // Load analysis data when user goes to Analysis
+    await loadAnalysisData();
+  } else if (step === 3) {
+    // Load closure data when user goes to Closure
+    await loadClosureData();
+  }
+};
+const nextStep = async () => {
+  if (userRole.value === 'others') {
+    if (currentStep.value < 2) {
+      currentStep.value++;
+      // Load analysis data when moving to step 2
+      if (currentStep.value === 2) {
+        await loadAnalysisData();
+      }
+    }
+  } else {
+    // Prevent access to confirmation step (step 4) without closure activity
+    if (currentStep.value === 3 && !canAccessConfirmation.value) {
+      // Show notification that closure section must be completed first
+      if (window.showNotification) {
+        window.showNotification('Please complete the closure section before proceeding to confirmation.', 'warning');
+      }
+      return;
+    }
+    
+    if (currentStep.value < steps.value.length) {
+      currentStep.value++;
+      // Load data based on the step user is moving to
+      if (currentStep.value === 2) {
+        await loadAnalysisData();
+      } else if (currentStep.value === 3) {
+        await loadClosureData();
+      }
+    }
+  }
+};
+const previousStep = () => {
+  if (currentStep.value > 1) currentStep.value--;
+};
+
+onMounted(async () => {
+  isLoading.value = true;
+  fetchError.value = null;
+  try {
+    const caseId = route.params.case_id;
+    const token = localStorage.getItem('jwt');
+    const resp = await axios.get('/api/case-action/latest', {
+      params: { case_id: caseId },
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (resp.data && resp.data.action_data && resp.data.action_data.action_data) {
+      Object.assign(action.value, resp.data.action_data.action_data);
+    }
+    if (resp.data && resp.data.files) {
+      previouslyUploadedFiles.value = resp.data.files;
+    }
+    const logsResp = await axios.get(`/api/case/${caseId}/logs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    caseLogs.value = logsResp.data.logs || [];
+    await fetchCaseDetails();
+    await fetchUserRole();
+    // Note: Analysis and closure data will be loaded when user navigates to those sections
+  } catch (error) {
+    console.error('Error during component mount:', error);
+    fetchError.value = 'Failed to load case details. Please try again later.';
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+// --- Action Buttons ---
+const saveAction = async () => {
+  const caseId = route.params.case_id;
+  const caseType = 'NAB';
+  const formData = new FormData();
+  formData.append('case_id', caseId);
+  formData.append('case_type', caseType);
+  formData.append('action_data', JSON.stringify(action.value));
+
+  action.value.dataUploads.forEach((block) => {
+    if (block.files && block.files.length > 0) {
+      block.files.forEach((fileObj) => {
+        if (fileObj.file && (fileObj.file instanceof File || fileObj.file instanceof Blob)) {
+          formData.append('files', fileObj.file, fileObj.displayName || fileObj.file.name);
+        }
+      });
+    }
+  });
+
+  try {
+    const token = localStorage.getItem('jwt');
+    await axios.post('/api/case-action/save', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    window.showNotification('success', 'Action Saved', 'Case action saved successfully!');
+    hasUnsavedChanges.value = false;
+  } catch (err) {
+    window.showNotification('error', 'Save Failed', 'Failed to save case action.');
+    console.error('Failed to save case action:', err);
+  }
+};
+
+const submitAction = async () => {
+  if (hasUnsavedChanges.value) {
+    window.showNotification('warning', 'Unsaved Changes', 'Please click on Save before Submit.');
+    return;
+  }
+  const caseId = route.params.case_id;
+  try {
+    const token = localStorage.getItem('jwt');
+    await axios.post('/api/case/submit',
+      { case_id: caseId },
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    window.location.href = `/case-details`;
+  } catch (err) {
+    console.error('Failed to submit case:', err);
+  }
+};
+
+const assignCase = async () => {
+  if (hasUnsavedChanges.value) {
+    window.showNotification('warning', 'Unsaved Changes', 'Please click on Save before Assign.');
+    return;
+  }
+  const assignedTo = action.value.reviews[0].userId;
+  const token = localStorage.getItem('jwt');
+  const ackNo = caseAckNo.value;
+  if (!assignedTo) {
+    window.showNotification('warning', 'No Users Selected', 'Please select a user to assign.');
+    return;
+  }
+  if (!ackNo) {
+    window.showNotification('error', 'Invalid Case', 'No valid case ACK No found.');
     return;
   }
   try {
-    const res = await axios.get(`http://34.47.219.225:9000/api/users?department_name=${reassignment.dept}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt')}` } });
-    reassignment.userList = res.data;
+    await axios.post(`/api/case/${ackNo}/assign`,
+      { assigned_to_employee: assignedTo },
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    window.showNotification('success', 'Case Assigned', 'Case assigned to ' + assignedTo);
+    window.location.href = `/case-details`;
   } catch (err) {
-    console.error("Failed to fetch users for department:", err);
-    reassignment.userList = [];
+    window.showNotification('error', 'Assignment Failed', 'Failed to assign case.');
+    console.error('Assignment error:', err);
   }
-}
-
-watch(departmentSelections, (newDepts, oldDepts) => {
-  for (let i = 0; i < newDepts.length; i++) {
-    if (newDepts[i] !== oldDepts[i]) {
-      fetchUsersForDepartment(reassignments.value[i]);
-    }
-  }
-});
-
-
-// --- Action Functions ---
-async function saveActionData() {
-  // Logic to save progress
-  alert('Save action triggered!');
-}
-
-async function submitFinalClosure() {
-  // Logic to submit final data
-  alert('Submit action triggered!');
-}
-
-
-// --- Data Fetching on Mount ---
-onMounted(async () => {
-  loading.value = true;
-  try {
-    const token = localStorage.getItem('jwt');
-    if (!token) { throw new Error("Authentication token not found."); }
-
-    const [combinedDataRes, deptListRes] = await Promise.allSettled([
-      axios.get(`http://34.47.219.225:9000/api/combined-case-data/${case_id}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-      axios.get(`http://34.47.219.225:9000/api/departments`, { headers: { 'Authorization': `Bearer ${token}` } })
-    ]);
-
-    // Process main case data
-    if (combinedDataRes.status === 'fulfilled' && combinedDataRes.value.data) {
-      const data = combinedDataRes.value.data;
-      const i4cData = data.i4c_data || {};
-      const customerDetails = data.customer_details || {};
-      
-      // Map data for NAB case fields
-      riskEntity.i4c = {
-        name: i4cData.customer_name,
-        mobileNumber: i4cData.mobile,
-        email: i4cData.email,
-        ifscCode: i4cData.ifsc,
-        beneficiaryAccount: i4cData.to_account,
-        bankName: i4cData.to_bank
-      };
-      riskEntity.bank = { 
-        name: `${customerDetails.fname || ''} ${customerDetails.mname || ''} ${customerDetails.lname || ''}`.trim(),
-        mobileNumber: customerDetails.mobile,
-        email: customerDetails.email,
-        ifscCode: customerDetails.ifsc,
-        beneficiaryAccount: data.source_bene_accno,
-        bankName: i4cData.to_bank,
-        customerId: customerDetails.cust_id,
-        acStatus: data.account_details?.acc_status,
-        aqb: data.account_details?.aqb,
-        availBal: data.account_details?.availBal,
-        productCode: data.account_details?.productCode,
-        relValue: data.account_details?.rel_value,
-        mobVintage: data.account_details?.mob,
-        addl1: data.account_details?.addl1,
-        addl2: data.account_details?.addl2,
-        addl4: data.account_details?.addl4
-      };
-      transactionDetails.value = data.transactions || [];
-    } else {
-      error.value = "Failed to load case data.";
-    }
-
-    // Process departments
-    if (deptListRes.status === 'fulfilled' && deptListRes.value.data) {
-      deptOptions.value = deptListRes.value.data;
-    } else {
-      console.warn('Could not fetch department list');
-    }
-
-    // Conditionally fetch action log
-    if (caseStatus.value === 'Closed') {
-      const actionLogRes = await axios.get(`http://34.47.219.225:9000/api/case/${case_id}/action-log`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (actionLogRes.data?.success) {
-        submittedAction.value = actionLogRes.data.data;
-        // Pre-fill form logic would go here
-      }
-    }
-  } catch (err) {
-    error.value = "An error occurred during page setup.";
-    console.error(err);
-  } finally {
-    loading.value = false;
-  }
-});
+};
 </script>
 
 <style scoped>
-  /* All styles can be copied directly from your previous action pages */
-  /* All styles can be copied directly from BeneficiaryAction.vue */
-  .action-page-bg { padding: 2rem; background-color: #f1f5f9; min-height: 100vh; }
-  .screen-header { color: #1e293b; font-size: 2rem; margin-bottom: 1.5rem; }
-  .card-section { background-color: #ffffff; border-radius: 12px; padding: 1.5rem 2rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 1.5rem; }
-  .side-by-side-container { display: flex; gap: 1.5rem; }
-  .profile-column { flex: 1; }
-  .column-header { font-size: 1.2rem; margin-bottom: 1rem; color: #475569; }
-  .inner-details-table { width: 100%; }
-  .inner-details-table th, .inner-details-table td { text-align: left; padding: 0.5rem 0.25rem; }
-  .inner-details-table th { font-weight: 600; font-size: 0.9em; color: #64748b; }
-  td.highlight-match { background-color: #fef9c3; border-radius: 4px; }
-  .separator-row-full { width: 100%; border-top: 1px dashed #cbd5e1; margin: 1rem 0; }
-  .table-container { width: 100%; overflow-x: auto; }
-  .details-table { width: 100%; border-collapse: collapse; }
-  .details-table th, .details-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-  .details-table th { background-color: #f8fafc; }
-  .action-table { width: 100%; margin-bottom: 1.5rem; }
-  .action-table td { padding: 0.75rem; vertical-align: top; }
-  .action-label { font-weight: 600; color: #475569; width: 25%; text-align: right; padding-right: 1.5rem; }
-  .action-row, .reassignment-row { display: flex; gap: 1rem; align-items: center; }
-  .reassignment-row { margin-bottom: 0.75rem; }
-  .form-input { flex-grow: 1; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; }
-  .add-btn { background: none; border: 1px dashed #94a3b8; color: #475569; padding: 0.25rem 0.75rem; border-radius: 6px; cursor: pointer; }
-  .remove-btn { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-weight: bold; }
-  .final-closure-grid { display: grid; grid-template-columns: auto 1fr; gap: 1rem 1.5rem; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; }
-  .final-closure-grid label { font-weight: 600; color: #475569; text-align: right; }
-  .radio-group { display: flex; gap: 1.5rem; }
-  .radio-group label { font-weight: normal; display: flex; align-items: center; gap: 0.5rem; }
-  .action-buttons { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
-  .save-btn, .submit-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-  .save-btn { background-color: #e2e8f0; color: #334155; }
-  .submit-btn { background-color: #2563eb; color: white; }
-  .history-grid, .closed-case-notice, .section-subtitle { /* Styles from previous responses */ }
+/* Main Container */
+.pma-container {
+  height: 100vh;
+  overflow: hidden;
+  margin-left: 0px;
+  padding: 16px;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Progress Steps Header */
+.steps-header {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.steps-container {
+  display: flex;
+  justify-content: space-between;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  justify-content: center;
+}
+.step:hover {
+  background: #f8f9fa;
+}
+.step.active {
+  background: #0d6efd;
+  color: white;
+}
+.step.completed {
+  background: #28a745;
+  color: white;
+}
+.step-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+.step.active .step-number, .step.completed .step-number {
+  background: rgba(255,255,255,0.3);
+}
+.step-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Step Content Panel */
+.step-content {
+  flex: 1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  max-height: calc(100vh - 180px);
+}
+.step-panel h3 {
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 20px;
+  font-weight: 600;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+/* Loading and Error Indicators */
+.loading-indicator, .error-indicator {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #6c757d;
+}
+.error-indicator {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
+
+/* Grids for Layout */
+.comparison-grid, .form-grid, .confirmation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.details-section {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+}
+.details-section h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+.details-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.details-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Transaction/Beneficiary Table */
+.beneficiary-table-section {
+    margin-top: 24px;
+    grid-column: 1 / -1; /* Span across both columns if in a grid */
+}
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+.details-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.details-table tbody tr.highlight-row {
+  background-color: #fff3cd;
+  font-weight: 500;
+}
+.details-table th, .details-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.details-table th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #495057;
+}
+.details-table tfoot td {
+    font-weight: bold;
+    text-align: right;
+    font-size: 1.1em;
+    background-color: #f8fafc;
+    border-top: 2px solid #e2e8f0;
+}
+.details-table tfoot td:last-child {
+    text-align: left;
+}
+.no-data-cell {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px;
+}
+
+/* Form Elements */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.field-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 6px;
+}
+.field-group input[type="text"], .field-group input[type="number"] {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #e9ecef;
+  height: 32px;
+  box-sizing: border-box;
+}
+.field-group.highlight input {
+  background: #fff3cd;
+  border-color: #ffc107;
+  font-weight: 500;
+}
+.input-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.compact-select, .compact-input, .compact-textarea {
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #fff;
+  height: 32px;
+  box-sizing: border-box;
+}
+.compact-input {
+  background: #fff;
+}
+.compact-textarea {
+  min-height: 60px;
+  max-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+.data-uploads-textarea {
+  margin-bottom: 12px;
+}
+
+/* Dynamic Upload Block Style */
+.data-upload-block {
+  position: relative;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #fdfdfd;
+}
+
+/* Upload Comment Row with File Drop Zone */
+.upload-comment-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.upload-comment-row .data-uploads-textarea {
+  flex: 1;
+  margin-bottom: 0;
+  min-height: 120px;
+  max-height: 200px;
+  width: 50%;
+}
+
+.upload-comment-row .file-drop-zone {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border: 1px dashed #ced4da;
+  border-radius: 6px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 50%;
+}
+
+.upload-comment-row .file-drop-zone:hover {
+  border-color: #0d6efd;
+  background: #e9ecef;
+}
+
+.upload-comment-row .file-drop-zone.drag-over {
+  border-color: #0d6efd;
+  background: #e9ecef;
+}
+
+.upload-comment-row .upload-icon {
+  font-size: 24px;
+  color: #0d6efd;
+  margin-bottom: 8px;
+}
+
+.upload-comment-row .upload-text {
+  font-size: 11px;
+  color: #6c757d;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.upload-comment-row .upload-text strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #495057;
+}
+
+/* Comment/Assignment Rows */
+.comment-user-selection-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.review-comment-row {
+  position: relative;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.btn-add-row {
+  width: 100%;
+  padding: 8px;
+  background-color: #e7f3ff;
+  color: #0d6efd;
+  border: 1px dashed #0d6efd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+.btn-add-row:hover {
+  background-color: #d1e7ff;
+}
+.btn-remove-row {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #dc3545;
+  background-color: #fff;
+  color: #dc3545;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 10;
+}
+
+/* Confirmation Screen Styles */
+.confirm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.confirm-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.confirm-row label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+.radio-group {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  height: 100%;
+}
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+}
+.radio-group input[type="radio"] {
+  accent-color: #0d6efd;
+}
+
+/* File Upload Styles */
+.file-upload-container {
+  border: 1px dashed #ced4da;
+  border-radius: 4px;
+  padding: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f8f9fa;
+}
+.file-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.file-drop-zone.drag-over {
+  border-color: #0d6efd;
+  background: #e9ecef;
+}
+.upload-icon {
+  font-size: 24px;
+  color: #0d6efd;
+  margin-bottom: 4px;
+}
+.upload-text {
+  font-size: 11px;
+  color: #6c757d;
+  line-height: 1.3;
+}
+.hidden-file-input { display: none; }
+.uploaded-files-list {
+  margin-top: 8px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+  text-align: left;
+}
+.files-header {
+  font-size: 12px;
+  font-weight: 500;
+  color: #495057;
+  padding: 4px 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+.file-item:last-child { border-bottom: none; }
+.file-info { display: flex; align-items: center; gap: 10px; }
+.file-icon { font-size: 16px; }
+.file-details { display: flex; flex-direction: column; }
+.file-name-container { display: flex; align-items: center; gap: 5px; }
+.file-name-input { padding: 3px 5px; border: 1px solid #ced4da; border-radius: 3px; font-size: 12px; }
+.file-meta { font-size: 10px; color: #6c757d; }
+.file-actions { display: flex; gap: 5px; }
+.btn-file-action { background: none; border: none; cursor: pointer; padding: 3px; font-size: 14px;}
+
+/* Bottom Navigation */
+.bottom-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+  margin-top: auto;
+}
+.nav-buttons, .action-buttons {
+  display: flex;
+  gap: 12px;
+}
+.btn-nav, .btn-save, .btn-submit {
+  padding: 8px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-nav:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-prev { background: #fff; color: #495057; }
+.btn-next { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+.btn-save { background: #6c757d; color: #fff; border-color: #6c757d; }
+.btn-submit { background: #28a745; color: #fff; border-color: #28a745; }
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .comparison-grid, .form-grid, .confirmation-grid { grid-template-columns: 1fr; }
+  .details-row { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .input-row, .comment-user-selection-row { grid-template-columns: 1fr; gap: 8px; }
+}
+
+@media (max-width: 768px) {
+  .pma-container { padding: 12px; }
+  .steps-container { flex-direction: column; gap: 8px; }
+  .step { justify-content: flex-start; }
+  .details-row, .confirm-row { grid-template-columns: 1fr; }
+  .bottom-navigation { flex-direction: column; gap: 12px; }
+  .nav-buttons, .action-buttons { width: 100%; justify-content: center; }
+  
+  .upload-comment-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .upload-comment-row .file-drop-zone {
+    min-width: auto;
+    width: 100%;
+    min-height: 80px;
+  }
+}
+
+/* Custom Scrollbar */
+.step-content::-webkit-scrollbar { width: 6px; }
+.step-content::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.step-content::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+.step-content::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+.readonly-banner {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.improved-upload-list {
+  background: #f7fafd;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  padding: 18px 24px 10px 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.improved-upload-list h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a3a5d;
+}
+.uploaded-file-item {
+  margin-bottom: 10px;
+  padding: 10px 0 8px 0;
+  border-bottom: 1px solid #e3e8ee;
+  display: flex;
+  flex-direction: column;
+}
+.uploaded-file-item:last-child {
+  border-bottom: none;
+}
+.file-link {
+  font-size: 15px;
+  font-weight: 500;
+  color: #0d6efd;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.file-link:hover {
+  text-decoration: underline;
+}
+.download-icon {
+  font-size: 18px;
+  color: #0d6efd;
+}
+.file-meta-small {
+  font-size: 12px;
+  color: #6c757d;
+  margin-left: 26px;
+  margin-top: 2px;
+}
+.btn-assign {
+  width: 100%;
+  padding: 8px;
+  background-color: #e7f3ff;
+  color: #0d6efd;
+  border: 1px solid #0d6efd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.btn-assign:hover {
+  background-color: #d1e7ff;
+}
+
+/* Simple Assignment Button Styling - Like Save/Submit */
+.btn-assign-prominent {
+  background: #0d6efd !important;
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 12px 24px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2) !important;
+  transition: all 0.2s ease !important;
+  text-transform: none !important;
+  letter-spacing: 0.2px !important;
+  position: relative !important;
+  width: 100% !important;
+  max-width: 280px !important;
+  margin: 16px auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+}
+
+.btn-assign-prominent:hover {
+  background: #0b5ed7 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3) !important;
+}
+
+.btn-assign-prominent:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.2) !important;
+}
+
+.btn-assign-prominent:disabled {
+  background: #6c757d !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.6 !important;
+}
+
+/* Icon styling within the button */
+.btn-assign-prominent .assignment-icon {
+  font-size: 16px;
+}
+
+/* Enhanced Add Section Buttons - Nice but Simple */
+.btn-add-row {
+  background: #f8f9fa !important;
+  color: #495057 !important;
+  border: 2px dashed #dee2e6 !important;
+  border-radius: 8px !important;
+  padding: 12px 20px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 12px 0 !important;
+}
+
+.btn-add-row:hover {
+  background: #e9ecef !important;
+  border-color: #adb5bd !important;
+  color: #212529 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.btn-add-row:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Locked Section Styling */
+.locked-section-warning {
+  background: #fff3cd !important;
+  border: 2px solid #ffc107 !important;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex !important;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+.locked-section-warning .warning-icon {
+  font-size: 24px !important;
+  color: #b45309 !important;
+  font-weight: bold;
+}
+
+.locked-section-warning .warning-text {
+  color: #b45309 !important;
+  font-size: 15px !important;
+  line-height: 1.5;
+  font-weight: 500 !important;
+}
+
+.locked-section {
+  opacity: 0.5;
+  pointer-events: none;
+  position: relative;
+}
+
+.locked-section::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  z-index: 1;
+}
+.case-logs-section {
+  background: #f8f9fa;
+  border: 1px solid #e3e8ee;
+  border-radius: 8px;
+  padding: 18px 24px 10px 24px;
+  margin-top: 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.case-logs-section h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a3a5d;
+}
+.case-log-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.case-logs-section .case-log-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.case-log-item {
+  margin-bottom: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e3e8ee;
+  font-size: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.case-log-item:last-child {
+  border-bottom: none;
+}
+.log-time {
+  color: #6c757d;
+  font-size: 12px;
+  min-width: 120px;
+}
+.log-user {
+  color: #0d6efd;
+  font-weight: 500;
+}
+.log-action {
+  color: #28a745;
+  font-weight: 500;
+}
+.log-details {
+  color: #495057;
+  font-size: 13px;
+}
+
+/* Reopened Case Warning Styles */
+.reopened-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  color: #856404;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.warning-text strong {
+  color: #856404;
+  font-weight: 600;
+}
+
+/* Progressive loading styles */
+.section-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin: 16px 0;
+  color: #6c757d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 </style>

@@ -1,16 +1,16 @@
-/* Define primary colors consistent with your app's theme */
+/* Define primary colors with black/grey/white theme */
 :root {
-  --primary-color: #3b82f6;
-  --primary-color-dark: #2563eb;
-  --text-color-primary: #111827;
-  --text-color-secondary: #4b5567;
-  --border-color: #e5e7eb;
-  --bg-color: #f9fafb;
+  --primary-color: #212529;
+  --primary-color-dark: #343a40;
+  --text-color-primary: #212529;
+  --text-color-secondary: #6c757d;
+  --border-color: #dee2e6;
+  --bg-color: #f8f9fa;
 }
 
 .page-container {
   padding: 2.5rem;
-  background-color: var(--bg-color); /* Use global background color */
+  background-color: var(--bg-color);
 }
 
 .screen-header {
@@ -19,25 +19,27 @@
   color: var(--text-color-primary);
   margin-bottom: 2rem;
   letter-spacing: -1px;
+  animation: slideDown 0.5s ease-out;
 }
 
 .upload-card {
   background-color: #fff;
   border-radius: 12px;
   padding: 2.5rem;
-  max-width: 700px; /* Slightly narrower card */
+  max-width: 700px;
   margin: auto;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--border-color);
-  display: flex; /* Use flex for vertical stacking */
+  display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Space between elements */
+  gap: 1.5rem;
+  animation: fadeIn 0.5s ease-out;
 }
 
 .card-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary-color-dark); /* Use primary color for titles */
+  color: var(--text-color-primary);
   margin-bottom: 0.5rem;
   text-align: center;
 }
@@ -45,8 +47,8 @@
 .card-subtitle {
   font-size: 0.95rem;
   color: var(--text-color-secondary);
-  margin-top: 0; /* Adjust margin */
-  margin-bottom: 1.5rem; /* Space below subtitle */
+  margin-top: 0;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
@@ -56,48 +58,66 @@
   padding: 2rem;
   text-align: center;
   margin-bottom: 1rem;
-  background-color: #fcfdfe; /* Lighter background for the drop zone */
-  transition: border-color 0.2s ease;
-}
-.file-input-area:hover {
-  border-color: var(--primary-color);
+  background-color: #fff;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Style for the custom file input label */
+.file-input-area:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+/* Upload Animation */
+@keyframes uploadProgress {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+.file-input-area.uploading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--primary-color);
+  animation: uploadProgress 2s ease-in-out infinite;
+}
+
 .file-upload-label {
-  display: inline-flex; /* To align button and text */
+  display: inline-flex;
   align-items: center;
   cursor: pointer;
   font-size: 1rem;
   gap: 1rem;
-  justify-content: center; /* Center horizontally within the area */
+  justify-content: center;
 }
 
-/* Style for the 'Choose File' button text */
 .file-upload-label .button-style {
-  background-color: var(--primary-color); /* Use primary color */
+  background-color: var(--primary-color);
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   font-weight: 600;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
 .file-upload-label .button-style:hover {
   background-color: var(--primary-color-dark);
+  transform: translateY(-1px);
 }
 
-/* Style for the file name display */
 .file-upload-label .file-name {
   color: var(--text-color-secondary);
   font-style: italic;
-  max-width: 250px; /* Limit width for long names */
+  max-width: 250px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Visually hide the actual file input */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -111,7 +131,6 @@
   overflow: hidden;
 }
 
-/* Process button */
 .process-btn {
   width: 100%;
   background-color: var(--primary-color);
@@ -122,26 +141,48 @@
   font-weight: 700;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
 }
+
 .process-btn:hover:not(:disabled) {
   background-color: var(--primary-color-dark);
+  transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
+
 .process-btn:disabled {
-  background-color: #93c5fd;
+  background-color: #adb5bd;
   cursor: not-allowed;
 }
 
-/* Results Display Area */
+/* Processing Animation */
+.process-btn.processing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
 .results-panel {
   margin-top: 2.5rem;
   padding: 1.5rem;
-  background-color: #f9fafb;
+  background-color: #fff;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Inner shadow for panel */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: slideUp 0.5s ease-out;
 }
 
 .results-title {
@@ -162,13 +203,21 @@
   text-align: center;
   padding: 1.25rem;
   border-radius: 8px;
+  transition: transform 0.3s ease;
 }
+
+.result-item:hover {
+  transform: translateY(-2px);
+}
+
 .result-item .count {
   display: block;
   font-size: 3rem;
   font-weight: 800;
   line-height: 1;
+  animation: countUp 1s ease-out;
 }
+
 .result-item .label {
   display: block;
   font-size: 0.9rem;
@@ -177,19 +226,21 @@
 }
 
 .result-item.success {
-  background-color: #dcfce7; /* Green background */
-  border: 1px solid #bbf7d0;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
 }
+
 .result-item.success .count {
-  color: #15803d; /* Darker green text */
+  color: var(--primary-color);
 }
 
 .result-item.failed {
-  background-color: #fee2e2; /* Red background */
-  border: 1px solid #fecaca;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
 }
+
 .result-item.failed .count {
-  color: #b91c1c; /* Darker red text */
+  color: #dc3545;
 }
 
 .error-file-info {
@@ -197,17 +248,66 @@
   text-align: center;
   font-size: 0.95rem;
   color: var(--text-color-primary);
+  animation: fadeIn 0.5s ease-out;
 }
+
 .error-file-info strong {
   color: var(--text-color-secondary);
   margin-right: 0.5rem;
 }
+
 .download-link {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 600;
-  transition: text-decoration 0.2s;
+  transition: all 0.3s ease;
 }
+
 .download-link:hover {
+  color: var(--primary-color-dark);
   text-decoration: underline;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

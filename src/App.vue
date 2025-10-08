@@ -1,11 +1,8 @@
 <template>
-  <div class="app">
-    <div class="main-content">
-      <router-view />
-    </div>
-  </div>
+  <router-view />
+  <Notification />
 </template>
 
 <script setup>
-
+import Notification from '@/components/Notification.vue';
 </script>

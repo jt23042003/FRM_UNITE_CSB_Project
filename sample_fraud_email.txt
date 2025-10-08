@@ -1,0 +1,58 @@
+Subject: Fraud Case Report - UPI Transaction Dispute
+
+Dear Risk Management Team,
+
+We have received a fraud complaint that requires immediate attention. Please find the case details below:
+
+**Case Information:**
+Acknowledgment Number: ACK202509250001
+Customer Name: Rahul Sharma
+Complaint Date: 2025-09-25
+Report Date & Time: 2025-09-25 10:30
+Date & Time of Reporting / Escalation: 2025-09-25 10:30
+State: Karnataka
+District: Bangalore Urban  
+Police Station: Koramangala Police Station
+
+**Fraud Details:**
+Sub Category: UPI/Wallet Frauds
+Payment Mode: UPI
+Transaction Date: 2025-09-24
+Transaction ID: TXN987654321
+Transaction Amount: ₹25,000.00
+Disputed Amount: ₹25,000.00
+
+**Victim Account Details:**
+Victim Account Number: 123456789012
+Card Number: 5555444433332222
+Customer PAN: ABCDE1234F
+Customer Aadhaar: 3456 7890 1234
+Customer Mobile: 9876543210
+
+**Beneficiary Account Details (Suspect):**
+Beneficiary Bank: ICICI Bank
+Beneficiary Account Number: 987654321098
+IFSC Code: ICIC0000123
+Beneficiary UPI ID: fraudster@okicici
+Beneficiary Transaction ID: UTR556677889900
+Beneficiary Amount: ₹25,000.00
+
+**Additional Information:**
+Layers: Layer 3
+Action Recommended: Freeze Account
+Action Taken Date: 2025-09-25
+
+**Identity Documents:**
+Passport Number: A1234567
+Voter ID: ABC1234567  
+Driving License: HR06-2015-1234567
+
+**Case Description:**
+The customer Rahul Sharma reported an unauthorized UPI transaction of ₹25,000 from his account 123456789012 to beneficiary account 987654321098. The transaction was made without his knowledge through UPI ID fraudster@okicici. Immediate action is required to freeze the beneficiary account and investigate the matter.
+
+Please process this case immediately and coordinate with the concerned bank for necessary actions.
+
+Best regards,
+Fraud Investigation Team
+Email: fraud@bank.com
+Reference: Case-2025-0925-001

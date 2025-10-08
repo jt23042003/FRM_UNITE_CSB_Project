@@ -1,0 +1,54 @@
+Subject: FRAUD ALERT - Immediate Action Required
+
+Dear Fraud Investigation Team,
+
+URGENT: We have received a high-priority fraud complaint. Please process immediately.
+
+**CASE IDENTIFICATION:**
+Acknowledgement No: ACK202509250002
+Customer Name: Suresh Patel
+
+**COMPLAINT CLASSIFICATION:**
+Sub Category: UPI/Wallet Frauds
+Transaction Date: 2025-09-24
+Complaint Date: 2025-09-25
+Reporting Date & Time: 2025-09-25 15:45
+State: Karnataka
+District: Bangalore Urban
+Police Station: Whitefield Police Station
+
+**PAYMENT DETAILS:**
+Mode of Payment: UPI
+Transaction ID: TXN987654321XYZ
+Layers: Layer 3
+Transaction Amount: ₹75,000
+Disputed Amount: ₹75,000
+Action Taken Date: 2025-09-25
+
+**VICTIM INFORMATION:**
+Victim Account Number: 111222333444555
+Card Number: 5555666677778888
+PAN: ABCXY1234Z
+Aadhaar: 9876 5432 1098
+Mobile: 9123456789
+
+**BENEFICIARY DETAILS (SUSPECT):**
+Beneficiary Bank: HDFC Bank
+Beneficiary Account Number: 999888777666555
+IFSC Code: HDFC0001234
+Beneficiary UPI ID: fraudster999@paytm
+Beneficiary Transaction ID: UTR123456789XYZ
+Money Transfer TO Amount: ₹75,000
+
+**INCIDENT SUMMARY:**
+Customer Suresh Patel reported unauthorized UPI transaction of ₹75,000 from victim account 111222333444555 to beneficiary account 999888777666555. Transaction executed through UPI ID fraudster999@paytm without customer authorization.
+
+**IMMEDIATE ACTION:**
+Action: Freeze Account
+Recommended immediate freezing of suspect beneficiary account 999888777666555.
+
+Escalation Priority: HIGH
+Case Status: URGENT PROCESSING REQUIRED
+
+Contact: fraud-team@bank.com
+Reference: CASE-FRAUD-25092025-002
