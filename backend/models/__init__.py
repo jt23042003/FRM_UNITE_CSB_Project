@@ -1,8 +1,8 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from config import DATABASE_URL
 
-# Shared database configuration
-DATABASE_URL = "postgresql://unitedb_user:password123@34.47.219.225:5432/unitedb"
+# Shared database configuration (now centralized in config.DATABASE_URL)
 Base = declarative_base()
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

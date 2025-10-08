@@ -2919,12 +2919,23 @@ class CaseEntryMatcher:
             with get_db_connection() as conn:
                 with get_db_cursor(conn) as cur:
                     # First, get the case_main record by case_id (int) or source_ack_no (str)
-                    case_main_query = """
-                        SELECT case_id, source_ack_no, cust_id, acc_num
-                        FROM public.case_main
-                        WHERE case_id = %s OR source_ack_no = %s
-                    """
-                    cur.execute(case_main_query, (ack_no, ack_no))
+                    # Try to parse ack_no as integer for case_id, otherwise use as source_ack_no
+                    try:
+                        case_id_int = int(ack_no)
+                        case_main_query = """
+                            SELECT case_id, source_ack_no, cust_id, acc_num
+                            FROM public.case_main
+                            WHERE case_id = %s OR source_ack_no = %s
+                        """
+                        cur.execute(case_main_query, (case_id_int, ack_no))
+                    except ValueError:
+                        # ack_no is not an integer, search only by source_ack_no
+                        case_main_query = """
+                            SELECT case_id, source_ack_no, cust_id, acc_num
+                            FROM public.case_main
+                            WHERE source_ack_no = %s
+                        """
+                        cur.execute(case_main_query, (ack_no,))
                     cm_data = cur.fetchone()
 
                     if not cm_data:
@@ -2950,6 +2961,9 @@ class CaseEntryMatcher:
                             cm.long_dn,             -- New field
                             cm.decision_type,       -- New field
                             -- Customer details from the 'customer' table
+                            c.fname,
+                            c.mname,
+                            c.lname,
                             c.gender,
                             c.mobile,
                             c.email,
