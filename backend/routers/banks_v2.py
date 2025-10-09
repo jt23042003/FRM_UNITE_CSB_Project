@@ -190,13 +190,33 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             rrn = inc.rrn
             try:
                 t_inc_0 = time.perf_counter()
-                # Idempotent insert; proceed even if rrn already present
+                
+                # Check if RRN already exists in case_incidents table
+                cur.execute("SELECT case_id FROM public.case_incidents WHERE rrn = %s", (rrn,))
+                existing_rrn = cur.fetchone()
+                
+                if existing_rrn:
+                    # RRN already exists - return error
+                    conn.rollback()
+                    conn.close()
+                    return {
+                        "meta": {
+                            "response_code": "16",
+                            "response_message": "Duplicate RRN"
+                        },
+                        "data": {
+                            "acknowledgement_no": ack_no,
+                            "job_id": job_id,
+                            "error": f"RRN '{rrn}' already exists in the system. Each RRN must be unique as it represents a specific transaction."
+                        }
+                    }
+                
+                # Insert incident (no conflict handling needed now)
                 cur.execute(
                     """
                     INSERT INTO public.case_incidents (
                         case_id, amount, rrn, transaction_date, transaction_time, disputed_amount, layer
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (rrn) DO NOTHING
                     """,
                     (
                         case_id,
@@ -411,7 +431,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     source_bene_accno=action["bene_acc"],
                     customer_full_name=None
                 )
-                await save_or_update_decision(request.app.state.executor, psa_case_id, {"comments": "Initial PSA case created", "assignedEmployee": "System"})
+                await save_or_update_decision(request.app.state.executor, psa_case_id, {"comments": "Initial PSA case created", "assignedEmployee": "jalaj"})
                 # case_details_1
                 with _get_db_conn() as c2:
                     with c2.cursor() as k:
@@ -433,7 +453,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     source_bene_accno=action["bene_acc"],
                     customer_full_name=None
                 )
-                await save_or_update_decision(request.app.state.executor, vm_case_id, {"comments": "Initial VM case created", "assignedEmployee": "System"})
+                await save_or_update_decision(request.app.state.executor, vm_case_id, {"comments": "Initial VM case created", "assignedEmployee": "jalaj"})
                 with _get_db_conn() as c2:
                     with c2.cursor() as k:
                         k.execute("INSERT INTO public.case_details_1 (cust_id, casetype, acc_no, match_flag, creation_timestamp) VALUES (%s, %s, %s, %s, NOW())", (action["victim_cust_id"], "VM", action["victim_acc"], "VM Match"))
