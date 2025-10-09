@@ -8,15 +8,16 @@ Content-Type: application/json
 
 ---
 
-## **📝 Test Scenarios**
+## **📝 Test Scenarios (Ready to Use - Fresh RRNs)**
 
 ### **Scenario 1: VM Only (Beneficiary Not in Our System)**
 
-**Expected Cases:** VM only
+**Expected Cases:** VM only  
+**RRN:** `9000000101` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST001VMONLY",
+  "acknowledgement_no": "TEST101VMONLY",
   "sub_category": "E-Wallet Related Fraud",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -33,7 +34,7 @@ Content-Type: application/json
   "incidents": [
     {
       "amount": "5000.00",
-      "rrn": "9000000001",
+      "rrn": "9000000101",
       "transaction_date": "05-01-2023",
       "transaction_time": "09:00:00",
       "disputed_amount": "5000.00",
@@ -43,47 +44,21 @@ Content-Type: application/json
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST001VMONLY",
-  "sub_category": "E-Wallet Related Fraud",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "State Bank of India",
-    "payer_bank_code": 1,
-    "mode_of_payment": "UPI",
-    "payer_mobile_number": "9000000001",
-    "payer_account_number": "9000000000000001",
-    "state": "DELHI",
-    "district": "New Delhi",
-    "transaction_type": "UPI Payment",
-    "wallet": "Paytm"
-  },
-  "incidents": [
-    {
-      "amount": "5000.00",
-      "rrn": "9000000001",
-      "transaction_date": "05-01-2023",
-      "transaction_time": "09:00:00",
-      "disputed_amount": "5000.00",
-      "layer": 0
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST101VMONLY","sub_category":"E-Wallet Related Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"State Bank of India","payer_bank_code":1,"mode_of_payment":"UPI","payer_mobile_number":"9000000001","payer_account_number":"9000000000000001","state":"DELHI","district":"New Delhi","transaction_type":"UPI Payment","wallet":"Paytm"},"incidents":[{"amount":"5000.00","rrn":"9000000101","transaction_date":"05-01-2023","transaction_time":"09:00:00","disputed_amount":"5000.00","layer":0}]}' | jq '.'
 ```
 
 ---
 
 ### **Scenario 2: VM + PSA (Both Accounts in Our System)**
 
-**Expected Cases:** VM + PSA
+**Expected Cases:** VM + PSA  
+**RRN:** `9000000202` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST002VMPSA",
+  "acknowledgement_no": "TEST202VMPSA",
   "sub_category": "UPI Related Frauds",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -100,7 +75,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
   "incidents": [
     {
       "amount": "7500.00",
-      "rrn": "9000000002",
+      "rrn": "9000000202",
       "transaction_date": "06-01-2023",
       "transaction_time": "14:30:00",
       "disputed_amount": "7500.00",
@@ -110,47 +85,21 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST002VMPSA",
-  "sub_category": "UPI Related Frauds",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "HDFC Bank",
-    "payer_bank_code": 2,
-    "mode_of_payment": "NEFT",
-    "payer_mobile_number": "9000000002",
-    "payer_account_number": "9000000000000002",
-    "state": "MAHARASHTRA",
-    "district": "Mumbai",
-    "transaction_type": "NEFT Transfer",
-    "wallet": ""
-  },
-  "incidents": [
-    {
-      "amount": "7500.00",
-      "rrn": "9000000002",
-      "transaction_date": "06-01-2023",
-      "transaction_time": "14:30:00",
-      "disputed_amount": "7500.00",
-      "layer": 0
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST202VMPSA","sub_category":"UPI Related Frauds","instrument":{"requestor":"I4C-MHA","payer_bank":"HDFC Bank","payer_bank_code":2,"mode_of_payment":"NEFT","payer_mobile_number":"9000000002","payer_account_number":"9000000000000002","state":"MAHARASHTRA","district":"Mumbai","transaction_type":"NEFT Transfer","wallet":""},"incidents":[{"amount":"7500.00","rrn":"9000000202","transaction_date":"06-01-2023","transaction_time":"14:30:00","disputed_amount":"7500.00","layer":0}]}' | jq '.'
 ```
 
 ---
 
 ### **Scenario 3: VM + PSA + ECBT (With Transaction History)**
 
-**Expected Cases:** VM + PSA + ECBT
+**Expected Cases:** VM + PSA + ECBT  
+**RRN:** `9000000303` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST003ECBT",
+  "acknowledgement_no": "TEST303ECBT",
   "sub_category": "Internet Banking Related Fraud",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -167,7 +116,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
   "incidents": [
     {
       "amount": "12000.00",
-      "rrn": "9000000003",
+      "rrn": "9000000303",
       "transaction_date": "07-01-2023",
       "transaction_time": "11:45:00",
       "disputed_amount": "12000.00",
@@ -177,47 +126,21 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST003ECBT",
-  "sub_category": "Internet Banking Related Fraud",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "ICICI Bank",
-    "payer_bank_code": 3,
-    "mode_of_payment": "UPI",
-    "payer_mobile_number": "9000000004",
-    "payer_account_number": "9000000000000004",
-    "state": "KARNATAKA",
-    "district": "Bangalore",
-    "transaction_type": "UPI Payment",
-    "wallet": "Google Pay"
-  },
-  "incidents": [
-    {
-      "amount": "12000.00",
-      "rrn": "9000000003",
-      "transaction_date": "07-01-2023",
-      "transaction_time": "11:45:00",
-      "disputed_amount": "12000.00",
-      "layer": 0
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST303ECBT","sub_category":"Internet Banking Related Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"ICICI Bank","payer_bank_code":3,"mode_of_payment":"UPI","payer_mobile_number":"9000000004","payer_account_number":"9000000000000004","state":"KARNATAKA","district":"Bangalore","transaction_type":"UPI Payment","wallet":"Google Pay"},"incidents":[{"amount":"12000.00","rrn":"9000000303","transaction_date":"07-01-2023","transaction_time":"11:45:00","disputed_amount":"12000.00","layer":0}]}' | jq '.'
 ```
 
 ---
 
 ### **Scenario 4: VM + PSA + ECBNT (No Transaction History)**
 
-**Expected Cases:** VM + PSA + ECBNT
+**Expected Cases:** VM + PSA + ECBNT  
+**RRN:** `9000000404` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST004ECBNT",
+  "acknowledgement_no": "TEST404ECBNT",
   "sub_category": "Demat /Depository Fraud",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -234,7 +157,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
   "incidents": [
     {
       "amount": "15000.00",
-      "rrn": "9000000004",
+      "rrn": "9000000404",
       "transaction_date": "08-01-2023",
       "transaction_time": "16:20:00",
       "disputed_amount": "15000.00",
@@ -244,47 +167,21 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST004ECBNT",
-  "sub_category": "Demat /Depository Fraud",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "Kotak Mahindra Bank",
-    "payer_bank_code": 4,
-    "mode_of_payment": "RTGS",
-    "payer_mobile_number": "9000000007",
-    "payer_account_number": "9000000000000007",
-    "state": "GUJARAT",
-    "district": "Ahmedabad",
-    "transaction_type": "RTGS Transfer",
-    "wallet": ""
-  },
-  "incidents": [
-    {
-      "amount": "15000.00",
-      "rrn": "9000000004",
-      "transaction_date": "08-01-2023",
-      "transaction_time": "16:20:00",
-      "disputed_amount": "15000.00",
-      "layer": 0
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST404ECBNT","sub_category":"Demat /Depository Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"Kotak Mahindra Bank","payer_bank_code":4,"mode_of_payment":"RTGS","payer_mobile_number":"9000000007","payer_account_number":"9000000000000007","state":"GUJARAT","district":"Ahmedabad","transaction_type":"RTGS Transfer","wallet":""},"incidents":[{"amount":"15000.00","rrn":"9000000404","transaction_date":"08-01-2023","transaction_time":"16:20:00","disputed_amount":"15000.00","layer":0}]}' | jq '.'
 ```
 
 ---
 
 ### **Scenario 5: VM + ECBT (No PSA - External Beneficiary)**
 
-**Expected Cases:** VM + ECBT (no PSA)
+**Expected Cases:** VM + ECBT (no PSA)  
+**RRN:** `9000000505` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST005VMECBT",
+  "acknowledgement_no": "TEST505VMECBT",
   "sub_category": "Fraud Call /Vishing",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -301,7 +198,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
   "incidents": [
     {
       "amount": "20000.00",
-      "rrn": "9000000005",
+      "rrn": "9000000505",
       "transaction_date": "09-01-2023",
       "transaction_time": "13:30:00",
       "disputed_amount": "20000.00",
@@ -311,47 +208,21 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST005VMECBT",
-  "sub_category": "Fraud Call /Vishing",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "Punjab National Bank",
-    "payer_bank_code": 6,
-    "mode_of_payment": "UPI",
-    "payer_mobile_number": "9000000010",
-    "payer_account_number": "9000000000000010",
-    "state": "PUNJAB",
-    "district": "Chandigarh",
-    "transaction_type": "UPI Payment",
-    "wallet": "PhonePe"
-  },
-  "incidents": [
-    {
-      "amount": "20000.00",
-      "rrn": "9000000005",
-      "transaction_date": "09-01-2023",
-      "transaction_time": "13:30:00",
-      "disputed_amount": "20000.00",
-      "layer": 0
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST505VMECBT","sub_category":"Fraud Call /Vishing","instrument":{"requestor":"I4C-MHA","payer_bank":"Punjab National Bank","payer_bank_code":6,"mode_of_payment":"UPI","payer_mobile_number":"9000000010","payer_account_number":"9000000000000010","state":"PUNJAB","district":"Chandigarh","transaction_type":"UPI Payment","wallet":"PhonePe"},"incidents":[{"amount":"20000.00","rrn":"9000000505","transaction_date":"09-01-2023","transaction_time":"13:30:00","disputed_amount":"20000.00","layer":0}]}' | jq '.'
 ```
 
 ---
 
 ### **Scenario 6: Card Fraud with Multiple Incidents**
 
-**Expected Cases:** Multiple incidents for VM + PSA
+**Expected Cases:** Multiple incidents for VM + PSA  
+**RRNs:** `9000000601`, `9000000602` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST006MULTI",
+  "acknowledgement_no": "TEST606MULTI",
   "sub_category": "Debit/Credit Card Fraud/Sim Swap Fraud",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -367,7 +238,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
   "incidents": [
     {
       "amount": "5000.00",
-      "rrn": "9000000002",
+      "rrn": "9000000601",
       "transaction_date": "06-01-2023",
       "transaction_time": "09:00:00",
       "disputed_amount": "5000.00",
@@ -378,7 +249,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
     },
     {
       "amount": "7500.00",
-      "rrn": "9000000002",
+      "rrn": "9000000602",
       "transaction_date": "06-01-2023",
       "transaction_time": "14:30:00",
       "disputed_amount": "7500.00",
@@ -391,60 +262,21 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST006MULTI",
-  "sub_category": "Debit/Credit Card Fraud/Sim Swap Fraud",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "HDFC Bank",
-    "payer_bank_code": 2,
-    "mode_of_payment": "Card",
-    "payer_mobile_number": "9000000002",
-    "payer_account_number": "9000000000000002",
-    "state": "MAHARASHTRA",
-    "district": "Mumbai",
-    "transaction_type": "POS Transaction"
-  },
-  "incidents": [
-    {
-      "amount": "5000.00",
-      "rrn": "9000000002",
-      "transaction_date": "06-01-2023",
-      "transaction_time": "09:00:00",
-      "disputed_amount": "5000.00",
-      "layer": 0,
-      "first6digit": "123456",
-      "last4digit": "7890",
-      "cardlength": "16"
-    },
-    {
-      "amount": "7500.00",
-      "rrn": "9000000002",
-      "transaction_date": "06-01-2023",
-      "transaction_time": "14:30:00",
-      "disputed_amount": "7500.00",
-      "layer": 1,
-      "first6digit": "123456",
-      "last4digit": "7890",
-      "cardlength": "16"
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST606MULTI","sub_category":"Debit/Credit Card Fraud/Sim Swap Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"HDFC Bank","payer_bank_code":2,"mode_of_payment":"Card","payer_mobile_number":"9000000002","payer_account_number":"9000000000000002","state":"MAHARASHTRA","district":"Mumbai","transaction_type":"POS Transaction"},"incidents":[{"amount":"5000.00","rrn":"9000000601","transaction_date":"06-01-2023","transaction_time":"09:00:00","disputed_amount":"5000.00","layer":0,"first6digit":"123456","last4digit":"7890","cardlength":"16"},{"amount":"7500.00","rrn":"9000000602","transaction_date":"06-01-2023","transaction_time":"14:30:00","disputed_amount":"7500.00","layer":1,"first6digit":"123456","last4digit":"7890","cardlength":"16"}]}' | jq '.'
 ```
 
 ---
 
 ### **Scenario 7: AEPS Fraud**
 
-**Expected Cases:** VM only
+**Expected Cases:** VM only  
+**RRN:** `9000000707` (new)
 
 ```json
 {
-  "acknowledgement_no": "TEST007AEPS",
+  "acknowledgement_no": "TEST707AEPS",
   "sub_category": "Aadhar Enabled Payment System (AEPS) Related Frauds",
   "instrument": {
     "requestor": "I4C-MHA",
@@ -460,7 +292,7 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
   "incidents": [
     {
       "amount": "10000.00",
-      "rrn": "9000000001",
+      "rrn": "9000000707",
       "transaction_date": "12-01-2023",
       "transaction_time": "15:45:00",
       "disputed_amount": "10000.00",
@@ -470,35 +302,41 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 }
 ```
 
-**Test Command:**
+**Quick Test:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
-  -H "Content-Type: application/json" \
-  -d '{
-  "acknowledgement_no": "TEST007AEPS",
-  "sub_category": "Aadhar Enabled Payment System (AEPS) Related Frauds",
-  "instrument": {
-    "requestor": "I4C-MHA",
-    "payer_bank": "Central Bank of India",
-    "payer_bank_code": 8,
-    "mode_of_payment": "AEPS",
-    "payer_mobile_number": "9000000001",
-    "payer_account_number": "9000000000000001",
-    "state": "BIHAR",
-    "district": "Patna",
-    "transaction_type": "Aadhar Payment"
-  },
-  "incidents": [
-    {
-      "amount": "10000.00",
-      "rrn": "9000000001",
-      "transaction_date": "12-01-2023",
-      "transaction_time": "15:45:00",
-      "disputed_amount": "10000.00",
-      "layer": 0
-    }
-  ]
-}' | jq '.'
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST707AEPS","sub_category":"Aadhar Enabled Payment System (AEPS) Related Frauds","instrument":{"requestor":"I4C-MHA","payer_bank":"Central Bank of India","payer_bank_code":8,"mode_of_payment":"AEPS","payer_mobile_number":"9000000001","payer_account_number":"9000000000000001","state":"BIHAR","district":"Patna","transaction_type":"Aadhar Payment"},"incidents":[{"amount":"10000.00","rrn":"9000000707","transaction_date":"12-01-2023","transaction_time":"15:45:00","disputed_amount":"10000.00","layer":0}]}' | jq '.'
+```
+
+---
+
+## **🚀 Test All Scenarios at Once**
+
+```bash
+# Run all 7 test scenarios sequentially
+cd /Users/jalajtrivedi/frontend
+
+echo "=== Scenario 1: VM Only ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST101VMONLY","sub_category":"E-Wallet Related Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"State Bank of India","payer_bank_code":1,"mode_of_payment":"UPI","payer_mobile_number":"9000000001","payer_account_number":"9000000000000001","state":"DELHI","district":"New Delhi","transaction_type":"UPI Payment","wallet":"Paytm"},"incidents":[{"amount":"5000.00","rrn":"9000000101","transaction_date":"05-01-2023","transaction_time":"09:00:00","disputed_amount":"5000.00","layer":0}]}' | jq '.meta' && \
+
+echo "=== Scenario 2: VM + PSA ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST202VMPSA","sub_category":"UPI Related Frauds","instrument":{"requestor":"I4C-MHA","payer_bank":"HDFC Bank","payer_bank_code":2,"mode_of_payment":"NEFT","payer_mobile_number":"9000000002","payer_account_number":"9000000000000002","state":"MAHARASHTRA","district":"Mumbai","transaction_type":"NEFT Transfer","wallet":""},"incidents":[{"amount":"7500.00","rrn":"9000000202","transaction_date":"06-01-2023","transaction_time":"14:30:00","disputed_amount":"7500.00","layer":0}]}' | jq '.meta' && \
+
+echo "=== Scenario 3: VM + PSA + ECBT ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST303ECBT","sub_category":"Internet Banking Related Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"ICICI Bank","payer_bank_code":3,"mode_of_payment":"UPI","payer_mobile_number":"9000000004","payer_account_number":"9000000000000004","state":"KARNATAKA","district":"Bangalore","transaction_type":"UPI Payment","wallet":"Google Pay"},"incidents":[{"amount":"12000.00","rrn":"9000000303","transaction_date":"07-01-2023","transaction_time":"11:45:00","disputed_amount":"12000.00","layer":0}]}' | jq '.meta' && \
+
+echo "=== Scenario 4: VM + PSA + ECBNT ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST404ECBNT","sub_category":"Demat /Depository Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"Kotak Mahindra Bank","payer_bank_code":4,"mode_of_payment":"RTGS","payer_mobile_number":"9000000007","payer_account_number":"9000000000000007","state":"GUJARAT","district":"Ahmedabad","transaction_type":"RTGS Transfer","wallet":""},"incidents":[{"amount":"15000.00","rrn":"9000000404","transaction_date":"08-01-2023","transaction_time":"16:20:00","disputed_amount":"15000.00","layer":0}]}' | jq '.meta' && \
+
+echo "=== Scenario 5: VM + ECBT (No PSA) ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST505VMECBT","sub_category":"Fraud Call /Vishing","instrument":{"requestor":"I4C-MHA","payer_bank":"Punjab National Bank","payer_bank_code":6,"mode_of_payment":"UPI","payer_mobile_number":"9000000010","payer_account_number":"9000000000000010","state":"PUNJAB","district":"Chandigarh","transaction_type":"UPI Payment","wallet":"PhonePe"},"incidents":[{"amount":"20000.00","rrn":"9000000505","transaction_date":"09-01-2023","transaction_time":"13:30:00","disputed_amount":"20000.00","layer":0}]}' | jq '.meta' && \
+
+echo "=== Scenario 6: Card Fraud (Multiple Incidents) ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST606MULTI","sub_category":"Debit/Credit Card Fraud/Sim Swap Fraud","instrument":{"requestor":"I4C-MHA","payer_bank":"HDFC Bank","payer_bank_code":2,"mode_of_payment":"Card","payer_mobile_number":"9000000002","payer_account_number":"9000000000000002","state":"MAHARASHTRA","district":"Mumbai","transaction_type":"POS Transaction"},"incidents":[{"amount":"5000.00","rrn":"9000000601","transaction_date":"06-01-2023","transaction_time":"09:00:00","disputed_amount":"5000.00","layer":0,"first6digit":"123456","last4digit":"7890","cardlength":"16"},{"amount":"7500.00","rrn":"9000000602","transaction_date":"06-01-2023","transaction_time":"14:30:00","disputed_amount":"7500.00","layer":1,"first6digit":"123456","last4digit":"7890","cardlength":"16"}]}' | jq '.meta' && \
+
+echo "=== Scenario 7: AEPS Fraud ===" && \
+curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type: application/json" -d '{"acknowledgement_no":"TEST707AEPS","sub_category":"Aadhar Enabled Payment System (AEPS) Related Frauds","instrument":{"requestor":"I4C-MHA","payer_bank":"Central Bank of India","payer_bank_code":8,"mode_of_payment":"AEPS","payer_mobile_number":"9000000001","payer_account_number":"9000000000000001","state":"BIHAR","district":"Patna","transaction_type":"Aadhar Payment"},"incidents":[{"amount":"10000.00","rrn":"9000000707","transaction_date":"12-01-2023","transaction_time":"15:45:00","disputed_amount":"10000.00","layer":0}]}' | jq '.meta'
+
+echo "=== All Tests Complete! ==="
 ```
 
 ---
@@ -543,12 +381,22 @@ curl -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" \
 
 - **acknowledgement_no**: 8-20 alphanumeric characters
 - **amount**: Format NNNN.NN (e.g., 5000.00)
-- **rrn**: 10-14 numeric digits
+- **rrn**: 10-14 numeric digits (must be unique across all incidents)
 - **transaction_date**: DD-MM-YYYY format
 - **transaction_time**: HH:MM:SS format (optional)
 - **payer_mobile_number**: 10-15 digits
 - **payer_account_number**: 9-18 digits
 - **incidents**: 1-25 incidents per request
+
+## **📋 Response Codes**
+
+| Code | Message | Description |
+|------|---------|-------------|
+| 00 | Success | Request processed successfully |
+| 01 | Validation Error | Field format validation failed |
+| 16 | Duplicate RRN | RRN already exists in the system |
+| 31 | Database Error | Database operation failed |
+| 99 | Internal Error | Unexpected server error |
 
 ---
 
@@ -562,7 +410,10 @@ PGPASSWORD='password123' psql -h 34.47.219.225 -p 5433 -U jalaj -d csb_new_db -c
 
 ---
 
-**Note:** All test data (RRNs 9000000001-9000000005) is already in the database and ready to use! 🚀
+**Important Notes:**
+- ⚠️ **RRNs must be unique!** If you submit with a duplicate RRN, the API will return error code "16" (Duplicate RRN)
+- ✅ All new RRNs (9000000101-9000000707) are ready to use
+- 💡 Each scenario uses a unique RRN range for easy identification
+- 🔒 **Why?** In real banking systems, each RRN represents one unique transaction - duplicates are not allowed
 
-**Last Updated:** October 8, 2025
-
+**Last Updated:** October 9, 2025
