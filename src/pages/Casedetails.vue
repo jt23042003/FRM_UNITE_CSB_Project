@@ -26,10 +26,14 @@
             class="filter-input enhanced-search-input"
             @keyup.enter="handleSearch"
           />
+          <button v-if="globalSearch.trim()" @click="clearFilters" class="clear-search-icon" title="Clear search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
           <button @click="handleSearch" class="search-submit-btn">Submit</button>
         </div>
-        
-        <button @click="clearFilters" class="reset-btn">Clear Search</button>
         <button @click="toggleHelpDesk" class="help-desk-btn" :class="{ active: showHelpDesk }">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle cx="12" cy="12" r="10"/>
@@ -1141,6 +1145,32 @@ onMounted(async () => {
   gap: 8px;
   flex: 1;
   max-width: 400px;
+  position: relative;
+}
+
+.clear-search-icon {
+  position: absolute;
+  right: 90px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  transition: all 0.2s;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.clear-search-icon:hover {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.clear-search-icon svg {
+  display: block;
 }
 
 .search-submit-btn {
