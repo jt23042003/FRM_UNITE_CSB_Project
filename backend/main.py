@@ -6,9 +6,12 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 import traceback
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 #from keycloak import KeycloakOpenID
+import uuid
 
 from keycloak.keycloak_openid import KeycloakOpenID
 from config import KEYCLOAK_CONFIG
@@ -55,6 +58,50 @@ def create_database_tables():
 
 # --- FastAPI App Initialization ---
 app = FastAPI(title="UniteHub API")
+
+
+# Custom exception handler for validation errors (for banks_v2 API standardization)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Custom handler to return validation errors in standardized format with response codes
+    Only applies to banks_v2 endpoints for consistent API responses
+    """
+    # Check if this is a banks_v2 endpoint
+    if "/api/v2/banks/" in str(request.url):
+        errors = exc.errors()
+        error_details = []
+        
+        for error in errors:
+            field = " -> ".join(str(loc) for loc in error["loc"])
+            error_details.append({
+                "field": field,
+                "error": error["msg"],
+                "invalid_value": error.get("input", "")
+            })
+        
+        return JSONResponse(
+            status_code=200,  # Return 200 for consistent API behavior
+            content={
+                "meta": {
+                    "response_code": "01",
+                    "response_message": "Validation Error"
+                },
+                "data": {
+                    "acknowledgement_no": "Unknown",
+                    "job_id": f"BANKS-{uuid.uuid4()}",
+                    "error": "Request validation failed. Please check field formats.",
+                    "validation_errors": error_details
+                }
+            }
+        )
+    else:
+        # For non-banks_v2 endpoints, return default FastAPI validation error
+        return JSONResponse(
+            status_code=422,
+            content={"detail": exc.errors()}
+        )
+
 
 # Create tables on startup
 create_database_tables()

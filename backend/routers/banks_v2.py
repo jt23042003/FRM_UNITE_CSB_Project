@@ -39,9 +39,10 @@ def _get_db_conn():
     )
 
 
-def _parse_date_ddmmyyyy(s: str) -> str:
-    # input DD-MM-YYYY -> output YYYY-MM-DD
-    dt = datetime.strptime(s, "%d-%m-%Y")
+def _parse_date_yyyymmdd(s: str) -> str:
+    # input YYYY-MM-DD -> output YYYY-MM-DD (already in correct format)
+    # Just validate the date is valid
+    dt = datetime.strptime(s, "%Y-%m-%d")
     return dt.strftime("%Y-%m-%d")
 
 
@@ -222,7 +223,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                         case_id,
                         float(inc.amount),
                         rrn,
-                        _parse_date_ddmmyyyy(inc.transaction_date),
+                        _parse_date_yyyymmdd(inc.transaction_date),
                         _normalize_time(inc.transaction_time),
                         float(inc.disputed_amount),
                         int(inc.layer),
@@ -298,6 +299,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
 
                     # ECBT/ECBNT Logic (ECB Flow):
                     # Step 1: Check if bene_acct_num from txn matches bene_acct_num in acc_bene table
+                    # Priority: Find acc_bene relationships where cust_acct_num exists in account_customer
                     ecb_match = False
                     ecbt_match = False
                     ecbnt_match = False
@@ -305,25 +307,23 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     ecb_bene_acct_num = None
                     ecb_cust_id = None
                     
-                    cur.execute(
-                        "SELECT cust_acct_num, bene_acct_num FROM public.acc_bene WHERE bene_acct_num = %s LIMIT 1",
-                        (bene_acct_num,)
-                    )
+                    # Query acc_bene and join with account_customer to get only valid customers
+                    cur.execute("""
+                        SELECT ab.cust_acct_num, ab.bene_acct_num, ac.cust_id
+                        FROM public.acc_bene ab
+                        JOIN public.account_customer ac ON ab.cust_acct_num = ac.acc_num
+                        WHERE ab.bene_acct_num = %s
+                        LIMIT 1
+                    """, (bene_acct_num,))
+                    
                     acc_bene_row = cur.fetchone()
                     
                     if acc_bene_row:
-                        # ECB Flow starts - we found a match in acc_bene
+                        # ECB Flow starts - we found a match in acc_bene with valid customer
                         ecb_match = True
                         ecb_cust_acct_num = acc_bene_row[0]  # cust_acct_num from acc_bene
                         ecb_bene_acct_num = acc_bene_row[1]  # bene_acct_num from acc_bene
-                        
-                        # Get customer_id for the ECB customer account
-                        cur.execute(
-                            "SELECT cust_id FROM public.account_customer WHERE acc_num = %s LIMIT 1",
-                            (ecb_cust_acct_num,)
-                        )
-                        ecb_cust_row = cur.fetchone()
-                        ecb_cust_id = ecb_cust_row[0] if ecb_cust_row else None
+                        ecb_cust_id = acc_bene_row[2]  # cust_id from account_customer (already joined)
                         
                         # Step 2: Check if there's a transaction between cust_acct_num and bene_acct_num
                         cur.execute("""
