@@ -35,7 +35,7 @@ Content-Type: application/json
     {
       "amount": "5000.00",
       "rrn": "9000000101",
-      "transaction_date": "05-01-2023",
+      "transaction_date": "2023-01-05",
       "transaction_time": "09:00:00",
       "disputed_amount": "5000.00",
       "layer": 0
@@ -76,7 +76,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "7500.00",
       "rrn": "9000000202",
-      "transaction_date": "06-01-2023",
+      "transaction_date": "2023-01-06",
       "transaction_time": "14:30:00",
       "disputed_amount": "7500.00",
       "layer": 0
@@ -117,7 +117,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "12000.00",
       "rrn": "9000000303",
-      "transaction_date": "07-01-2023",
+      "transaction_date": "2023-01-07",
       "transaction_time": "11:45:00",
       "disputed_amount": "12000.00",
       "layer": 0
@@ -158,7 +158,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "15000.00",
       "rrn": "9000000404",
-      "transaction_date": "08-01-2023",
+      "transaction_date": "2023-01-08",
       "transaction_time": "16:20:00",
       "disputed_amount": "15000.00",
       "layer": 0
@@ -199,7 +199,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "20000.00",
       "rrn": "9000000505",
-      "transaction_date": "09-01-2023",
+      "transaction_date": "2023-01-09",
       "transaction_time": "13:30:00",
       "disputed_amount": "20000.00",
       "layer": 0
@@ -239,7 +239,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "5000.00",
       "rrn": "9000000601",
-      "transaction_date": "06-01-2023",
+      "transaction_date": "2023-01-06",
       "transaction_time": "09:00:00",
       "disputed_amount": "5000.00",
       "layer": 0,
@@ -250,7 +250,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "7500.00",
       "rrn": "9000000602",
-      "transaction_date": "06-01-2023",
+      "transaction_date": "2023-01-06",
       "transaction_time": "14:30:00",
       "disputed_amount": "7500.00",
       "layer": 1,
@@ -293,7 +293,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/v2/banks/case-entry" -H "Content-Type
     {
       "amount": "10000.00",
       "rrn": "9000000707",
-      "transaction_date": "12-01-2023",
+      "transaction_date": "2023-01-12",
       "transaction_time": "15:45:00",
       "disputed_amount": "10000.00",
       "layer": 0
@@ -382,7 +382,7 @@ echo "=== All Tests Complete! ==="
 - **acknowledgement_no**: 8-20 alphanumeric characters
 - **amount**: Format NNNN.NN (e.g., 5000.00)
 - **rrn**: 10-14 numeric digits (must be unique across all incidents)
-- **transaction_date**: DD-MM-YYYY format
+- **transaction_date**: YYYY-MM-DD format (e.g., 2025-10-09)
 - **transaction_time**: HH:MM:SS format (optional)
 - **payer_mobile_number**: 10-15 digits
 - **payer_account_number**: 9-18 digits

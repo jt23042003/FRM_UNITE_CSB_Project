@@ -45,10 +45,10 @@ class IncidentData(BaseModel):
     @validator("transaction_date")
     def validate_transaction_date(cls, v: str) -> str:
         try:
-            # Expect DD-MM-YYYY
-            datetime.strptime(v, "%d-%m-%Y")
+            # Accept YYYY-MM-DD format
+            datetime.strptime(v, "%Y-%m-%d")
         except Exception:
-            raise ValueError("transaction_date must be DD-MM-YYYY")
+            raise ValueError("transaction_date must be YYYY-MM-DD")
         return v
 
     @validator("transaction_time")
