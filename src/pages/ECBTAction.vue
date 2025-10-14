@@ -155,7 +155,7 @@
 
         <!-- Transaction Table for ECBT -->
         <div v-if="transactions.length > 0" class="transaction-section">
-          <h4>Transaction History - I4C Incidents</h4>
+          <h4>Transaction History - Customer to Beneficiary (from Bank Txn Table)</h4>
           <div class="transaction-table-container">
             <table class="transaction-table">
               <thead>
@@ -163,42 +163,35 @@
                   <th>Date</th>
                   <th>Time</th>
                   <th>RRN / Reference</th>
+                  <th>Beneficiary Account</th>
                   <th>Amount</th>
-                  <th>Disputed Amount</th>
-                  <th>Layer</th>
                   <th>Channel</th>
-                  <th>Beneficiary Match</th>
+                  <th>Description</th>
                 </tr>
               </thead>
               <tbody>
                 <tr 
                   v-for="transaction in transactions" 
-                  :key="transaction.txn_ref"
-                  :class="{ 'highlighted-transaction': transaction.is_bene_match }"
+                  :key="transaction.txn_ref || transaction.txn_id"
                 >
                   <td>{{ formatDate(transaction.txn_date) }}</td>
                   <td>{{ formatTime(transaction.txn_time) }}</td>
                   <td>{{ transaction.txn_ref }}</td>
+                  <td>{{ transaction.bene_acct_num || 'N/A' }}</td>
                   <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
-                  <td class="amount-cell">{{ formatAmount(transaction.disputed_amount) }}</td>
-                  <td>{{ transaction.layer }}</td>
                   <td>{{ transaction.channel }}</td>
-                  <td class="match-indicator">
-                    <span v-if="transaction.is_bene_match" class="match-badge">✓ Match</span>
-                    <span v-else class="no-match-badge">-</span>
-                  </td>
+                  <td>{{ transaction.descr || 'N/A' }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
           <div class="transaction-summary">
             <p><strong>Total Transactions:</strong> {{ transactions.length }}</p>
-            <p><strong>Matching Transactions:</strong> {{ transactions.filter(t => t.is_bene_match).length }}</p>
             <p><strong>Total Value at Risk:</strong> {{ formatAmount(calculateTotalValueAtRisk()) }}</p>
           </div>
         </div>
         <div v-else class="transaction-section">
-          <h4>Transaction History - I4C Incidents</h4>
+          <h4>Transaction History - Customer to Beneficiary</h4>
           <div class="no-transactions">
             <p>No transaction data available for this case.</p>
           </div>
@@ -1271,20 +1264,18 @@ const fetchCaseDetails = async () => {
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
-    // Try to fetch banks_v2 transaction data if we have a source_ack_no
-    let banksV2Transactions = [];
-    if (source_ack_no) {
+    // For ECBT cases, fetch actual transactions from txn table instead of payload incidents
+    let ecbtTransactions = [];
+    if (source_ack_no && source_ack_no.includes('_ECBT')) {
       try {
-        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
-        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
-        const banksV2Res = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, { 
+        const ecbtRes = await axios.get(`/api/v2/banks/ecbt-transactions/${caseId}`, { 
           headers: { Authorization: `Bearer ${token}` } 
         });
-        if (banksV2Res.data?.success) {
-          banksV2Transactions = banksV2Res.data.data.transactions || [];
+        if (ecbtRes.data?.success) {
+          ecbtTransactions = ecbtRes.data.data.transactions || [];
         }
       } catch (error) {
-        console.log('No banks_v2 transaction data found for this case:', error.message);
+        console.log('No ECBT transaction data found for this case:', error.message);
       }
     }
     
@@ -1318,8 +1309,8 @@ const fetchCaseDetails = async () => {
       };
     }
     
-    // Load transactions for ECBT - use banks_v2 data if available, otherwise fallback to original transactions
-    transactions.value = banksV2Transactions.length > 0 ? banksV2Transactions : caseTransactions || [];
+    // Load transactions for ECBT - use actual txn table data if available, otherwise fallback to caseTransactions
+    transactions.value = ecbtTransactions.length > 0 ? ecbtTransactions : caseTransactions || [];
     
     // Try to fetch banks_v2 case data for I4C details if we have a source_ack_no
     let banksV2Data = null;

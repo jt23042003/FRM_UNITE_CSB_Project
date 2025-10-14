@@ -170,47 +170,12 @@
 
         </div>
 
-        <!-- Transaction Table for ECBNT (from banks_v2 incidents) -->
-        <div v-if="transactions.length > 0" class="transaction-section">
-          <h4>Transaction History - I4C Incidents</h4>
-          <div class="transaction-table-container">
-            <table class="transaction-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>RRN / Reference</th>
-                  <th>Amount</th>
-                  <th>Disputed Amount</th>
-                  <th>Layer</th>
-                  <th>Channel</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr 
-                  v-for="transaction in transactions" 
-                  :key="transaction.txn_ref || transaction.rrn"
-                >
-                  <td>{{ formatDate(transaction.txn_date) }}</td>
-                  <td>{{ formatTime(transaction.txn_time) }}</td>
-                  <td>{{ transaction.txn_ref }}</td>
-                  <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
-                  <td class="amount-cell">{{ formatAmount(transaction.disputed_amount) }}</td>
-                  <td>{{ transaction.layer }}</td>
-                  <td>{{ transaction.channel }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="transaction-summary">
-            <p><strong>Total Transactions:</strong> {{ transactions.length }}</p>
-            <p><strong>Total Value at Risk:</strong> {{ formatAmount(calculateTotalValueAtRisk()) }}</p>
-          </div>
-        </div>
-        <div v-else class="transaction-section">
-          <h4>Transaction History - I4C Incidents</h4>
-          <div class="no-transactions">
-            <p>No transaction data available for this case.</p>
+        <!-- No Transaction Table for ECBNT (No transactions exist between customer and beneficiary) -->
+        <div class="info-banner">
+          <div class="info-icon">ℹ️</div>
+          <div class="info-message">
+            <strong>No Transaction History:</strong> This is an ECBNT (Existing Customer Beneficiary No Transaction) case. 
+            The beneficiary was added to the customer's saved beneficiaries list but no transactions have been made to this account.
           </div>
         </div>
       </div>
@@ -1239,25 +1204,9 @@ const fetchCaseDetails = async () => {
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
-    // Try to fetch banks_v2 transaction data if we have a source_ack_no
-    let banksV2Transactions = [];
-    if (source_ack_no) {
-      try {
-        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
-        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
-        const banksV2TxnRes = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (banksV2TxnRes.data?.success) {
-          banksV2Transactions = banksV2TxnRes.data.data.transactions || [];
-        }
-      } catch (error) {
-        console.log('No banks_v2 transaction data found for this case:', error.message);
-      }
-    }
-    
-    // Populate transactions array
-    transactions.value = banksV2Transactions;
+    // ECBNT cases don't display transactions (no transactions exist between customer and beneficiary)
+    // Clear transactions array to ensure info banner is shown
+    transactions.value = [];
     
     // Try to fetch banks_v2 case data for I4C details if we have a source_ack_no
     let banksV2Data = null;
@@ -3853,5 +3802,34 @@ const calculateTotalValueAtRisk = () => {
   .transaction-table td:nth-child(n+5) {
     display: none;
   }
+}
+
+/* Info Banner for ECBNT */
+.info-banner {
+  margin-top: 24px;
+  padding: 20px;
+  background: #e7f3ff;
+  border-radius: 8px;
+  border: 1px solid #0d6efd;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.info-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.info-message {
+  color: #004085;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.info-message strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
 }
 </style>
