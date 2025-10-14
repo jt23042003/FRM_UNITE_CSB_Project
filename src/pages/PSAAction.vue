@@ -90,47 +90,101 @@
           </div>
         </div>
 
-        <!-- Transaction Table for PSA (from banks_v2 incidents) -->
-        <div v-if="transactions.length > 0" class="transaction-section">
-          <h4>Transaction History - I4C Incidents</h4>
-          <div class="transaction-table-container">
-            <table class="transaction-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>RRN / Reference</th>
-                  <th>Amount</th>
-                  <th>Disputed Amount</th>
-                  <th>Layer</th>
-                  <th>Channel</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr 
-                  v-for="transaction in transactions" 
-                  :key="transaction.txn_ref || transaction.rrn"
-                >
-                  <td>{{ formatDate(transaction.txn_date) }}</td>
-                  <td>{{ formatTime(transaction.txn_time) }}</td>
-                  <td>{{ transaction.txn_ref }}</td>
-                  <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
-                  <td class="amount-cell">{{ formatAmount(transaction.disputed_amount) }}</td>
-                  <td>{{ transaction.layer }}</td>
-                  <td>{{ transaction.channel }}</td>
-                </tr>
-              </tbody>
-            </table>
+        <!-- Two-Section Transaction Layout for PSA Cases -->
+        <div class="transaction-comparison-grid">
+          <!-- LEFT: Raw I4C Incidents from Complaint -->
+          <div class="transaction-section">
+            <h4>Transaction Details from I4C Complaint</h4>
+            <div v-if="i4cIncidents.length > 0" class="transaction-table-container">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>RRN</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Amount</th>
+                    <th>Disputed</th>
+                    <th>Layer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="incident in i4cIncidents" :key="incident.rrn">
+                    <td>{{ incident.rrn }}</td>
+                    <td>{{ incident.transaction_date }}</td>
+                    <td>{{ incident.transaction_time || 'N/A' }}</td>
+                    <td class="amount-cell">{{ formatAmount(incident.amount) }}</td>
+                    <td class="amount-cell">{{ formatAmount(incident.disputed_amount) }}</td>
+                    <td>{{ incident.layer }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="no-transactions">
+              <p>No incident data available.</p>
+            </div>
           </div>
-          <div class="transaction-summary">
-            <p><strong>Total Transactions:</strong> {{ transactions.length }}</p>
-            <p><strong>Total Value at Risk:</strong> {{ formatAmount(calculateTotalValueAtRisk()) }}</p>
+
+          <!-- RIGHT: Validated/Matched Bank Transactions -->
+          <div class="transaction-section">
+            <h4>Matched Bank Transactions</h4>
+            <div v-if="validationResults.length > 0" class="transaction-table-container">
+              <table class="transaction-table">
+                <thead>
+                  <tr>
+                    <th>RRN</th>
+                    <th>Status</th>
+                    <th>Bene Account</th>
+                    <th>Amount</th>
+                    <th>Date & Time</th>
+                    <th>Channel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr 
+                    v-for="validation in validationResults" 
+                    :key="validation.rrn"
+                    :class="getValidationRowClass(validation)"
+                  >
+                    <td>{{ validation.rrn }}</td>
+                    <td>
+                      <span v-if="validation.validation_status === 'matched'" class="status-badge success">
+                        ✓ Matched
+                      </span>
+                      <span v-else class="status-badge error">
+                        {{ getStatusLabel(validation.validation_status) }}
+                      </span>
+                    </td>
+                    <td v-if="validation.matched_txn">{{ validation.matched_txn.bene_acct_num }}</td>
+                    <td v-else class="error-message">{{ validation.validation_message }}</td>
+                    <td v-if="validation.matched_txn" class="amount-cell">{{ formatAmount(validation.matched_txn.amount) }}</td>
+                    <td v-else>-</td>
+                    <td v-if="validation.matched_txn">{{ validation.matched_txn.txn_date }} {{ validation.matched_txn.txn_time }}</td>
+                    <td v-else>-</td>
+                    <td v-if="validation.matched_txn">{{ validation.matched_txn.channel }}</td>
+                    <td v-else>-</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="no-transactions">
+              <p>No validation results available.</p>
+            </div>
           </div>
         </div>
-        <div v-else class="transaction-section">
-          <h4>Transaction History - I4C Incidents</h4>
-          <div class="no-transactions">
-            <p>No transaction data available for this case.</p>
+        
+        <!-- Summary Section -->
+        <div v-if="validationResults.length > 0" class="validation-summary">
+          <div class="summary-card">
+            <span class="summary-label">Total Incidents:</span>
+            <span class="summary-value">{{ validationResults.length }}</span>
+          </div>
+          <div class="summary-card success">
+            <span class="summary-label">✓ Matched:</span>
+            <span class="summary-value">{{ validationResults.filter(v => v.validation_status === 'matched').length }}</span>
+          </div>
+          <div class="summary-card error">
+            <span class="summary-label">✗ Errors:</span>
+            <span class="summary-value">{{ validationResults.filter(v => v.validation_status !== 'matched').length }}</span>
           </div>
         </div>
       </div>
@@ -899,6 +953,8 @@ const i4cDetails = ref({
 
 // Transaction data for PSA
 const transactions = ref([]);
+const i4cIncidents = ref([]);  // Raw incidents from I4C complaint
+const validationResults = ref([]);  // Validation results for each incident
 const bankDetails = ref({
   name: '',
   mobile: '',
@@ -1035,6 +1091,24 @@ const calculateTotalValueAtRisk = () => {
     const amount = typeof txn.amount === 'string' ? parseFloat(txn.amount) : txn.amount;
     return total + (isNaN(amount) ? 0 : amount);
   }, 0);
+};
+
+// Validation helper functions
+const getValidationRowClass = (validation) => {
+  if (validation.validation_status === 'matched') return 'validation-success';
+  return 'validation-error';
+};
+
+const getStatusLabel = (status) => {
+  const labels = {
+    'duplicate': '✗ Duplicate RRN',
+    'invalid_format': '✗ Invalid Format',
+    'invalid_range': '✗ Invalid Range',
+    'not_found': '✗ Not Found',
+    'multiple_found': '✗ Multiple Found',
+    'pending': '⏳ Pending'
+  };
+  return labels[status] || '✗ Error';
 };
 
 const triggerFileInput = (blockIndex) => {
@@ -1231,8 +1305,46 @@ const fetchCaseDetails = async () => {
       }
     }
     
-    // Populate transactions array
+    // Populate transactions array (old legacy field)
     transactions.value = banksV2Transactions;
+    
+    // Fetch incident validation results for PSA cases
+    if (caseId) {
+      try {
+        const validationRes = await axios.get(`/api/v2/banks/incident-validations/${caseId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (validationRes.data?.success) {
+          validationResults.value = validationRes.data.data.validations || [];
+          console.log(`Loaded ${validationResults.value.length} validation results for PSA`);
+        }
+      } catch (error) {
+        console.log('Error fetching validation results:', error.message);
+      }
+      
+      // FALLBACK: If no validation results (old case), create from banksV2Transactions
+      if (validationResults.value.length === 0 && banksV2Transactions.length > 0) {
+        console.log('No validation results found - creating fallback from transaction data');
+        validationResults.value = banksV2Transactions.map(txn => ({
+          rrn: txn.txn_ref || txn.rrn || 'N/A',
+          validation_status: 'matched',
+          validation_message: 'Legacy data - validation status not tracked',
+          matched_txn: {
+            txn_id: null,
+            acct_num: txn.root_account_number || 'N/A',
+            bene_acct_num: txn.bene_acct_num || 'N/A',
+            amount: txn.amount || '0',
+            txn_date: txn.txn_date || 'N/A',
+            txn_time: txn.txn_time || 'N/A',
+            channel: txn.channel || 'N/A',
+            descr: txn.descr || 'N/A',
+            rrn: txn.txn_ref || txn.rrn || 'N/A'
+          },
+          error: null
+        }));
+        console.log(`✅ Created ${validationResults.value.length} fallback validation results`);
+      }
+    }
     
     // Try to fetch banks_v2 case data for I4C details if we have a source_ack_no
     let banksV2Data = null;
@@ -1251,7 +1363,7 @@ const fetchCaseDetails = async () => {
       }
     }
     
-    // Populate I4C details with banks_v2 data if available, otherwise fallback to original data
+    // Populate I4C details and raw incidents with banks_v2 data if available
     if (banksV2Data) {
       i4cDetails.value = {
         name: banksV2Data.instrument?.payer_account_number ? `Account ${banksV2Data.instrument.payer_account_number}` : 'N/A',
@@ -1266,6 +1378,9 @@ const fetchCaseDetails = async () => {
         district: banksV2Data.instrument?.district || 'N/A',
         transactionType: banksV2Data.instrument?.transaction_type || 'N/A'
       };
+      
+      // Populate raw I4C incidents
+      i4cIncidents.value = banksV2Data.incidents || [];
     } else {
       // Fallback to original I4C data
       i4cDetails.value = {
@@ -3716,6 +3831,115 @@ const getTemplateQuestionFiles = (questionId) => {
   font-style: italic;
 }
 
+/* Two-Section Transaction Comparison Layout */
+.transaction-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.transaction-comparison-grid .transaction-section {
+  margin-top: 0;
+}
+
+/* Validation Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-badge.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Validation Row Styling */
+.validation-success {
+  background: #f0fff4 !important;
+}
+
+.validation-success:hover {
+  background: #e6ffe8 !important;
+}
+
+.validation-error {
+  background: #fff5f5 !important;
+}
+
+.validation-error:hover {
+  background: #ffebeb !important;
+}
+
+.error-message {
+  color: #721c24;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Validation Summary Cards */
+.validation-summary {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.summary-card {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-card.success {
+  background: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.summary-card.error {
+  background: #f8d7da;
+  border-color: #f5c6cb;
+}
+
+.summary-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #212529;
+}
+
+.summary-card.success .summary-value {
+  color: #155724;
+}
+
+.summary-card.error .summary-value {
+  color: #721c24;
+}
+
 /* Responsive transaction table */
 @media (max-width: 768px) {
   .transaction-table th,
@@ -3727,6 +3951,14 @@ const getTemplateQuestionFiles = (questionId) => {
   .transaction-table th:nth-child(n+5),
   .transaction-table td:nth-child(n+5) {
     display: none;
+  }
+  
+  .transaction-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .validation-summary {
+    flex-direction: column;
   }
 }
 </style>

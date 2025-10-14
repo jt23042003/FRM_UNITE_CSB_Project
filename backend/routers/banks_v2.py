@@ -97,8 +97,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             "data": {"acknowledgement_no": ack_no, "job_id": job_id}
         })
 
-    # Phase 2: Persist envelope and incidents; produce per-incident validation results
+    # Phase 1: Persist envelope and incidents; produce per-incident validation results
     transactions: List[Dict[str, Any]] = []
+    incident_validations: List[Dict[str, Any]] = []  # Store validation results per incident
+    vm_case_id = None  # Will be created early if VM matches
 
     try:
         conn = _get_db_conn()
@@ -181,10 +183,64 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             
         print(f"[v2] Upsert case_main_v2 case_id={case_id} dt={(time.perf_counter()-t_upsert_0)*1000:.1f}ms", flush=True)
 
-        # Prepare to insert each incident
+        # PRIORITY CHECK: VM Match - Check if payer_account_number matches any customer
+        # This happens BEFORE any RRN validation
+        print(f"[v2] Checking VM match for payer_account: {payload.instrument.payer_account_number}", flush=True)
+        cur.execute(
+            "SELECT cust_id FROM public.account_customer WHERE acc_num = %s LIMIT 1",
+            (payload.instrument.payer_account_number,)
+        )
+        vm_row = cur.fetchone()
+        
+        if not vm_row:
+            # NO VM MATCH - Return error immediately, don't proceed
+            conn.rollback()
+            conn.close()
+            print(f"[v2] NO VM MATCH for payer_account: {payload.instrument.payer_account_number}", flush=True)
+            return {
+                "meta": {
+                    "response_code": "20",
+                    "response_message": "No matching customer account found"
+                },
+                "data": {
+                    "acknowledgement_no": ack_no,
+                    "job_id": job_id,
+                    "error": f"Payer account number '{payload.instrument.payer_account_number}' does not match any customer in the system."
+                }
+            }
+        
+        # VM MATCH FOUND - Get customer ID and CREATE VM CASE IMMEDIATELY (before RRN validation)
+        victim_cust_id = vm_row[0]
+        print(f"[v2] VM MATCH FOUND! cust_id={victim_cust_id}", flush=True)
+        
+        # Commit what we have so far before creating case
+        conn.commit()
+        
+        # Create VM case NOW
+        vm_case_id = await matcher.insert_into_case_main(
+            case_type="VM",
+            source_ack_no=f"{ack_no}_VM",
+            cust_id=victim_cust_id,
+            acc_num=payload.instrument.payer_account_number,
+            is_operational=True,
+            status='New',
+            decision_input='Pending Review',
+            remarks_input=f"Automated VM case from bank ingest for {ack_no}",
+            source_bene_accno=None,
+            customer_full_name=None
+        )
+        await save_or_update_decision(request.app.state.executor, vm_case_id, {"comments": "Initial VM case created", "assignedEmployee": "jalaj"})
+        with _get_db_conn() as c2:
+            with c2.cursor() as k:
+                k.execute("INSERT INTO public.case_details_1 (cust_id, casetype, acc_no, match_flag, creation_timestamp) VALUES (%s, %s, %s, %s, NOW())", (victim_cust_id, "VM", payload.instrument.payer_account_number, "VM Match"))
+                c2.commit()
+        
+        print(f"[v2] VM CASE CREATED! case_id={vm_case_id}", flush=True)
+
+        # Prepare to insert each incident and validate RRNs
         has_txn_table = _txn_table_exists(cur)
         t_inc_total = 0.0
-        # Defer case creation until after commit to avoid nested lock waits
+        # Defer PSA/ECBT/ECBNT case creation until after all incidents processed
         deferred_actions: List[Dict[str, Any]] = []
         rrn_to_txn_idx: Dict[str, int] = {}
         for inc in payload.incidents:
@@ -192,27 +248,41 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             try:
                 t_inc_0 = time.perf_counter()
                 
-                # Check if RRN already exists in case_incidents table
+                # Initialize validation result for this incident
+                validation_result = {
+                    "rrn": rrn,
+                    "amount": str(inc.amount),
+                    "transaction_date": inc.transaction_date,
+                    "transaction_time": inc.transaction_time,
+                    "disputed_amount": str(inc.disputed_amount),
+                    "layer": inc.layer,
+                    "validation_status": "pending",
+                    "validation_message": "",
+                    "matched_txn": None,
+                    "error": None
+                }
+                
+                # Check if RRN already exists in case_incidents table (for duplicate check)
                 cur.execute("SELECT case_id FROM public.case_incidents WHERE rrn = %s", (rrn,))
                 existing_rrn = cur.fetchone()
                 
                 if existing_rrn:
-                    # RRN already exists - return error
-                    conn.rollback()
-                    conn.close()
-                    return {
-                        "meta": {
-                            "response_code": "16",
-                            "response_message": "Duplicate RRN"
-                        },
-                        "data": {
-                            "acknowledgement_no": ack_no,
-                            "job_id": job_id,
-                            "error": f"RRN '{rrn}' already exists in the system. Each RRN must be unique as it represents a specific transaction."
-                        }
-                    }
+                    # RRN already exists - mark as duplicate but STILL STORE IT
+                    validation_result["validation_status"] = "duplicate"
+                    validation_result["validation_message"] = "Duplicate RRN - already exists in system"
+                    validation_result["error"] = f"RRN '{rrn}' already exists"
+                    incident_validations.append(validation_result)
+                    
+                    # Store in transactions response with error status
+                    transactions.append({
+                        "rrn_transaction_id": rrn,
+                        "status_code": "16",
+                        "response_message": "Duplicate RRN"
+                    })
+                    t_inc_total += time.perf_counter()-t_inc_0
+                    continue  # Skip to next incident
                 
-                # Insert incident (no conflict handling needed now)
+                # Insert incident (always store, even if validation fails later)
                 cur.execute(
                     """
                     INSERT INTO public.case_incidents (
@@ -230,8 +300,12 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     ),
                 )
 
-                # After persistence (or skip on duplicate), perform RRN validation/lookup for response mapping
+                # Now perform RRN validation and txn table lookup
                 if not _rrn_is_numeric_and_length(rrn):
+                    validation_result["validation_status"] = "invalid_format"
+                    validation_result["validation_message"] = "Invalid RRN format (must be 10-14 digits)"
+                    validation_result["error"] = "Invalid RRN"
+                    incident_validations.append(validation_result)
                     transactions.append({
                         "rrn_transaction_id": rrn,
                         "status_code": "02",
@@ -241,6 +315,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     continue
 
                 if not _rrn_in_range(rrn):
+                    validation_result["validation_status"] = "invalid_range"
+                    validation_result["validation_message"] = "Invalid RRN range"
+                    validation_result["error"] = "Invalid RRN range"
+                    incident_validations.append(validation_result)
                     transactions.append({
                         "rrn_transaction_id": rrn,
                         "status_code": "03",
@@ -250,6 +328,9 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     continue
 
                 if not has_txn_table:
+                    validation_result["validation_status"] = "pending"
+                    validation_result["validation_message"] = "Transaction table not available"
+                    incident_validations.append(validation_result)
                     transactions.append({
                         "rrn_transaction_id": rrn,
                         "status_code": "31",
@@ -258,13 +339,17 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     t_inc_total += time.perf_counter()-t_inc_0
                     continue
 
-                # Lookup in txn
+                # Lookup RRN in txn table
                 cur.execute(
-                    "SELECT id, acct_num, bene_acct_num, amount, txn_date, txn_time FROM public.txn WHERE rrn = %s",
+                    "SELECT id, acct_num, bene_acct_num, amount, txn_date, txn_time, channel, descr FROM public.txn WHERE rrn = %s",
                     (rrn,)
                 )
                 rows = cur.fetchall()
                 if len(rows) == 0:
+                    validation_result["validation_status"] = "not_found"
+                    validation_result["validation_message"] = "No transaction found in bank records"
+                    validation_result["error"] = "Record not found"
+                    incident_validations.append(validation_result)
                     transactions.append({
                         "rrn_transaction_id": rrn,
                         "status_code": "01",
@@ -272,6 +357,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     })
                     t_inc_total += time.perf_counter()-t_inc_0
                 elif len(rows) > 1:
+                    validation_result["validation_status"] = "multiple_found"
+                    validation_result["validation_message"] = "Multiple transactions found for this RRN"
+                    validation_result["error"] = "Multiple Records Found"
+                    incident_validations.append(validation_result)
                     transactions.append({
                         "rrn_transaction_id": rrn,
                         "status_code": "15",
@@ -279,18 +368,23 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     })
                     t_inc_total += time.perf_counter()-t_inc_0
                 else:
-                    _id, acct_num, bene_acct_num, amount, txn_date, txn_time = rows[0]
-
-                    # VM: match payer_account_number to account_customer.acc_num
-                    vm_match = False
-                    cur.execute(
-                        "SELECT cust_id FROM public.account_customer WHERE acc_num = %s LIMIT 1",
-                        (payload.instrument.payer_account_number,)
-                    )
-                    row_v = cur.fetchone()
-                    victim_cust_id = row_v[0] if row_v else None
-                    if victim_cust_id:
-                        vm_match = True
+                    # SUCCESS - Found exactly 1 matching transaction
+                    _id, acct_num, bene_acct_num, amount, txn_date, txn_time, channel, descr = rows[0]
+                    
+                    # Store matched transaction details in validation result
+                    validation_result["validation_status"] = "matched"
+                    validation_result["validation_message"] = "Transaction found and matched successfully"
+                    validation_result["matched_txn"] = {
+                        "txn_id": _id,
+                        "acct_num": acct_num,
+                        "bene_acct_num": bene_acct_num,
+                        "amount": str(amount),
+                        "txn_date": txn_date.strftime('%Y-%m-%d') if txn_date else None,
+                        "txn_time": str(txn_time) if txn_time else None,
+                        "channel": channel or "N/A",
+                        "descr": descr or "N/A",
+                        "rrn": rrn
+                    }
 
                     # Resolve beneficiary cust_id for PSA
                     cur.execute("SELECT cust_id FROM public.account_customer WHERE acc_num = %s LIMIT 1", (bene_acct_num,))
@@ -339,19 +433,17 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                         else:
                             ecbnt_match = True  # No transaction found between accounts
 
-                    # Defer actions post-commit
-                    # Updated case creation logic according to specifications:
-                    # 1. VM: Always created if payer_account_number matches account_customer.acc_num
-                    # 2. PSA: Created if RRN found AND bene_acct_num matches account_customer.acc_num
-                    # 3. ECBT: If bene_acct_num matches acc_bene AND transaction exists between cust_acct_num and bene_acct_num
-                    # 4. ECBNT: If bene_acct_num matches acc_bene AND NO transaction exists between cust_acct_num and bene_acct_num
+                    # Add validation result to array
+                    incident_validations.append(validation_result)
+                    
+                    # Defer PSA/ECBT/ECBNT case creation (VM already created)
+                    # PSA: Created if RRN found AND bene_acct_num matches account_customer.acc_num
+                    # ECBT: If bene_acct_num matches acc_bene AND transaction exists between cust_acct_num and bene_acct_num
+                    # ECBNT: If bene_acct_num matches acc_bene AND NO transaction exists between cust_acct_num and bene_acct_num
                     action = {
                         "rrn": rrn,
-                        "victim_cust_id": victim_cust_id,
                         "bene_cust_id": bene_cust_id,
-                        "victim_acc": payload.instrument.payer_account_number,
                         "bene_acc": bene_acct_num,
-                        "vm": vm_match,  # True if payer_account_number matches account_customer.acc_num
                         "psa": bool(bene_cust_id),  # True if bene_acct_num matches account_customer.acc_num
                         "ecbt": ecbt_match,  # True if ECB flow and transaction found
                         "ecbnt": ecbnt_match,  # True if ECB flow and no transaction found
@@ -369,8 +461,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                         "root_account_number": acct_num,
                         "root_rrn_transaction_id": rrn,
                         "status_code": "00",
-                        "response_message": "SUCCESS",
-                        "vm_match": vm_match
+                        "response_message": "SUCCESS"
                     })
                     rrn_to_txn_idx[rrn] = len(transactions) - 1
                     t_inc_total += time.perf_counter()-t_inc_0
@@ -386,8 +477,31 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     "error": str(db_err)
                 })
 
+        # Store incident validation results in database for frontend retrieval
+        # Create a simple JSON storage table if needed or link to VM case
+        validation_conn = _get_db_conn()
+        validation_cur = validation_conn.cursor()
+        
+        # Store validation results linked to the VM case
+        for val_result in incident_validations:
+            validation_cur.execute("""
+                INSERT INTO public.incident_validation_results 
+                (case_id, rrn, validation_status, validation_message, matched_txn_data, error_message, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                vm_case_id,
+                val_result["rrn"],
+                val_result["validation_status"],
+                val_result["validation_message"],
+                psycopg2.extras.Json(val_result["matched_txn"]) if val_result["matched_txn"] else None,
+                val_result["error"]
+            ))
+        validation_conn.commit()
+        validation_cur.close()
+        validation_conn.close()
+        
         conn.commit()
-        print(f"[v2] Phase1 done (upsert+incidents+lookup) dt={(time.perf_counter()-t0)*1000:.1f}ms inc_total={t_inc_total*1000:.1f}ms", flush=True)
+        print(f"[v2] Phase1 done (upsert+incidents+validation) dt={(time.perf_counter()-t0)*1000:.1f}ms inc_total={t_inc_total*1000:.1f}ms validations={len(incident_validations)}", flush=True)
     except HTTPException:
         raise
     except Exception as e:
@@ -406,9 +520,11 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
         except Exception:
             pass
 
-    # Phase 2: Create cases outside of transaction to avoid lock waits
+    # Phase 2: Create PSA/ECBT/ECBNT cases (VM already created in Phase 1)
     try:
         matcher = CaseEntryMatcher(executor=request.app.state.executor)
+        psa_case_id = None  # Track if we create a PSA case
+        
         for action in deferred_actions:
             rrn = action["rrn"]
             idx = rrn_to_txn_idx.get(rrn)
@@ -417,8 +533,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             txn_entry = transactions[idx]
 
             # PSA - Created if RRN found AND bene_acct_num matches account_customer.acc_num
-            psa_case_id = None
-            if action["psa"]:
+            if action["psa"] and not psa_case_id:  # Only create one PSA case
                 psa_case_id = await matcher.insert_into_case_main(
                     case_type="PSA",
                     source_ack_no=f"{ack_no}_PSA",
@@ -427,37 +542,36 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                     is_operational=True,
                     status='New',
                     decision_input='Pending Review',
-                    remarks_input=f"Automated PSA case from bank ingest. RRN {rrn}",
+                    remarks_input=f"Automated PSA case from bank ingest for {ack_no}",
                     source_bene_accno=action["bene_acc"],
                     customer_full_name=None
                 )
                 await save_or_update_decision(request.app.state.executor, psa_case_id, {"comments": "Initial PSA case created", "assignedEmployee": "jalaj"})
-                # case_details_1
                 with _get_db_conn() as c2:
                     with c2.cursor() as k:
                         k.execute("INSERT INTO public.case_details_1 (cust_id, casetype, acc_no, match_flag, creation_timestamp) VALUES (%s, %s, %s, %s, NOW())", (action["bene_cust_id"], "PSA", action["bene_acc"], "PSA Match"))
                         c2.commit()
-
-            # VM - Always created if payer_account_number matches account_customer.acc_num
-            vm_case_id = None
-            if action["vm"]:
-                vm_case_id = await matcher.insert_into_case_main(
-                    case_type="VM",
-                    source_ack_no=f"{ack_no}_VM",
-                    cust_id=action["victim_cust_id"],
-                    acc_num=action["victim_acc"],
-                    is_operational=True,
-                    status='New',
-                    decision_input='Pending Review',
-                    remarks_input=f"Automated VM case from bank ingest. RRN {rrn}",
-                    source_bene_accno=action["bene_acc"],
-                    customer_full_name=None
-                )
-                await save_or_update_decision(request.app.state.executor, vm_case_id, {"comments": "Initial VM case created", "assignedEmployee": "jalaj"})
-                with _get_db_conn() as c2:
-                    with c2.cursor() as k:
-                        k.execute("INSERT INTO public.case_details_1 (cust_id, casetype, acc_no, match_flag, creation_timestamp) VALUES (%s, %s, %s, %s, NOW())", (action["victim_cust_id"], "VM", action["victim_acc"], "VM Match"))
-                        c2.commit()
+                        
+                # Store validation results for PSA case too
+                psa_validation_conn = _get_db_conn()
+                psa_validation_cur = psa_validation_conn.cursor()
+                for val_result in incident_validations:
+                    if val_result["validation_status"] == "matched":  # Only matched incidents
+                        psa_validation_cur.execute("""
+                            INSERT INTO public.incident_validation_results 
+                            (case_id, rrn, validation_status, validation_message, matched_txn_data, error_message, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        """, (
+                            psa_case_id,
+                            val_result["rrn"],
+                            val_result["validation_status"],
+                            val_result["validation_message"],
+                            psycopg2.extras.Json(val_result["matched_txn"]) if val_result["matched_txn"] else None,
+                            val_result["error"]
+                        ))
+                psa_validation_conn.commit()
+                psa_validation_cur.close()
+                psa_validation_conn.close()
 
             # ECBT - Existing Customer Beneficiary with Transaction
             ecbt_case_id = None
@@ -489,8 +603,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                 ecbnt_result = await matcher.create_ecb_case(ecbn_payload, created_by_user="System")
                 ecbnt_case_id = (ecbnt_result or {}).get("case_id")
 
-            # attach IDs back to response entry
-            txn_entry["vm_case_id"] = vm_case_id
+            # attach IDs back to response entry (VM case ID was created early)
             txn_entry["psa_case_id"] = psa_case_id
             txn_entry["ecbt_case_id"] = ecbt_case_id
             txn_entry["ecbnt_case_id"] = ecbnt_case_id
@@ -501,9 +614,183 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
     print(f"[v2] END banks_case_entry ack={ack_no} job={job_id} total_dt={(time.perf_counter()-t0)*1000:.1f}ms", flush=True)
     return {
         "meta": {"response_code": "00", "response_message": "Success"},
-        "data": {"acknowledgement_no": ack_no, "job_id": job_id},
+        "data": {
+            "acknowledgement_no": ack_no,
+            "job_id": job_id,
+            "vm_case_id": vm_case_id,  # VM case created immediately
+            "psa_case_id": psa_case_id if 'psa_case_id' in locals() else None
+        },
         "transactions": transactions
     }
+
+
+@router.post("/api/v2/banks/case-entry/{ack_no}/respond", tags=["Bank Ingest v2"])
+async def banks_case_entry_respond(ack_no: str) -> Dict[str, Any]:
+    """
+    Respond to bank for a case entry. Marks VM case as closed and returns detailed transaction response.
+    This endpoint is called when user reviews the VM case and clicks "Respond" button.
+    """
+    try:
+        conn = _get_db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get case_main_v2 data
+        cur.execute("""
+            SELECT case_id, acknowledgement_no
+            FROM public.case_main_v2
+            WHERE acknowledgement_no = %s
+        """, (ack_no,))
+        
+        case_main_v2_data = cur.fetchone()
+        if not case_main_v2_data:
+            raise HTTPException(status_code=404, detail=f"Case {ack_no} not found")
+        
+        v2_case_id = case_main_v2_data['case_id']
+        
+        # Get VM case
+        cur.execute("""
+            SELECT case_id, status
+            FROM public.case_main
+            WHERE source_ack_no = %s
+        """, (f"{ack_no}_VM",))
+        
+        vm_case = cur.fetchone()
+        if not vm_case:
+            raise HTTPException(status_code=404, detail=f"VM case not found for {ack_no}")
+        
+        vm_case_id = vm_case['case_id']
+        
+        # Mark VM case as Closed
+        cur.execute("""
+            UPDATE public.case_main
+            SET status = 'Closed'
+            WHERE case_id = %s
+        """, (vm_case_id,))
+        conn.commit()
+        
+        print(f"[v2] VM case {vm_case_id} marked as Closed", flush=True)
+        
+        # Get all validation results for this VM case
+        cur.execute("""
+            SELECT rrn, validation_status, validation_message, matched_txn_data, error_message
+            FROM public.incident_validation_results
+            WHERE case_id = %s
+            ORDER BY created_at
+        """, (vm_case_id,))
+        
+        validations = cur.fetchall()
+        
+        # Get incidents data
+        cur.execute("""
+            SELECT rrn, amount, disputed_amount, transaction_date, transaction_time
+            FROM public.case_incidents
+            WHERE case_id = %s
+        """, (v2_case_id,))
+        
+        incidents = cur.fetchall()
+        
+        # Get PSA case if exists
+        cur.execute("""
+            SELECT case_id FROM public.case_main WHERE source_ack_no = %s
+        """, (f"{ack_no}_PSA",))
+        psa_row = cur.fetchone()
+        psa_case_id = psa_row['case_id'] if psa_row else None
+        
+        # Get ECBT cases if exist
+        cur.execute("""
+            SELECT case_id FROM public.case_main WHERE source_ack_no LIKE %s
+        """, (f"{ack_no}_ECBT%",))
+        ecbt_rows = cur.fetchall()
+        ecbt_case_ids = [row['case_id'] for row in ecbt_rows]
+        
+        # Get ECBNT cases if exist
+        cur.execute("""
+            SELECT case_id FROM public.case_main WHERE source_ack_no LIKE %s
+        """, (f"{ack_no}_ECBNT%",))
+        ecbnt_rows = cur.fetchall()
+        ecbnt_case_ids = [row['case_id'] for row in ecbnt_rows]
+        
+        cur.close()
+        conn.close()
+        
+        # Build detailed transaction response
+        transactions = []
+        for val in validations:
+            rrn = val['rrn']
+            matched_txn = val['matched_txn_data']
+            
+            # Find corresponding incident
+            incident = next((inc for inc in incidents if inc['rrn'] == rrn), None)
+            
+            # Determine status code based on validation
+            if val['validation_status'] == 'matched':
+                status_code = "00"
+                response_message = "SUCCESS"
+            elif val['validation_status'] == 'duplicate':
+                status_code = "16"
+                response_message = "Duplicate RRN"
+            elif val['validation_status'] == 'invalid_format':
+                status_code = "02"
+                response_message = "Invalid RRN"
+            elif val['validation_status'] == 'invalid_range':
+                status_code = "03"
+                response_message = "Invalid RRN range"
+            elif val['validation_status'] == 'not_found':
+                status_code = "01"
+                response_message = "Record not found"
+            elif val['validation_status'] == 'multiple_found':
+                status_code = "15"
+                response_message = "Multiple Records Found"
+            else:
+                status_code = "31"
+                response_message = "Pending"
+            
+            txn_entry = {
+                "rrn_transaction_id": rrn,
+                "status_code": status_code,
+                "response_message": response_message
+            }
+            
+            # Add matched transaction details if available
+            if matched_txn:
+                txn_entry["payee_account_number"] = matched_txn.get("bene_acct_num")
+                txn_entry["amount"] = matched_txn.get("amount")
+                txn_entry["transaction_datetime"] = f"{matched_txn.get('txn_date')} {matched_txn.get('txn_time')}"
+                txn_entry["root_account_number"] = matched_txn.get("acct_num")
+                txn_entry["root_rrn_transaction_id"] = rrn
+            else:
+                txn_entry["payee_account_number"] = None
+                txn_entry["amount"] = str(incident['amount']) if incident else None
+                txn_entry["transaction_datetime"] = f"{incident['transaction_date']} {incident['transaction_time']}" if incident else None
+                txn_entry["root_account_number"] = None
+                txn_entry["root_rrn_transaction_id"] = rrn
+            
+            # Add case IDs
+            txn_entry["psa_case_id"] = psa_case_id
+            txn_entry["ecbt_case_id"] = ecbt_case_ids[0] if ecbt_case_ids else None
+            txn_entry["ecbnt_case_id"] = ecbnt_case_ids[0] if ecbnt_case_ids else None
+            
+            transactions.append(txn_entry)
+        
+        # Return detailed response
+        return {
+            "meta": {"response_code": "00", "response_message": "Response sent successfully"},
+            "data": {
+                "acknowledgement_no": ack_no,
+                "vm_case_id": vm_case_id,
+                "psa_case_id": psa_case_id,
+                "ecbt_case_ids": ecbt_case_ids,
+                "ecbnt_case_ids": ecbnt_case_ids,
+                "status": "responded"
+            },
+            "transactions": transactions
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[v2] Error in respond endpoint for {ack_no}: {e}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
 @router.get("/api/v2/banks/case-data/{ack_no}", tags=["Bank Ingest v2"])
@@ -675,6 +962,214 @@ async def get_banks_v2_transaction_details(ack_no: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         print(f"[v2] Error fetching transaction details for {ack_no}: {e}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.get("/api/v2/banks/incident-validations/{case_id}", tags=["Bank Ingest v2"])
+async def get_incident_validations(case_id: int) -> Dict[str, Any]:
+    """
+    Get incident validation results for a case (VM or PSA).
+    Returns both the raw I4C incidents and the matched/validated bank transactions.
+    """
+    try:
+        conn = _get_db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get all validation results for this case
+        cur.execute("""
+            SELECT 
+                id, case_id, rrn, validation_status, validation_message,
+                matched_txn_data, error_message, created_at
+            FROM public.incident_validation_results
+            WHERE case_id = %s
+            ORDER BY created_at
+        """, (case_id,))
+        
+        validations = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Format response
+        validation_results = []
+        for val in validations:
+            validation_results.append({
+                "rrn": val['rrn'],
+                "validation_status": val['validation_status'],
+                "validation_message": val['validation_message'],
+                "matched_txn": val['matched_txn_data'],  # JSON data
+                "error": val['error_message'],
+                "created_at": val['created_at'].isoformat() if val['created_at'] else None
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "case_id": case_id,
+                "validations": validation_results,
+                "total_incidents": len(validation_results),
+                "matched_count": sum(1 for v in validation_results if v["validation_status"] == "matched"),
+                "error_count": sum(1 for v in validation_results if v["validation_status"] not in ["matched", "pending"])
+            }
+        }
+        
+    except Exception as e:
+        print(f"[v2] Error fetching incident validations for case {case_id}: {e}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.get("/api/v2/banks/ecbt-transactions/{case_id}", tags=["Bank Ingest v2"])
+async def get_ecbt_transactions(case_id: int) -> Dict[str, Any]:
+    """
+    Get ALL transactions from txn table for ECBT cases.
+    This fetches actual bank transactions between the customer and the fraudulent beneficiary.
+    """
+    try:
+        conn = _get_db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # First, get the case details to find ecb_cust_acct_num and ecb_bene_acct_num
+        # These are stored in the case_main table's source_ack_no and we need to look them up
+        cur.execute("""
+            SELECT source_ack_no, acc_num
+            FROM public.case_main
+            WHERE case_id = %s
+        """, (case_id,))
+        
+        case_main_data = cur.fetchone()
+        if not case_main_data:
+            raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+        
+        source_ack_no = case_main_data['source_ack_no']
+        acc_num = case_main_data['acc_num']
+        
+        # For ECBT cases, we need to find the beneficiary account
+        # Extract base ack_no and get the original incident data
+        if source_ack_no and '_ECBT' in source_ack_no:
+            base_ack_no = source_ack_no.replace('_ECBT', '')
+            
+            # Get the case_main_v2 and incidents to find the beneficiary account
+            cur.execute("""
+                SELECT ci.rrn
+                FROM public.case_main_v2 cm2
+                JOIN public.case_incidents ci ON cm2.case_id = ci.case_id
+                WHERE cm2.acknowledgement_no = %s
+                LIMIT 1
+            """, (base_ack_no,))
+            
+            incident_row = cur.fetchone()
+            if not incident_row:
+                # No banks_v2 data, return empty
+                return {
+                    "success": True,
+                    "data": {
+                        "case_id": case_id,
+                        "transactions": [],
+                        "total_value_at_risk": 0
+                    }
+                }
+            
+            rrn = incident_row['rrn']
+            
+            # Get the beneficiary account from txn table using the RRN
+            cur.execute("""
+                SELECT bene_acct_num
+                FROM public.txn
+                WHERE rrn = %s
+                LIMIT 1
+            """, (rrn,))
+            
+            txn_row = cur.fetchone()
+            if not txn_row:
+                # RRN not found in txn table
+                return {
+                    "success": True,
+                    "data": {
+                        "case_id": case_id,
+                        "transactions": [],
+                        "total_value_at_risk": 0
+                    }
+                }
+            
+            bene_acct_num = txn_row['bene_acct_num']
+            
+            # Find the customer account from acc_bene table (the account that has this beneficiary saved)
+            # This is the correct account for ECBT cases, not case_main.acc_num
+            cur.execute("""
+                SELECT cust_acct_num
+                FROM public.acc_bene
+                WHERE bene_acct_num = %s
+                LIMIT 1
+            """, (bene_acct_num,))
+            
+            acc_bene_row = cur.fetchone()
+            if not acc_bene_row:
+                # Beneficiary not in acc_bene table - shouldn't happen for ECBT cases
+                print(f"[v2] ECBT case {case_id} - beneficiary {bene_acct_num} not found in acc_bene table", flush=True)
+                return {
+                    "success": True,
+                    "data": {
+                        "case_id": case_id,
+                        "transactions": [],
+                        "total_value_at_risk": 0
+                    }
+                }
+            
+            cust_acct_num = acc_bene_row['cust_acct_num']
+            
+            # Now fetch ALL transactions between cust_acct_num (customer) and bene_acct_num (beneficiary)
+            cur.execute("""
+                SELECT 
+                    id, txn_date, txn_time, acct_num, bene_acct_num, 
+                    amount, channel, rrn, descr
+                FROM public.txn
+                WHERE acct_num = %s AND bene_acct_num = %s
+                ORDER BY txn_date DESC, txn_time DESC
+            """, (cust_acct_num, bene_acct_num))
+            
+            transactions = cur.fetchall()
+            
+            print(f"[v2] ECBT case {case_id} - Found {len(transactions)} transactions between {cust_acct_num} and {bene_acct_num}", flush=True)
+            
+            cur.close()
+            conn.close()
+            
+            # Format transactions for frontend
+            transaction_details = []
+            for txn in transactions:
+                transaction_details.append({
+                    "txn_id": txn['id'],
+                    "txn_date": txn['txn_date'].strftime('%d-%m-%Y') if txn['txn_date'] else None,
+                    "txn_time": str(txn['txn_time']) if txn['txn_time'] else None,
+                    "acct_num": txn['acct_num'],
+                    "bene_acct_num": txn['bene_acct_num'],
+                    "amount": str(txn['amount']),
+                    "channel": txn['channel'] or "N/A",
+                    "txn_ref": txn['rrn'],
+                    "descr": txn['descr'] or "N/A"
+                })
+            
+            return {
+                "success": True,
+                "data": {
+                    "case_id": case_id,
+                    "customer_account": cust_acct_num,
+                    "beneficiary_account": bene_acct_num,
+                    "transactions": transaction_details,
+                    "total_value_at_risk": sum(float(txn['amount']) for txn in transaction_details)
+                }
+            }
+        else:
+            # Not an ECBT case
+            return {
+                "success": False,
+                "error": "This endpoint is only for ECBT cases"
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[v2] Error fetching ECBT transactions for case {case_id}: {e}", flush=True)
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
