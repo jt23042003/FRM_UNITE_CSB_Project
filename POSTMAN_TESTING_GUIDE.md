@@ -1,5 +1,45 @@
 # 📮 Postman Testing Guide - Banks V2 API
 
+## 🔄 Complete Flow Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ STEP 1: POST /api/v2/banks/case-entry                               │
+│ ─────────────────────────────────────────────────────────────────── │
+│ • Validates structure                                                │
+│ • Checks VM match (payer account)                                    │
+│ • Creates VM case IMMEDIATELY                                        │
+│ • Validates each RRN                                                 │
+│ • Creates PSA/ECBT/ECBNT cases                                       │
+│ • Returns: vm_case_id, psa_case_id, status codes per RRN            │
+└──────────────────────────────────────────────────────────────────────┘
+                                ↓
+┌──────────────────────────────────────────────────────────────────────┐
+│ STEP 2: User Reviews in Frontend                                    │
+│ ─────────────────────────────────────────────────────────────────── │
+│ • LEFT: Transaction details from I4C complaint                      │
+│ • RIGHT: Matched bank transactions with status badges               │
+│ • IF unmatched RRNs exist:                                           │
+│   ⚠️ Manual Review Section appears                                  │
+│   Shows ALL victim transactions (up to 100 recent)                   │
+│ • User clicks "Respond & Close Case" button                          │
+└──────────────────────────────────────────────────────────────────────┘
+                                ↓
+┌──────────────────────────────────────────────────────────────────────┐
+│ STEP 3: POST /api/v2/banks/case-entry/{ack_no}/respond              │
+│ ─────────────────────────────────────────────────────────────────── │
+│ • Marks VM case as "Closed"                                          │
+│ • Returns detailed transaction response                              │
+│ • Each RRN includes:                                                 │
+│   - status_code (00=success, 01=not found, etc.)                    │
+│   - Full transaction details if matched                              │
+│   - Case IDs (psa_case_id, ecbt_case_id, ecbnt_case_id)            │
+│ • Frontend redirects to case list                                    │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 🎯 Step-by-Step Testing Instructions
 
 ---
@@ -101,7 +141,7 @@ You should see:
 
 ---
 
-## **STEP 2: Review Case in Frontend (Optional)**
+## **STEP 2: Review Case in Frontend**
 
 ### **2.1 Open VM Case in Browser**
 1. Open browser
@@ -109,6 +149,8 @@ You should see:
    (Replace `1735` with your actual `vm_case_id`)
 
 ### **2.2 What You Should See**
+
+**A. Two-Section Transaction Layout:**
 ```
 ┌──────────────────────────────────────┬──────────────────────────────────────┐
 │ Transaction Details from I4C         │ Matched Bank Transactions            │
@@ -118,6 +160,34 @@ You should see:
 │ 1000466754   08-01-25   ₹250.00     │ 1000466754   ✓ Matched   (empty)     │
 └──────────────────────────────────────┴──────────────────────────────────────┘
 
+Summary: Total: 2 | ✓ Matched: 2 | ✗ Errors: 0
+```
+
+**B. Manual Review Section (ONLY if unmatched RRNs exist):**
+
+If ANY RRN has status ✗ Not Found / Invalid / Duplicate, you'll see:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ ⚠️ Manual Review Required - All Victim Transactions                 │
+│ Some RRNs could not be automatically matched. Review all            │
+│ transactions by victim account 9579414475231007 below.               │
+├──────────────────────────────────────────────────────────────────────┤
+│ Date       Time      RRN          Bene Acct    Amount    Channel    │
+│ 08-01-25   13:24:38  1000466753   ...          ₹100.00   UPI        │
+│ 07-30-25   10:15:20  1000466700   ...          ₹500.00   NEFT       │
+│ 07-29-25   14:30:00  1000466650   ...          ₹1,200.00 UPI        │
+│ ... (showing up to 100 recent transactions) ...                      │
+├──────────────────────────────────────────────────────────────────────┤
+│ Total Victim Transactions: 45                                        │
+│ 💡 Tip: Compare RRNs from I4C complaint with this list              │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Purpose:** Allows investigator to manually find transactions that automated matching missed
+
+**C. Respond Button:**
+```
 [Respond & Close Case] button at bottom
 ```
 
@@ -131,22 +201,45 @@ You should see:
 3. **URL**: `http://localhost:8000/api/v2/banks/case-entry/POSTMAN001/respond`
    (Use the `acknowledgement_no` from Step 1)
 
-### **3.2 Set Headers**
+### **4.2 Set Headers**
 1. Click on **"Headers"** tab
 2. Add header:
    - **Key**: `Content-Type`
    - **Value**: `application/json`
 
-### **3.3 Body**
+### **4.3 Body**
 1. Click on **"Body"** tab
-2. Select **"raw"**
-3. Leave it **empty** `{}` or just send with no body
+2. Select **"raw"** and **"JSON"**
+3. **Option A - No Manual Selection:**
+   ```json
+   {}
+   ```
 
-### **3.4 Send Request**
+4. **Option B - With Manual Selection:**
+   ```json
+   {
+     "manually_selected_transactions": [
+       {
+         "rrn": "1000466700",
+         "bene_acct_num": "1234567890",
+         "amount": "500.00",
+         "txn_date": "30-07-2025",
+         "txn_time": "10:15:20",
+         "channel": "UPI",
+         "descr": "Payment to merchant",
+         "acct_num": "9579414475231007"
+       }
+     ]
+   }
+   ```
+   
+   **Note:** In real usage, user selects these via checkboxes in frontend. This JSON is automatically generated when clicking "Respond" button.
+
+### **4.4 Send Request**
 1. Click **"Send"** button
 2. **Expected Status**: `200 OK`
 
-### **3.5 Check Detailed Response**
+### **4.5 Check Detailed Response**
 You should see:
 ```json
 {
@@ -195,12 +288,12 @@ You should see:
 
 ---
 
-## **STEP 4: Verify in Frontend**
+## **STEP 5: Verify in Frontend**
 
-### **4.1 Refresh Browser**
+### **5.1 Refresh Browser**
 Go back to: `http://localhost:5173/operational-action/1735`
 
-### **4.2 What You Should See**
+### **5.2 What You Should See**
 - ✅ Green banner: "Response Sent - This case has been closed"
 - ❌ "Respond" button should be GONE
 - ✅ Case status changed to "Closed"
@@ -209,7 +302,117 @@ Go back to: `http://localhost:5173/operational-action/1735`
 
 ## 🎯 **Test Different Scenarios**
 
-### **Test Scenario 2: VM + PSA Cases**
+### **Test Scenario 2: Mixed Validation with Manual Review**
+
+This scenario demonstrates the manual review feature when RRNs don't match!
+
+**Step 1: Create Case**
+```
+POST http://localhost:8000/api/v2/banks/case-entry
+
+Body:
+{
+  "acknowledgement_no": "POSTMANMIX",
+  "sub_category": "UPI Related Frauds",
+  "instrument": {
+    "requestor": "I4C Portal",
+    "payer_bank": "Test Bank",
+    "payer_bank_code": 12345,
+    "mode_of_payment": "UPI",
+    "payer_mobile_number": "9876543210",
+    "payer_account_number": "9579414475231007",
+    "state": "Maharashtra",
+    "district": "Mumbai",
+    "transaction_type": "P2P",
+    "wallet": "PhonePe"
+  },
+  "incidents": [
+    {
+      "amount": "100.00",
+      "rrn": "1000466753",
+      "transaction_date": "2025-08-01",
+      "transaction_time": "13:24:38",
+      "disputed_amount": "100.00",
+      "layer": 0
+    },
+    {
+      "amount": "999.99",
+      "rrn": "9999999999",
+      "transaction_date": "2025-08-02",
+      "transaction_time": "14:00:00",
+      "disputed_amount": "999.99",
+      "layer": 0
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "data": {"vm_case_id": 1750},
+  "transactions": [
+    {"rrn_transaction_id": "1000466753", "status_code": "00"},
+    {"rrn_transaction_id": "9999999999", "status_code": "01", "response_message": "Record not found"}
+  ]
+}
+```
+
+**Step 2: Open in Frontend**
+`http://localhost:5173/operational-action/1750`
+
+**You'll See:**
+1. Two-section layout
+2. RRN 1000466753: ✓ Matched
+3. RRN 9999999999: ✗ Not Found
+4. **⚠️ Manual Review Section appears!** (Yellow warning box)
+   - Shows ALL transactions by victim account 9579414475231007
+   - Up to 100 most recent transactions
+   - User can manually look for the RRN or matching amount/date
+
+**Step 3: Send Detailed Response**
+```
+POST http://localhost:8000/api/v2/banks/case-entry/POSTMANMIX/respond
+```
+
+**Detailed Response (with manual selection):**
+```json
+{
+  "meta": {"response_code": "00", "response_message": "Response sent successfully"},
+  "data": {"vm_case_id": 1750, "status": "responded"},
+  "transactions": [
+    {
+      "rrn_transaction_id": "1000464994",
+      "status_code": "00",
+      "response_message": "SUCCESS",
+      "payee_account_number": "1234567890",
+      "amount": "5000.00"
+    },
+    {
+      "rrn_transaction_id": "9999999999",
+      "status_code": "01",
+      "response_message": "Record not found"
+    },
+    {
+      "rrn_transaction_id": "1000466700",
+      "status_code": "00",
+      "response_message": "SUCCESS - Manually Matched",
+      "payee_account_number": "1234567890",
+      "amount": "500.00",
+      "manually_matched": true
+    }
+  ]
+}
+```
+
+**Key Points:**
+- ✅ Auto-matched RRN (1000464994): Normal SUCCESS
+- ❌ Unmatched RRN (9999999999): Shows error code "01"
+- ✅ Manually selected (1000466700): Marked as "Manually Matched"
+
+---
+
+### **Test Scenario 3: VM + PSA Cases**
 
 **Step 1: Create Case**
 ```

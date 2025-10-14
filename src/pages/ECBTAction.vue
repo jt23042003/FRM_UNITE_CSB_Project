@@ -32,8 +32,9 @@
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
         <div v-else class="comparison-grid">
+          <!-- LEFT SECTION: Actual Victim (I4C Complaint Filer) -->
           <div class="details-section">
-            <h4>Customer Details - {{ isMMTriggered ? 'Mobile Number Match' : 'I4C' }}</h4>
+            <h4>Actual Victim - I4C Complaint</h4>
             <div v-if="!isMMTriggered" class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
               <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
@@ -55,6 +56,16 @@
               <div class="field-group"><label>District</label><input type="text" v-model="i4cDetails.district" readonly /></div>
               <div class="field-group"><label>Transaction Type</label><input type="text" v-model="i4cDetails.transactionType" readonly /></div>
             </div>
+            <div v-else class="info-banner" style="margin-top: 10px;">
+              <div class="info-message">
+                <strong>Note:</strong> This case was triggered by mobile number matching, not an I4C complaint.
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT SECTION: Potential Victim (Customer who transacted with beneficiary) -->
+          <div class="details-section">
+            <h4>Potential Victim - {{ isMMTriggered ? 'Mobile Number Match' : 'Bank Customer Details' }}</h4>
             
             <!-- Mobile Number Match Details (for MM-triggered cases) -->
             <div v-if="isMMTriggered && reverificationData" class="reverification-details">
@@ -84,10 +95,8 @@
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="details-section">
-            <h4>Customer Details - Bank</h4>
+            <!-- Bank Customer Details (showing potential victim who transacted) -->
             <div class="details-row">
               <div class="field-group highlight">
                 <label>Name</label>
@@ -155,17 +164,26 @@
 
         <!-- Transaction Table for ECBT -->
         <div v-if="transactions.length > 0" class="transaction-section">
-          <h4>Transaction History - Customer to Beneficiary (from Bank Txn Table)</h4>
-          <div class="transaction-table-container">
+          <h4>Transaction History - Potential Victim to Fraudulent Beneficiary (from Bank Txn Table)</h4>
+          <div class="transaction-table-container" style="overflow-x: auto;">
             <table class="transaction-table">
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Time</th>
+                  <th>Transaction Type</th>
                   <th>RRN / Reference</th>
+                  <th>Customer Account</th>
                   <th>Beneficiary Account</th>
+                  <th>Beneficiary Name</th>
                   <th>Amount</th>
+                  <th>Currency</th>
+                  <th>Fee</th>
+                  <th>Exchange Rate</th>
                   <th>Channel</th>
+                  <th>Payment Method</th>
+                  <th>Payment Reference</th>
+                  <th>Auth Code</th>
                   <th>Description</th>
                 </tr>
               </thead>
@@ -176,10 +194,19 @@
                 >
                   <td>{{ formatDate(transaction.txn_date) }}</td>
                   <td>{{ formatTime(transaction.txn_time) }}</td>
-                  <td>{{ transaction.txn_ref }}</td>
+                  <td>{{ transaction.txn_type || 'N/A' }}</td>
+                  <td>{{ transaction.txn_ref || 'N/A' }}</td>
+                  <td>{{ transaction.acct_num || 'N/A' }}</td>
                   <td>{{ transaction.bene_acct_num || 'N/A' }}</td>
+                  <td>{{ transaction.bene_name || 'N/A' }}</td>
                   <td class="amount-cell">{{ formatAmount(transaction.amount) }}</td>
-                  <td>{{ transaction.channel }}</td>
+                  <td>{{ transaction.currency || 'N/A' }}</td>
+                  <td class="amount-cell">{{ transaction.fee !== 'N/A' ? formatAmount(transaction.fee) : 'N/A' }}</td>
+                  <td>{{ transaction.exch_rate || 'N/A' }}</td>
+                  <td>{{ transaction.channel || 'N/A' }}</td>
+                  <td>{{ transaction.pay_method || 'N/A' }}</td>
+                  <td>{{ transaction.pay_ref || 'N/A' }}</td>
+                  <td>{{ transaction.auth_code || 'N/A' }}</td>
                   <td>{{ transaction.descr || 'N/A' }}</td>
                 </tr>
               </tbody>
@@ -191,7 +218,7 @@
           </div>
         </div>
         <div v-else class="transaction-section">
-          <h4>Transaction History - Customer to Beneficiary</h4>
+          <h4>Transaction History - Potential Victim to Fraudulent Beneficiary</h4>
           <div class="no-transactions">
             <p>No transaction data available for this case.</p>
           </div>

@@ -36,36 +36,44 @@
           <div v-if="isLoadingAdditionalDetails" class="loading-additional">
             <div class="loading-text">Loading additional details...</div>
           </div>
-          <!-- Show I4C details only if NOT triggered by reverification flags -->
-          <div v-if="!reverificationData" class="details-section">
-            <h4>Customer Details - I4C</h4>
-            <div class="details-row">
+          
+          <!-- LEFT SECTION: Actual Victim (I4C Complaint Filer) -->
+          <div class="details-section">
+            <h4>Actual Victim - I4C Complaint</h4>
+            <div v-if="!reverificationData" class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
               <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
               <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
             </div>
-            <div class="details-row">
+            <div v-if="!reverificationData" class="details-row">
               <div class="field-group"><label>Bank A/c #</label><input type="text" v-model="i4cDetails.bankAc" readonly /></div>
               <div class="field-group"><label>Sub Category</label><input type="text" v-model="i4cDetails.subCategory" readonly /></div>
             </div>
-            <div class="details-row">
+            <div v-if="!reverificationData" class="details-row">
               <div class="field-group"><label>Requestor</label><input type="text" v-model="i4cDetails.requestor" readonly /></div>
               <div class="field-group"><label>Payer Bank</label><input type="text" v-model="i4cDetails.payerBank" readonly /></div>
             </div>
-            <div class="details-row">
+            <div v-if="!reverificationData" class="details-row">
               <div class="field-group"><label>Mode of Payment</label><input type="text" v-model="i4cDetails.modeOfPayment" readonly /></div>
               <div class="field-group"><label>State</label><input type="text" v-model="i4cDetails.state" readonly /></div>
             </div>
-            <div class="details-row">
+            <div v-if="!reverificationData" class="details-row">
               <div class="field-group"><label>District</label><input type="text" v-model="i4cDetails.district" readonly /></div>
               <div class="field-group"><label>Transaction Type</label><input type="text" v-model="i4cDetails.transactionType" readonly /></div>
             </div>
+            <div v-else class="info-banner" style="margin-top: 10px;">
+              <div class="info-message">
+                <strong>Note:</strong> This case was triggered by mobile number matching, not an I4C complaint.
+              </div>
+            </div>
           </div>
 
-          <!-- Show reverification flags details if triggered by mobile matching -->
-          <div v-if="reverificationData" class="details-section">
-            <h4>Customer Details - ECBNT (Mobile Match Triggered)</h4>
-            <div class="reverification-details">
+          <!-- RIGHT SECTION: Potential Victim (Customer who added beneficiary) -->
+          <div class="details-section">
+            <h4>Potential Victim - {{ reverificationData ? 'Mobile Number Match' : 'Bank Customer Details' }}</h4>
+            
+            <!-- Show reverification flags details if triggered by mobile matching -->
+            <div v-if="reverificationData" class="reverification-details">
               <h5>Reverification Flags Details</h5>
               <div class="details-row">
                 <div class="field-group">
@@ -96,10 +104,8 @@
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="details-section">
-            <h4>Customer Details - Bank</h4>
+            <!-- Bank Customer Details (showing potential victim who added beneficiary) -->
             <div class="details-row">
               <div class="field-group highlight">
                 <label>Name</label>

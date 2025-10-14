@@ -552,13 +552,14 @@ async def _create_ecb_cases_for_beneficiary(matcher: CaseEntryMatcher, bene_acco
             ecb_data = ECBCaseData(
                 sourceAckNo=ecb_case_ack,
                 customerId=cust_id,
+                customerAccountNumber=customer_account,  # FIX: Add customer account number
                 beneficiaryAccountNumber=bene_account,
                 beneficiaryMobile=fields.get("phoneNumber"),
                 beneficiaryEmail=fields.get("toUpiId"),  # Assuming UPI contains email-like format
                 beneficiaryPAN=fields.get("panCard"),
                 beneficiaryAadhar=fields.get("aadhaarNumber"), 
                 hasTransaction=has_transactions,
-                remarks=f"ECB case created from email parsing. Customer {cust_id} has {'transactions' if has_transactions else 'no transactions'} with beneficiary {bene_account}",
+                remarks=f"ECB case created from email parsing. Customer {cust_id} (Account: {customer_account}) has {'transactions' if has_transactions else 'no transactions'} with beneficiary {bene_account}",
                 location=fields.get("state"),
                 disputedAmount=fields.get("disputedAmount")
             )

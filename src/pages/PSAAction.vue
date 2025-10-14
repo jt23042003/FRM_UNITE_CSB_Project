@@ -187,6 +187,61 @@
             <span class="summary-value">{{ validationResults.filter(v => v.validation_status !== 'matched').length }}</span>
           </div>
         </div>
+
+        <!-- Manual Review Section - Show ALL victim transactions when there are unmatched RRNs -->
+        <div v-if="hasUnmatchedRRNs && victimAllTransactions.length > 0" class="manual-review-section">
+          <div class="manual-review-header">
+            <h4>⚠️ Manual Review Required - Select Matching Transactions</h4>
+            <p>Some RRNs could not be automatically matched. Select the transaction(s) below that you believe match the unmatched RRNs from victim account <strong>{{ i4cDetails.bankAc }}</strong>.</p>
+            <p class="manual-instruction">
+              <strong>Instructions:</strong> Check the box next to any transaction that matches an unmatched RRN. Selected transactions will be included in the response to I4C.
+            </p>
+          </div>
+          <div class="transaction-table-container">
+            <table class="transaction-table">
+              <thead>
+                <tr>
+                  <th class="checkbox-col">Select</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>RRN</th>
+                  <th>Beneficiary Account</th>
+                  <th>Amount</th>
+                  <th>Channel</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr 
+                  v-for="txn in victimAllTransactions" 
+                  :key="txn.rrn || txn.id"
+                  :class="{ 'manually-selected': txn.selected }"
+                >
+                  <td class="checkbox-col">
+                    <input 
+                      type="checkbox" 
+                      v-model="txn.selected" 
+                      :disabled="isReadOnly"
+                      class="txn-checkbox"
+                    />
+                  </td>
+                  <td>{{ formatDate(txn.txn_date) }}</td>
+                  <td>{{ formatTime(txn.txn_time) }}</td>
+                  <td>{{ txn.rrn || 'N/A' }}</td>
+                  <td>{{ txn.bene_acct_num || 'N/A' }}</td>
+                  <td class="amount-cell">{{ formatAmount(txn.amount) }}</td>
+                  <td>{{ txn.channel || 'N/A' }}</td>
+                  <td class="description-cell">{{ txn.descr || 'N/A' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="manual-review-note">
+            <p><strong>Total Victim Transactions:</strong> {{ victimAllTransactions.length }}</p>
+            <p><strong>Manually Selected:</strong> {{ victimAllTransactions.filter(t => t.selected).length }}</p>
+            <p><small>💡 Tip: Selected transactions will replace unmatched RRNs in the I4C response</small></p>
+          </div>
+        </div>
       </div>
 
       <div v-if="currentStep === 2" class="step-panel">
@@ -955,6 +1010,13 @@ const i4cDetails = ref({
 const transactions = ref([]);
 const i4cIncidents = ref([]);  // Raw incidents from I4C complaint
 const validationResults = ref([]);  // Validation results for each incident
+const victimAllTransactions = ref([]);  // ALL transactions by victim for manual review
+
+// Computed property to check if there are unmatched RRNs
+const hasUnmatchedRRNs = computed(() => {
+  return validationResults.value.some(v => v.validation_status !== 'matched');
+});
+
 const bankDetails = ref({
   name: '',
   mobile: '',
@@ -1381,6 +1443,25 @@ const fetchCaseDetails = async () => {
       
       // Populate raw I4C incidents
       i4cIncidents.value = banksV2Data.incidents || [];
+      
+      // Fetch ALL victim transactions for manual review (if there are unmatched RRNs)
+      const victimAccountNumber = banksV2Data.instrument?.payer_account_number;
+      if (victimAccountNumber) {
+        try {
+          const victimTxnRes = await axios.get(`/api/v2/banks/victim-transactions/${victimAccountNumber}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+            if (victimTxnRes.data?.success) {
+              victimAllTransactions.value = (victimTxnRes.data.data.transactions || []).map(txn => ({
+                ...txn,
+                selected: false  // Add checkbox state
+              }));
+              console.log(`Loaded ${victimAllTransactions.value.length} victim transactions for manual review (PSA)`);
+            }
+        } catch (error) {
+          console.log('Could not fetch victim transactions:', error.message);
+        }
+      }
     } else {
       // Fallback to original I4C data
       i4cDetails.value = {
@@ -3938,6 +4019,91 @@ const getTemplateQuestionFiles = (questionId) => {
 
 .summary-card.error .summary-value {
   color: #721c24;
+}
+
+/* Manual Review Section */
+.manual-review-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: #fff8e1;
+  border-radius: 8px;
+  border: 2px solid #ffc107;
+}
+
+.manual-review-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #ffca28;
+}
+
+.manual-review-header h4 {
+  margin: 0 0 8px 0;
+  color: #856404;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.manual-review-header p {
+  margin: 0;
+  color: #856404;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.manual-instruction {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 4px;
+  border-left: 3px solid #ffc107;
+}
+
+.checkbox-col {
+  width: 60px;
+  text-align: center;
+}
+
+.txn-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #ffc107;
+}
+
+.manually-selected {
+  background: #fffbeb !important;
+  border-left: 3px solid #ffc107;
+}
+
+.manually-selected:hover {
+  background: #fef3c7 !important;
+}
+
+.manual-review-note {
+  margin-top: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ffc107;
+}
+
+.manual-review-note p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.manual-review-note small {
+  color: #856404;
+  font-weight: 500;
+}
+
+.description-cell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
 }
 
 /* Responsive transaction table */
