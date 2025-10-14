@@ -1100,11 +1100,11 @@ class CaseEntryMatcher:
             case_type=case_type,
             source_ack_no=new_ack_no,
             cust_id=ecb_data.customerId,
-            acc_num=ecb_data.beneficiaryAccountNumber,
+            acc_num=ecb_data.customerAccountNumber or ecb_data.beneficiaryAccountNumber,  # FIX: Use customer's account, fallback to beneficiary for backwards compatibility
             is_operational=is_operational_value,
             status='New',
             decision_input='Pending Review',
-            remarks_input=ecb_data.remarks or f"Automated case for {case_type} - Beneficiary Account: {ecb_data.beneficiaryAccountNumber}.",
+            remarks_input=ecb_data.remarks or f"Automated case for {case_type} - Customer Acct: {ecb_data.customerAccountNumber}, Beneficiary Account: {ecb_data.beneficiaryAccountNumber}.",
             source_bene_accno=ecb_data.beneficiaryAccountNumber,
             customer_full_name=None,
             location=ecb_data.location,  # Use location from ECBCaseData
@@ -1144,7 +1144,7 @@ class CaseEntryMatcher:
                         conn.commit()
             await self._execute_sync_db_op(_sync_insert)
 
-        await _insert_ecb_case_details_1(ecb_data.customerId, case_type, ecb_data.beneficiaryAccountNumber, created_by_user)
+        await _insert_ecb_case_details_1(ecb_data.customerId, case_type, ecb_data.customerAccountNumber or ecb_data.beneficiaryAccountNumber, created_by_user)
 
         return {
             "ack_no": new_ack_no,
@@ -2566,7 +2566,8 @@ class CaseEntryMatcher:
                         if tx_acc_nums:
                             cur.execute("""
                                 SELECT acct_num, txn_date, txn_time, txn_type, amount, descr, 
-                                       txn_ref, currency, bene_name, bene_acct_num, pay_method, channel
+                                       txn_ref, currency, bene_name, bene_acct_num, pay_method, channel,
+                                       fee, exch_rate, pay_ref, auth_code, rrn
                                 FROM txn
                                 WHERE acct_num IN %s
                                 ORDER BY txn_date DESC, txn_time DESC

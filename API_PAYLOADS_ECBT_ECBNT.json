@@ -1,0 +1,106 @@
+{
+  "test_scenarios": {
+    "ecbt_test": {
+      "description": "ECBT Test - Customer has transactions with fraudulent beneficiary",
+      "expected_result": "VM case + ECBT case created. ECBT case should show customer account 1234567890 in Potential Victim section",
+      "endpoint": "POST /api/v2/banks/case-entry",
+      "payload": {
+        "acknowledgement_no": "ECBTTEST001",
+        "sub_category": "UPI Related Frauds",
+        "instrument": {
+          "requestor": "Police Station XYZ",
+          "payer_bank": "State Bank of India",
+          "payer_bank_code": 12345,
+          "mode_of_payment": "UPI",
+          "payer_mobile_number": "9876543210",
+          "payer_account_number": "9999888877776666",
+          "state": "Maharashtra",
+          "district": "Mumbai",
+          "transaction_type": "UPI",
+          "wallet": "GooglePay"
+        },
+        "incidents": [
+          {
+            "amount": "5000.00",
+            "rrn": "2024011501",
+            "transaction_date": "2024-01-15",
+            "transaction_time": "14:30:00",
+            "disputed_amount": "5000.00",
+            "layer": 0
+          }
+        ]
+      }
+    },
+    "ecbnt_test": {
+      "description": "ECBNT Test - Customer has beneficiary saved but NO transactions",
+      "expected_result": "VM case + ECBNT case created. ECBNT case should show customer account 5555666677778888 in Potential Victim section",
+      "endpoint": "POST /api/v2/banks/case-entry",
+      "payload": {
+        "acknowledgement_no": "ECBNTTEST001",
+        "sub_category": "Internet Banking Related Fraud",
+        "instrument": {
+          "requestor": "Cyber Crime Cell",
+          "payer_bank": "HDFC Bank",
+          "payer_bank_code": 54321,
+          "mode_of_payment": "IMPS",
+          "payer_mobile_number": "8765432109",
+          "payer_account_number": "9999888877776666",
+          "state": "Karnataka",
+          "district": "Bangalore",
+          "transaction_type": "IMPS",
+          "wallet": null
+        },
+        "incidents": [
+          {
+            "amount": "3000.00",
+            "rrn": "2024012003",
+            "transaction_date": "2024-01-20",
+            "transaction_time": "10:15:00",
+            "disputed_amount": "3000.00",
+            "layer": 0
+          }
+        ]
+      }
+    },
+    "combined_test": {
+      "description": "Combined Test - Both ECBT and ECBNT in one payload",
+      "expected_result": "VM case + ECBT case + ECBNT case all created",
+      "endpoint": "POST /api/v2/banks/case-entry",
+      "payload": {
+        "acknowledgement_no": "COMBINED001",
+        "sub_category": "UPI Related Frauds",
+        "instrument": {
+          "requestor": "Police HQ",
+          "payer_bank": "ICICI Bank",
+          "payer_bank_code": 11111,
+          "mode_of_payment": "UPI",
+          "payer_mobile_number": "9123456789",
+          "payer_account_number": "9999888877776666",
+          "state": "Delhi",
+          "district": "New Delhi",
+          "transaction_type": "UPI",
+          "wallet": "PhonePe"
+        },
+        "incidents": [
+          {
+            "amount": "5000.00",
+            "rrn": "2024011501",
+            "transaction_date": "2024-01-15",
+            "transaction_time": "14:30:00",
+            "disputed_amount": "5000.00",
+            "layer": 0
+          },
+          {
+            "amount": "3000.00",
+            "rrn": "2024012003",
+            "transaction_date": "2024-01-20",
+            "transaction_time": "10:15:00",
+            "disputed_amount": "3000.00",
+            "layer": 1
+          }
+        ]
+      }
+    }
+  }
+}
+

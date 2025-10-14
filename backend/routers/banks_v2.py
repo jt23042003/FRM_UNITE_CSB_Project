@@ -579,9 +579,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                 ecb_payload = ECBCaseData(
                     sourceAckNo=f"{ack_no}_ECBT",
                     customerId=action["ecb_cust_id"],
+                    customerAccountNumber=action["ecb_cust_acct_num"],  # FIX: Add customer account number
                     beneficiaryAccountNumber=action["ecb_bene_acct_num"],
                     hasTransaction=True,
-                    remarks=f"Automated ECBT case from bank ingest. RRN {rrn}",
+                    remarks=f"Automated ECBT case from bank ingest. RRN {rrn}. Customer Account: {action['ecb_cust_acct_num']}, Beneficiary Account: {action['ecb_bene_acct_num']}",
                     location=None,
                     disputedAmount=None
                 )
@@ -594,9 +595,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                 ecbn_payload = ECBCaseData(
                     sourceAckNo=f"{ack_no}_ECBNT",
                     customerId=action["ecb_cust_id"],
+                    customerAccountNumber=action["ecb_cust_acct_num"],  # FIX: Add customer account number
                     beneficiaryAccountNumber=action["ecb_bene_acct_num"],
                     hasTransaction=False,
-                    remarks=f"Automated ECBNT case from bank ingest. RRN {rrn}",
+                    remarks=f"Automated ECBNT case from bank ingest. RRN {rrn}. Customer Account: {action['ecb_cust_acct_num']}, Beneficiary Account: {action['ecb_bene_acct_num']}",
                     location=None,
                     disputedAmount=None
                 )
@@ -625,12 +627,19 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
 
 
 @router.post("/api/v2/banks/case-entry/{ack_no}/respond", tags=["Bank Ingest v2"])
-async def banks_case_entry_respond(ack_no: str) -> Dict[str, Any]:
+async def banks_case_entry_respond(ack_no: str, request: Request) -> Dict[str, Any]:
     """
     Respond to bank for a case entry. Marks VM case as closed and returns detailed transaction response.
     This endpoint is called when user reviews the VM case and clicks "Respond" button.
+    Accepts manually selected transactions to replace unmatched RRNs.
     """
     try:
+        # Parse request body for manually selected transactions
+        body = await request.json() if request.headers.get('content-length') else {}
+        manually_selected_txns = body.get('manually_selected_transactions', [])
+        
+        print(f"[v2] Respond endpoint - received {len(manually_selected_txns)} manually selected transactions", flush=True)
+        
         conn = _get_db_conn()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
@@ -715,6 +724,10 @@ async def banks_case_entry_respond(ack_no: str) -> Dict[str, Any]:
         
         # Build detailed transaction response
         transactions = []
+        
+        # Track which manually selected transactions have been used
+        manual_txns_used = []
+        
         for val in validations:
             rrn = val['rrn']
             matched_txn = val['matched_txn_data']
@@ -771,6 +784,27 @@ async def banks_case_entry_respond(ack_no: str) -> Dict[str, Any]:
             txn_entry["ecbnt_case_id"] = ecbnt_case_ids[0] if ecbnt_case_ids else None
             
             transactions.append(txn_entry)
+        
+        # Add manually selected transactions to response (for unmatched RRNs)
+        for manual_txn in manually_selected_txns:
+            manual_entry = {
+                "rrn_transaction_id": manual_txn.get("rrn"),
+                "status_code": "00",
+                "response_message": "SUCCESS - Manually Matched",
+                "payee_account_number": manual_txn.get("bene_acct_num"),
+                "amount": manual_txn.get("amount"),
+                "transaction_datetime": f"{manual_txn.get('txn_date')} {manual_txn.get('txn_time')}",
+                "root_account_number": manual_txn.get("acct_num"),
+                "root_rrn_transaction_id": manual_txn.get("rrn"),
+                "psa_case_id": None,
+                "ecbt_case_id": None,
+                "ecbnt_case_id": None,
+                "manually_matched": True
+            }
+            transactions.append(manual_entry)
+            manual_txns_used.append(manual_txn.get("rrn"))
+        
+        print(f"[v2] Response includes {len(manual_txns_used)} manually matched transactions", flush=True)
         
         # Return detailed response
         return {
@@ -965,6 +999,62 @@ async def get_banks_v2_transaction_details(ack_no: str) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
+@router.get("/api/v2/banks/victim-transactions/{account_number}", tags=["Bank Ingest v2"])
+async def get_victim_all_transactions(account_number: str) -> Dict[str, Any]:
+    """
+    Get ALL transactions by victim account number for manual review.
+    This is shown when there are unmatched RRNs and user needs to manually verify.
+    """
+    try:
+        conn = _get_db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Fetch ALL transactions where victim is the payer
+        cur.execute("""
+            SELECT 
+                id, txn_date, txn_time, acct_num, bene_acct_num,
+                amount, channel, rrn, descr
+            FROM public.txn
+            WHERE acct_num = %s
+            ORDER BY txn_date DESC, txn_time DESC
+            LIMIT 100
+        """, (account_number,))
+        
+        transactions = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        # Format transactions
+        transaction_list = []
+        for txn in transactions:
+            transaction_list.append({
+                "id": txn['id'],
+                "txn_date": txn['txn_date'].strftime('%d-%m-%Y') if txn['txn_date'] else None,
+                "txn_time": str(txn['txn_time']) if txn['txn_time'] else None,
+                "acct_num": txn['acct_num'],
+                "bene_acct_num": txn['bene_acct_num'],
+                "amount": str(txn['amount']),
+                "channel": txn['channel'] or "N/A",
+                "rrn": txn['rrn'],
+                "descr": txn['descr'] or "N/A"
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "account_number": account_number,
+                "transactions": transaction_list,
+                "total_count": len(transaction_list),
+                "total_amount": sum(float(txn['amount']) for txn in transaction_list)
+            }
+        }
+        
+    except Exception as e:
+        print(f"[v2] Error fetching victim transactions for {account_number}: {e}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
 @router.get("/api/v2/banks/incident-validations/{case_id}", tags=["Bank Ingest v2"])
 async def get_incident_validations(case_id: int) -> Dict[str, Any]:
     """
@@ -1121,7 +1211,8 @@ async def get_ecbt_transactions(case_id: int) -> Dict[str, Any]:
             cur.execute("""
                 SELECT 
                     id, txn_date, txn_time, acct_num, bene_acct_num, 
-                    amount, channel, rrn, descr
+                    amount, channel, rrn, descr, txn_type, currency, 
+                    fee, exch_rate, bene_name, pay_ref, auth_code, pay_method
                 FROM public.txn
                 WHERE acct_num = %s AND bene_acct_num = %s
                 ORDER BY txn_date DESC, txn_time DESC
@@ -1134,7 +1225,7 @@ async def get_ecbt_transactions(case_id: int) -> Dict[str, Any]:
             cur.close()
             conn.close()
             
-            # Format transactions for frontend
+            # Format transactions for frontend - include ALL fields
             transaction_details = []
             for txn in transactions:
                 transaction_details.append({
@@ -1146,7 +1237,15 @@ async def get_ecbt_transactions(case_id: int) -> Dict[str, Any]:
                     "amount": str(txn['amount']),
                     "channel": txn['channel'] or "N/A",
                     "txn_ref": txn['rrn'],
-                    "descr": txn['descr'] or "N/A"
+                    "descr": txn['descr'] or "N/A",
+                    "txn_type": txn['txn_type'] or "N/A",
+                    "currency": txn['currency'] or "N/A",
+                    "fee": str(txn['fee']) if txn['fee'] else "N/A",
+                    "exch_rate": str(txn['exch_rate']) if txn['exch_rate'] else "N/A",
+                    "bene_name": txn['bene_name'] or "N/A",
+                    "pay_ref": txn['pay_ref'] or "N/A",
+                    "auth_code": txn['auth_code'] or "N/A",
+                    "pay_method": txn['pay_method'] or "N/A"
                 })
             
             return {

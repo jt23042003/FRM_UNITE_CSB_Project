@@ -197,7 +197,8 @@ class ECBCaseData(BaseModel):
     # This payload should contain enough info to create a case based on beneficiary
     sourceAckNo: str # Original ACK no from data entry, or new generated if none
     customerId: Optional[str] = None # Customer ID (if found during matching)
-    beneficiaryAccountNumber: str # Key detail for ECBT/ECBNT
+    customerAccountNumber: Optional[str] = None # Customer's account number (potential victim)
+    beneficiaryAccountNumber: str # Beneficiary account number (fraudulent account)
     beneficiaryMobile: Optional[str] = None
     beneficiaryEmail: Optional[str] = None
     beneficiaryPAN: Optional[str] = None
