@@ -1343,8 +1343,10 @@ const fetchCaseDetails = async () => {
     let banksV2Data = null;
     if (source_ack_no) {
       try {
-        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
-        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        // Extract base acknowledgement number by removing suffixes like _ECBNT_CUSTXXX, _ECBT_CUSTXXX, _VM, _PSA, etc.
+        // Updated to handle new format with customer IDs: PPPOSTMAAN111_ECBT_CUST100001 -> PPPOSTMAAN111
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA|NAB|PMA|PVA|BM|MM)(_.*)?$/, '');
+        console.log(`Fetching banks_v2 data for base ACK: ${baseAckNo} (from ${source_ack_no})`);
         const banksV2Res = await axios.get(`/api/v2/banks/case-data/${baseAckNo}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
