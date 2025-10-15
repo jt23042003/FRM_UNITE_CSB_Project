@@ -393,65 +393,64 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
 
                     # ECBT/ECBNT Logic (ECB Flow):
                     # Step 1: Check if bene_acct_num from txn matches bene_acct_num in acc_bene table
-                    # Priority: Find acc_bene relationships where cust_acct_num exists in account_customer
-                    ecb_match = False
-                    ecbt_match = False
-                    ecbnt_match = False
-                    ecb_cust_acct_num = None
-                    ecb_bene_acct_num = None
-                    ecb_cust_id = None
+                    # FIX: Find ALL customers who have added this beneficiary (not just one)
                     
-                    # Query acc_bene and join with account_customer to get only valid customers
+                    # Query acc_bene and join with account_customer to get ALL valid customers
                     cur.execute("""
                         SELECT ab.cust_acct_num, ab.bene_acct_num, ac.cust_id
                         FROM public.acc_bene ab
                         JOIN public.account_customer ac ON ab.cust_acct_num = ac.acc_num
                         WHERE ab.bene_acct_num = %s
-                        LIMIT 1
                     """, (bene_acct_num,))
                     
-                    acc_bene_row = cur.fetchone()
+                    acc_bene_rows = cur.fetchall()  # Get ALL customers with this beneficiary
                     
-                    if acc_bene_row:
-                        # ECB Flow starts - we found a match in acc_bene with valid customer
-                        ecb_match = True
-                        ecb_cust_acct_num = acc_bene_row[0]  # cust_acct_num from acc_bene
-                        ecb_bene_acct_num = acc_bene_row[1]  # bene_acct_num from acc_bene
-                        ecb_cust_id = acc_bene_row[2]  # cust_id from account_customer (already joined)
-                        
-                        # Step 2: Check if there's a transaction between cust_acct_num and bene_acct_num
-                        cur.execute("""
-                            SELECT 1 FROM public.txn 
-                            WHERE acct_num = %s AND bene_acct_num = %s 
-                            LIMIT 1
-                        """, (ecb_cust_acct_num, ecb_bene_acct_num))
-                        
-                        txn_exists = bool(cur.fetchone())
-                        
-                        if txn_exists:
-                            ecbt_match = True  # Transaction found between accounts
-                        else:
-                            ecbnt_match = True  # No transaction found between accounts
-
                     # Add validation result to array
                     incident_validations.append(validation_result)
                     
-                    # Defer PSA/ECBT/ECBNT case creation (VM already created)
-                    # PSA: Created if RRN found AND bene_acct_num matches account_customer.acc_num
-                    # ECBT: If bene_acct_num matches acc_bene AND transaction exists between cust_acct_num and bene_acct_num
-                    # ECBNT: If bene_acct_num matches acc_bene AND NO transaction exists between cust_acct_num and bene_acct_num
-                    action = {
-                        "rrn": rrn,
-                        "bene_cust_id": bene_cust_id,
-                        "bene_acc": bene_acct_num,
-                        "psa": bool(bene_cust_id),  # True if bene_acct_num matches account_customer.acc_num
-                        "ecbt": ecbt_match,  # True if ECB flow and transaction found
-                        "ecbnt": ecbnt_match,  # True if ECB flow and no transaction found
-                        "ecb_cust_id": ecb_cust_id,  # Customer ID for ECB cases
-                        "ecb_cust_acct_num": ecb_cust_acct_num,  # Customer account number for ECB cases
-                        "ecb_bene_acct_num": ecb_bene_acct_num  # Beneficiary account number for ECB cases
-                    }
-                    deferred_actions.append(action)
+                    # Create ECB cases for ALL customers who have this beneficiary
+                    if acc_bene_rows:
+                        for acc_bene_row in acc_bene_rows:
+                            ecb_cust_acct_num = acc_bene_row[0]  # cust_acct_num from acc_bene
+                            ecb_bene_acct_num = acc_bene_row[1]  # bene_acct_num from acc_bene
+                            ecb_cust_id = acc_bene_row[2]  # cust_id from account_customer
+                            
+                            # Step 2: Check if there's a transaction between this customer and beneficiary
+                            cur.execute("""
+                                SELECT 1 FROM public.txn 
+                                WHERE acct_num = %s AND bene_acct_num = %s 
+                                LIMIT 1
+                            """, (ecb_cust_acct_num, ecb_bene_acct_num))
+                            
+                            txn_exists = bool(cur.fetchone())
+                            
+                            # Create action for this specific customer
+                            action = {
+                                "rrn": rrn,
+                                "bene_cust_id": bene_cust_id,
+                                "bene_acc": bene_acct_num,
+                                "psa": bool(bene_cust_id),  # True if bene_acct_num matches account_customer.acc_num
+                                "ecbt": txn_exists,  # True if transaction found between this customer and beneficiary
+                                "ecbnt": not txn_exists,  # True if NO transaction found between this customer and beneficiary
+                                "ecb_cust_id": ecb_cust_id,  # Customer ID for ECB cases
+                                "ecb_cust_acct_num": ecb_cust_acct_num,  # Customer account number for ECB cases
+                                "ecb_bene_acct_num": ecb_bene_acct_num  # Beneficiary account number for ECB cases
+                            }
+                            deferred_actions.append(action)
+                    else:
+                        # No ECB match, but still need PSA action
+                        action = {
+                            "rrn": rrn,
+                            "bene_cust_id": bene_cust_id,
+                            "bene_acc": bene_acct_num,
+                            "psa": bool(bene_cust_id),  # True if bene_acct_num matches account_customer.acc_num
+                            "ecbt": False,
+                            "ecbnt": False,
+                            "ecb_cust_id": None,
+                            "ecb_cust_acct_num": None,
+                            "ecb_bene_acct_num": None
+                        }
+                        deferred_actions.append(action)
 
                     transactions.append({
                         "rrn_transaction_id": rrn,
@@ -573,42 +572,58 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                 psa_validation_cur.close()
                 psa_validation_conn.close()
 
-            # ECBT - Existing Customer Beneficiary with Transaction
+            # ECBT - Existing Customer Beneficiary with Transaction (can be multiple per RRN)
             ecbt_case_id = None
             if action["ecbt"] and action["ecb_cust_id"]:
                 ecb_payload = ECBCaseData(
-                    sourceAckNo=f"{ack_no}_ECBT",
+                    sourceAckNo=f"{ack_no}_ECBT_{action['ecb_cust_id']}",  # Unique ACK per customer
                     customerId=action["ecb_cust_id"],
-                    customerAccountNumber=action["ecb_cust_acct_num"],  # FIX: Add customer account number
+                    customerAccountNumber=action["ecb_cust_acct_num"],
                     beneficiaryAccountNumber=action["ecb_bene_acct_num"],
                     hasTransaction=True,
-                    remarks=f"Automated ECBT case from bank ingest. RRN {rrn}. Customer Account: {action['ecb_cust_acct_num']}, Beneficiary Account: {action['ecb_bene_acct_num']}",
+                    remarks=f"Automated ECBT case from bank ingest. RRN {rrn}. Customer: {action['ecb_cust_id']}, Account: {action['ecb_cust_acct_num']}, Beneficiary: {action['ecb_bene_acct_num']}",
                     location=None,
                     disputedAmount=None
                 )
                 ecbt_result = await matcher.create_ecb_case(ecb_payload, created_by_user="System")
                 ecbt_case_id = (ecbt_result or {}).get("case_id")
+                if ecbt_case_id:
+                    print(f"[v2] ✅ Created ECBT case {ecbt_case_id} for customer {action['ecb_cust_id']} (account: {action['ecb_cust_acct_num']})", flush=True)
 
-            # ECBNT - Existing Customer Beneficiary with No Transaction
+            # ECBNT - Existing Customer Beneficiary with No Transaction (can be multiple per RRN)
             ecbnt_case_id = None
             if action["ecbnt"] and action["ecb_cust_id"]:
                 ecbn_payload = ECBCaseData(
-                    sourceAckNo=f"{ack_no}_ECBNT",
+                    sourceAckNo=f"{ack_no}_ECBNT_{action['ecb_cust_id']}",  # Unique ACK per customer
                     customerId=action["ecb_cust_id"],
-                    customerAccountNumber=action["ecb_cust_acct_num"],  # FIX: Add customer account number
+                    customerAccountNumber=action["ecb_cust_acct_num"],
                     beneficiaryAccountNumber=action["ecb_bene_acct_num"],
                     hasTransaction=False,
-                    remarks=f"Automated ECBNT case from bank ingest. RRN {rrn}. Customer Account: {action['ecb_cust_acct_num']}, Beneficiary Account: {action['ecb_bene_acct_num']}",
+                    remarks=f"Automated ECBNT case from bank ingest. RRN {rrn}. Customer: {action['ecb_cust_id']}, Account: {action['ecb_cust_acct_num']}, Beneficiary: {action['ecb_bene_acct_num']}",
                     location=None,
                     disputedAmount=None
                 )
                 ecbnt_result = await matcher.create_ecb_case(ecbn_payload, created_by_user="System")
                 ecbnt_case_id = (ecbnt_result or {}).get("case_id")
+                if ecbnt_case_id:
+                    print(f"[v2] ✅ Created ECBNT case {ecbnt_case_id} for customer {action['ecb_cust_id']} (account: {action['ecb_cust_acct_num']})", flush=True)
 
-            # attach IDs back to response entry (VM case ID was created early)
-            txn_entry["psa_case_id"] = psa_case_id
-            txn_entry["ecbt_case_id"] = ecbt_case_id
-            txn_entry["ecbnt_case_id"] = ecbnt_case_id
+            # Collect ECB case IDs for this RRN
+            if not hasattr(txn_entry, '_ecbt_cases'):
+                txn_entry["ecbt_case_ids"] = []
+                txn_entry["ecbnt_case_ids"] = []
+            if ecbt_case_id:
+                txn_entry["ecbt_case_ids"].append(ecbt_case_id)
+            if ecbnt_case_id:
+                txn_entry["ecbnt_case_ids"].append(ecbnt_case_id)
+            
+            # Keep backward compatibility with single case ID fields
+            if not txn_entry.get("psa_case_id"):
+                txn_entry["psa_case_id"] = psa_case_id
+            if ecbt_case_id and not txn_entry.get("ecbt_case_id"):
+                txn_entry["ecbt_case_id"] = ecbt_case_id  # First ECBT case for backward compatibility
+            if ecbnt_case_id and not txn_entry.get("ecbnt_case_id"):
+                txn_entry["ecbnt_case_id"] = ecbnt_case_id  # First ECBNT case for backward compatibility
     except Exception as e:
         print(f"[v2] Phase2 warning: {e}", flush=True)
 
