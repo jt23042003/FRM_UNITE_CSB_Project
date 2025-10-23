@@ -330,9 +330,9 @@ onMounted(async () => {
       caseStatus.value = status || 'New';
       sourceAckNo.value = source_ack_no;
       
-      // Try to fetch banks_v2 data and transaction details if we have a source_ack_no
+      // Try to fetch banks_v2 data if we have a source_ack_no
       let banksV2Data = null;
-      let banksV2Transactions = [];
+      let banksV2Transactions = []; // Will be populated from incident-validations
       if (source_ack_no) {
         try {
           // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
@@ -346,13 +346,7 @@ onMounted(async () => {
             banksV2Data = banksV2Res.data.data;
           }
           
-          // Fetch transaction details
-          const banksV2TxnRes = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (banksV2TxnRes.data?.success) {
-            banksV2Transactions = banksV2TxnRes.data.data.transactions || [];
-          }
+          // Transaction details removed - using incident-validations instead
         } catch (error) {
           console.log('No banks_v2 data found for this case:', error.message);
         }
