@@ -1,0 +1,40 @@
+{
+  "acknowledgement_no": "MULTIECBT004",
+  "sub_category": "UPI Related Frauds",
+  "instrument": {
+    "requestor": "Test Bank",
+    "payer_bank": "State Bank of India",
+    "payer_bank_code": 1234,
+    "mode_of_payment": "UPI",
+    "payer_mobile_number": "9876543210",
+    "payer_account_number": "1111111111111111",
+    "state": "Maharashtra",
+    "district": "Mumbai"
+  },
+  "incidents": [
+    {
+      "amount": "5000.00",
+      "rrn": "9500000001",
+      "transaction_date": "2025-10-20",
+      "transaction_time": "10:00:00",
+      "disputed_amount": "5000.00",
+      "layer": 0
+    },
+    {
+      "amount": "7500.00",
+      "rrn": "9500000002",
+      "transaction_date": "2025-10-20",
+      "transaction_time": "11:00:00",
+      "disputed_amount": "7500.00",
+      "layer": 0
+    },
+    {
+      "amount": "3000.00",
+      "rrn": "9500000003",
+      "transaction_date": "2025-10-20",
+      "transaction_time": "12:00:00",
+      "disputed_amount": "3000.00",
+      "layer": 0
+    }
+  ]
+}

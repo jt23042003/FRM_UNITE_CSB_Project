@@ -436,6 +436,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                                 "ecb_cust_acct_num": ecb_cust_acct_num,  # Customer account number for ECB cases
                                 "ecb_bene_acct_num": ecb_bene_acct_num  # Beneficiary account number for ECB cases
                             }
+                            print(f"[v2] 📋 Created action for customer {ecb_cust_id} (account: {ecb_cust_acct_num}): PSA={action['psa']}, ECBT={action['ecbt']}, ECBNT={action['ecbnt']}", flush=True)
                             deferred_actions.append(action)
                     else:
                         # No ECB match, but still need PSA action
@@ -523,6 +524,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
     try:
         matcher = CaseEntryMatcher(executor=request.app.state.executor)
         psa_case_id = None  # Track if we create a PSA case
+        ecbt_case_ids = []  # Track all ECBT case IDs
+        ecbnt_case_ids = []  # Track all ECBNT case IDs
+        
+        print(f"[v2] 🚀 Phase 2: Processing {len(deferred_actions)} deferred actions for PSA/ECBT/ECBNT case creation", flush=True)
         
         for action in deferred_actions:
             rrn = action["rrn"]
@@ -575,8 +580,9 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             # ECBT - Existing Customer Beneficiary with Transaction (can be multiple per RRN)
             ecbt_case_id = None
             if action["ecbt"] and action["ecb_cust_id"]:
+                print(f"[v2] 🔍 Creating ECBT case for customer {action['ecb_cust_id']} (account: {action['ecb_cust_acct_num']}) - HAS transaction with beneficiary {action['ecb_bene_acct_num']}", flush=True)
                 ecb_payload = ECBCaseData(
-                    sourceAckNo=f"{ack_no}_ECBT_{action['ecb_cust_id']}",  # Unique ACK per customer
+                    sourceAckNo=f"{ack_no}_ECBT_{action['ecb_cust_id']}_{action['ecb_bene_acct_num']}",  # Unique ACK per customer-beneficiary pair
                     customerId=action["ecb_cust_id"],
                     customerAccountNumber=action["ecb_cust_acct_num"],
                     beneficiaryAccountNumber=action["ecb_bene_acct_num"],
@@ -588,13 +594,17 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                 ecbt_result = await matcher.create_ecb_case(ecb_payload, created_by_user="System")
                 ecbt_case_id = (ecbt_result or {}).get("case_id")
                 if ecbt_case_id:
+                    ecbt_case_ids.append(ecbt_case_id)
                     print(f"[v2] ✅ Created ECBT case {ecbt_case_id} for customer {action['ecb_cust_id']} (account: {action['ecb_cust_acct_num']})", flush=True)
+                else:
+                    print(f"[v2] ❌ Failed to create ECBT case for customer {action['ecb_cust_id']}", flush=True)
 
             # ECBNT - Existing Customer Beneficiary with No Transaction (can be multiple per RRN)
             ecbnt_case_id = None
             if action["ecbnt"] and action["ecb_cust_id"]:
+                print(f"[v2] 🔍 Creating ECBNT case for customer {action['ecb_cust_id']} (account: {action['ecb_cust_acct_num']}) - NO transaction with beneficiary {action['ecb_bene_acct_num']}", flush=True)
                 ecbn_payload = ECBCaseData(
-                    sourceAckNo=f"{ack_no}_ECBNT_{action['ecb_cust_id']}",  # Unique ACK per customer
+                    sourceAckNo=f"{ack_no}_ECBNT_{action['ecb_cust_id']}_{action['ecb_bene_acct_num']}",  # Unique ACK per customer-beneficiary pair
                     customerId=action["ecb_cust_id"],
                     customerAccountNumber=action["ecb_cust_acct_num"],
                     beneficiaryAccountNumber=action["ecb_bene_acct_num"],
@@ -606,7 +616,10 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
                 ecbnt_result = await matcher.create_ecb_case(ecbn_payload, created_by_user="System")
                 ecbnt_case_id = (ecbnt_result or {}).get("case_id")
                 if ecbnt_case_id:
+                    ecbnt_case_ids.append(ecbnt_case_id)
                     print(f"[v2] ✅ Created ECBNT case {ecbnt_case_id} for customer {action['ecb_cust_id']} (account: {action['ecb_cust_acct_num']})", flush=True)
+                else:
+                    print(f"[v2] ❌ Failed to create ECBNT case for customer {action['ecb_cust_id']}", flush=True)
 
             # Collect ECB case IDs for this RRN
             if not hasattr(txn_entry, '_ecbt_cases'):
@@ -629,13 +642,16 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
 
     # Final combined response with ack and per-incident details
     print(f"[v2] END banks_case_entry ack={ack_no} job={job_id} total_dt={(time.perf_counter()-t0)*1000:.1f}ms", flush=True)
+    print(f"[v2] 📊 Case Creation Summary: VM={vm_case_id}, PSA={psa_case_id}, ECBT={len(ecbt_case_ids)} cases, ECBNT={len(ecbnt_case_ids)} cases", flush=True)
     return {
         "meta": {"response_code": "00", "response_message": "Success"},
         "data": {
             "acknowledgement_no": ack_no,
             "job_id": job_id,
             "vm_case_id": vm_case_id,  # VM case created immediately
-            "psa_case_id": psa_case_id if 'psa_case_id' in locals() else None
+            "psa_case_id": psa_case_id if 'psa_case_id' in locals() else None,
+            "ecbt_case_ids": ecbt_case_ids,  # All ECBT case IDs
+            "ecbnt_case_ids": ecbnt_case_ids  # All ECBNT case IDs
         },
         "transactions": transactions
     }
