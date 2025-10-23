@@ -1,0 +1,34 @@
+{
+  "acknowledgement_no": "FRESH001",
+  "sub_category": "UPI Related Frauds",
+  "instrument": {
+    "requestor": "I4C Portal",
+    "payer_bank": "Test Bank",
+    "payer_bank_code": 12345,
+    "mode_of_payment": "UPI",
+    "payer_mobile_number": "9876543210",
+    "payer_account_number": "7710902234001",
+    "state": "TamilNadu",
+    "district": "Chennai",
+    "transaction_type": "P2P",
+    "wallet": "PhonePe"
+  },
+  "incidents": [
+    {
+      "amount": "10200.00",
+      "rrn": "9992000200",
+      "transaction_date": "2025-10-19",
+      "transaction_time": "10:05:00",
+      "disputed_amount": "10200.00",
+      "layer": 0
+    },
+    {
+      "amount": "12000.00",
+      "rrn": "9992000201",
+      "transaction_date": "2025-10-19",
+      "transaction_time": "10:10:00",
+      "disputed_amount": "12000.00",
+      "layer": 0
+    }
+  ]
+}

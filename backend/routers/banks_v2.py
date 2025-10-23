@@ -527,9 +527,30 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
         ecbt_case_ids = []  # Track all ECBT case IDs
         ecbnt_case_ids = []  # Track all ECBNT case IDs
         
-        print(f"[v2] 🚀 Phase 2: Processing {len(deferred_actions)} deferred actions for PSA/ECBT/ECBNT case creation", flush=True)
-        
+        # Deduplicate actions to prevent duplicate source_ack_no errors
+        unique_actions = {}
         for action in deferred_actions:
+            # Create unique key for ECBT/ECBNT actions
+            if action["ecb_cust_id"] and action["ecb_bene_acct_num"]:
+                key = f"{action['ecb_cust_id']}_{action['ecb_bene_acct_num']}"
+                if key not in unique_actions:
+                    unique_actions[key] = action
+                else:
+                    # Merge flags if duplicate found
+                    existing = unique_actions[key]
+                    existing["ecbt"] = existing["ecbt"] or action["ecbt"]
+                    existing["ecbnt"] = existing["ecbnt"] or action["ecbnt"]
+                    existing["psa"] = existing["psa"] or action["psa"]
+            else:
+                # For PSA-only actions, use RRN as key
+                key = f"psa_{action['rrn']}"
+                if key not in unique_actions:
+                    unique_actions[key] = action
+        
+        deduplicated_actions = list(unique_actions.values())
+        print(f"[v2] 🚀 Phase 2: Processing {len(deduplicated_actions)} deduplicated actions (from {len(deferred_actions)} original) for PSA/ECBT/ECBNT case creation", flush=True)
+        
+        for action in deduplicated_actions:
             rrn = action["rrn"]
             idx = rrn_to_txn_idx.get(rrn)
             if idx is None:

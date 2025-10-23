@@ -1,0 +1,32 @@
+{
+  "acknowledgement_no": "SINGLEBENE001",
+  "sub_category": "UPI Related Frauds",
+  "instrument": {
+    "requestor": "Test Bank",
+    "payer_bank": "State Bank of India",
+    "payer_bank_code": 1234,
+    "mode_of_payment": "UPI",
+    "payer_mobile_number": "9876543210",
+    "payer_account_number": "2222222222222222",
+    "state": "Maharashtra",
+    "district": "Mumbai"
+  },
+  "incidents": [
+    {
+      "amount": "5000.00",
+      "rrn": "9600000001",
+      "transaction_date": "2025-10-21",
+      "transaction_time": "10:00:00",
+      "disputed_amount": "5000.00",
+      "layer": 0
+    },
+    {
+      "amount": "7500.00",
+      "rrn": "9600000002",
+      "transaction_date": "2025-10-21",
+      "transaction_time": "11:00:00",
+      "disputed_amount": "7500.00",
+      "layer": 0
+    }
+  ]
+}
