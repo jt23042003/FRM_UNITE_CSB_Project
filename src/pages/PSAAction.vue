@@ -1350,10 +1350,25 @@ const fetchCaseDetails = async () => {
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
-    // Transaction details removed - using incident-validations instead
+    // Try to fetch banks_v2 transaction data if we have a source_ack_no
+    let banksV2Transactions = [];
+    if (source_ack_no) {
+      try {
+        // Extract base acknowledgement number by removing suffixes like _ECBNT, _VM, etc.
+        const baseAckNo = source_ack_no.replace(/_(ECBNT|ECBT|VM|PSA)$/, '');
+        const banksV2Res = await axios.get(`/api/v2/banks/transaction-details/${baseAckNo}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (banksV2Res.data?.success) {
+          banksV2Transactions = banksV2Res.data.data.transactions || [];
+        }
+      } catch (error) {
+        console.log('No banks_v2 transaction data found for this case:', error.message);
+      }
+    }
     
-    // Populate transactions array (old legacy field) - will be populated from incident-validations
-    transactions.value = [];
+    // Populate transactions array (old legacy field)
+    transactions.value = banksV2Transactions;
     
     // Fetch incident validation results for PSA cases
     if (caseId) {
