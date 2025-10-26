@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import uuid
 import psycopg2
 import psycopg2.extras
@@ -46,7 +46,7 @@ def _parse_date_yyyymmdd(s: str) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def _normalize_time(s: str | None) -> str | None:
+def _normalize_time(s: Optional[str]) -> Optional[str]:
     if not s:
         return None
     # Accept HH:MM or HH:MM:SS, store as HH:MM:SS

@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 #from keycloak import KeycloakOpenID
 import uuid
 
-from keycloak.keycloak_openid import KeycloakOpenID
+from keycloak import KeycloakOpenID
 from config import KEYCLOAK_CONFIG
 
 from services.anomaly import AnomalyDetector
