@@ -10,6 +10,7 @@ from models.banks_v2_models import CaseEntryV2
 from db.matcher import CaseEntryMatcher, save_or_update_decision
 from models.base_models import ECBCaseData
 from config import DB_CONNECTION_PARAMS
+from services.audit_logger import store_failed_request
 
 router = APIRouter()
 
@@ -193,10 +194,59 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
         vm_row = cur.fetchone()
         
         if not vm_row:
-            # NO VM MATCH - Return error immediately, don't proceed
+            # NO VM MATCH - Store data for audit BEFORE rolling back
+            print(f"[v2] NO VM MATCH for payer_account: {payload.instrument.payer_account_number}", flush=True)
+            
+            # Store failed request for audit purposes
+            try:
+                # Store in audit table before rollback
+                import json
+                raw_body = {
+                    "acknowledgement_no": payload.acknowledgement_no,
+                    "sub_category": payload.sub_category,
+                    "instrument": {
+                        "requestor": payload.instrument.requestor,
+                        "payer_bank": payload.instrument.payer_bank,
+                        "payer_bank_code": payload.instrument.payer_bank_code,
+                        "mode_of_payment": payload.instrument.mode_of_payment,
+                        "payer_mobile_number": payload.instrument.payer_mobile_number,
+                        "payer_account_number": payload.instrument.payer_account_number,
+                        "state": payload.instrument.state,
+                        "district": payload.instrument.district,
+                        "transaction_type": payload.instrument.transaction_type,
+                        "wallet": payload.instrument.wallet
+                    },
+                    "incidents": [
+                        {
+                            "amount": inc.amount,
+                            "rrn": inc.rrn,
+                            "transaction_date": inc.transaction_date,
+                            "transaction_time": inc.transaction_time,
+                            "disputed_amount": inc.disputed_amount,
+                            "layer": inc.layer
+                        }
+                        for inc in payload.incidents
+                    ]
+                }
+                
+                # Store failed request for audit
+                store_failed_request(
+                    ack_no=ack_no,
+                    raw_body=raw_body,
+                    failure_reason=f"VM match failed for payer_account_number: {payload.instrument.payer_account_number}",
+                    failure_type="vm_match_failed",
+                    error_details={
+                        "payer_account_number": payload.instrument.payer_account_number,
+                        "vm_check_result": "no_match"
+                    }
+                )
+            except Exception as audit_err:
+                print(f"[AUDIT] Failed to store VM match failure: {audit_err}", flush=True)
+            
+            # Now rollback the main transaction
             conn.rollback()
             conn.close()
-            print(f"[v2] NO VM MATCH for payer_account: {payload.instrument.payer_account_number}", flush=True)
+            
             return {
                 "meta": {
                     "response_code": "20",

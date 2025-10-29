@@ -1,0 +1,148 @@
+{
+  "info": {
+    "name": "Banks v2 API - Audit Logging Tests",
+    "description": "Test suite for audit logging feature. Tests validation errors and VM match failures.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Test 1: Invalid Account Number (Too Short - 3 digits)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"acknowledgement_no\": \"TEST001\",\n  \"sub_category\": \"UPI Related Frauds\",\n  \"instrument\": {\n    \"requestor\": \"I4C Portal\",\n    \"payer_bank\": \"Test Bank\",\n    \"payer_bank_code\": 12345,\n    \"mode_of_payment\": \"UPI\",\n    \"payer_mobile_number\": \"9876543210\",\n    \"payer_account_number\": \"123\",\n    \"state\": \"TamilNadu\",\n    \"district\": \"Chennai\",\n    \"transaction_type\": \"P2P\",\n    \"wallet\": \"PhonePe\"\n  },\n  \"incidents\": [\n    {\n      \"amount\": \"15000.00\",\n      \"rrn\": \"9992000300123\",\n      \"transaction_date\": \"2025-10-20\",\n      \"transaction_time\": \"14:15:00\",\n      \"disputed_amount\": \"15000.00\",\n      \"layer\": 0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v2/banks/case-entry",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v2", "banks", "case-entry"]
+        }
+      }
+    },
+    {
+      "name": "Test 2: Invalid Account Number (Too Long - 50 digits)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"acknowledgement_no\": \"TEST002\",\n  \"sub_category\": \"UPI Related Frauds\",\n  \"instrument\": {\n    \"requestor\": \"I4C Portal\",\n    \"payer_bank\": \"Test Bank\",\n    \"payer_bank_code\": 12345,\n    \"mode_of_payment\": \"UPI\",\n    \"payer_mobile_number\": \"9876543210\",\n    \"payer_account_number\": \"12345678901234567890123456789012345678901234567890\",\n    \"state\": \"TamilNadu\",\n    \"district\": \"Chennai\",\n    \"transaction_type\": \"P2P\",\n    \"wallet\": \"PhonePe\"\n  },\n  \"incidents\": [\n    {\n      \"amount\": \"15000.00\",\n      \"rrn\": \"9992000300123\",\n      \"transaction_date\": \"2025-10-20\",\n      \"transaction_time\": \"14:15:00\",\n      \"disputed_amount\": \"15000.00\",\n      \"layer\": 0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v2/banks/case-entry",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v2", "banks", "case-entry"]
+        }
+      }
+    },
+    {
+      "name": "Test 3: Invalid Mobile Number (5 digits)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"acknowledgement_no\": \"TEST003\",\n  \"sub_category\": \"UPI Related Frauds\",\n  \"instrument\": {\n    \"requestor\": \"I4C Portal\",\n    \"payer_bank\": \"Test Bank\",\n    \"payer_bank_code\": 12345,\n    \"mode_of_payment\": \"UPI\",\n    \"payer_mobile_number\": \"12345\",\n    \"payer_account_number\": \"7710902234001\",\n    \"state\": \"TamilNadu\",\n    \"district\": \"Chennai\",\n    \"transaction_type\": \"P2P\",\n    \"wallet\": \"PhonePe\"\n  },\n  \"incidents\": [\n    {\n      \"amount\": \"15000.00\",\n      \"rrn\": \"9992000300123\",\n      \"transaction_date\": \"2025-10-20\",\n      \"transaction_time\": \"14:15:00\",\n      \"disputed_amount\": \"15000.00\",\n      \"layer\": 0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v2/banks/case-entry",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v2", "banks", "case-entry"]
+        }
+      }
+    },
+    {
+      "name": "Test 4: Invalid RRN Format (5 digits)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"acknowledgement_no\": \"TEST004\",\n  \"sub_category\": \"UPI Related Frauds\",\n  \"instrument\": {\n    \"requestor\": \"I4C Portal\",\n    \"payer_bank\": \"Test Bank\",\n    \"payer_bank_code\": 12345,\n    \"mode_of_payment\": \"UPI\",\n    \"payer_mobile_number\": \"9876543210\",\n    \"payer_account_number\": \"7710902234001\",\n    \"state\": \"TamilNadu\",\n    \"district\": \"Chennai\",\n    \"transaction_type\": \"P2P\",\n    \"wallet\": \"PhonePe\"\n  },\n  \"incidents\": [\n    {\n      \"amount\": \"15000.00\",\n      \"rrn\": \"12345\",\n      \"transaction_date\": \"2025-10-20\",\n      \"transaction_time\": \"14:15:00\",\n      \"disputed_amount\": \"15000.00\",\n      \"layer\": 0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v2/banks/case-entry",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v2", "banks", "case-entry"]
+        }
+      }
+    },
+    {
+      "name": "Test 5: No VM Match (Non-existent Account)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"acknowledgement_no\": \"TEST005\",\n  \"sub_category\": \"UPI Related Frauds\",\n  \"instrument\": {\n    \"requestor\": \"I4C Portal\",\n    \"payer_bank\": \"Test Bank\",\n    \"payer_bank_code\": 12345,\n    \"mode_of_payment\": \"UPI\",\n    \"payer_mobile_number\": \"9876543210\",\n    \"payer_account_number\": \"999888777666555\",\n    \"state\": \"TamilNadu\",\n    \"district\": \"Chennai\",\n    \"transaction_type\": \"P2P\",\n    \"wallet\": \"PhonePe\"\n  },\n  \"incidents\": [\n    {\n      \"amount\": \"15000.00\",\n      \"rrn\": \"9992000300123\",\n      \"transaction_date\": \"2025-10-20\",\n      \"transaction_time\": \"14:15:00\",\n      \"disputed_amount\": \"15000.00\",\n      \"layer\": 0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v2/banks/case-entry",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v2", "banks", "case-entry"]
+        }
+      }
+    },
+    {
+      "name": "Test 6: Valid Request (Should Succeed)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"acknowledgement_no\": \"TEST006\",\n  \"sub_category\": \"UPI Related Frauds\",\n  \"instrument\": {\n    \"requestor\": \"I4C Portal\",\n    \"payer_bank\": \"Test Bank\",\n    \"payer_bank_code\": 12345,\n    \"mode_of_payment\": \"UPI\",\n    \"payer_mobile_number\": \"9876543210\",\n    \"payer_account_number\": \"7710902234001\",\n    \"state\": \"TamilNadu\",\n    \"district\": \"Chennai\",\n    \"transaction_type\": \"P2P\",\n    \"wallet\": \"PhonePe\"\n  },\n  \"incidents\": [\n    {\n      \"amount\": \"15000.00\",\n      \"rrn\": \"9992000300123\",\n      \"transaction_date\": \"2025-10-20\",\n      \"transaction_time\": \"14:15:00\",\n      \"disputed_amount\": \"15000.00\",\n      \"layer\": 0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v2/banks/case-entry",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v2", "banks", "case-entry"]
+        }
+      }
+    }
+  ]
+}
+
