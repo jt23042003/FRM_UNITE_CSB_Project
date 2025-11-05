@@ -153,4 +153,60 @@ The current platform already centralizes case lifecycles (FastAPI), stores rich 
 5. Reports API and UI (CSV/XLSX) for the requested MIS slices.
 6. Extend bank ingest to support multiple payer accounts per ack (schema + UI adjustments).
 
+---
+
+## Client-facing responses (polished, point-by-point)
+
+1) Multiple CUB accounts per acknowledgement; funds to multiple CUB accounts
+- Today: The ingest supports multiple incidents per acknowledgement and fans out PSA/ECBT/ECBNT to all matching customers who saved the beneficiary. The envelope currently models a single payer account.
+- Feasible: Supporting multiple payer CUB accounts under the same acknowledgement is a small schema/UI extension. Once live data shapes are confirmed, we can enable it with minimal changes.
+- Outcome: The system will process all records when the input is structured and consistent.
+
+2) Email Processing and Case Assignment
+- Today: Email ingest (Gmail/Graph) is implemented and can parse complaints and auto-create cases. Automated execution of freeze/hold/lien actions is not yet built.
+- Plan: We will validate with CUB’s data and, once stable, integrate the ingest with the assignment/workflow. Action execution adapters can be added when target system APIs are available.
+
+3) Case Initiation Module
+- Today: If data is provided via API or file upload with the required fields, the system can initiate cases and route them in the workflow.
+- Plan: Same for additional sources (NPCI, threat intel, card data) once the input formats are finalized.
+
+4) Search Module: Individual and Batch Mode
+- Today: Individual case search and lists are available. A dedicated “NCCR complaints by account” endpoint and on-screen bulk search are not present.
+- Plan: We can expose NCCR-by-account search and a bulk query API and, if preferred, render reports or add a screen for bulk results.
+
+5) System-Driven Escalation Protocol (beyond TAT)
+- Today: TAT thresholds and “Beyond TAT” dashboards exist; automatic escalation emails are not yet sent.
+- Plan: Add a scheduled job to trigger escalation emails to the configured matrix when cases exceed TAT.
+
+6) Manual Action Execution Module (Bancs/NCCRP updates)
+- Today: Not integrated. We can record updates received from the bank and reflect them in UNITE Aegis for consistency.
+- Plan: If the bank prefers us to push updates, we can build adapters to Bancs/NCCRP; otherwise we will consume bank-provided updates via API.
+
+7) Fraud Investigation Template
+- Today: Available. The bank can share templates, and we configure them. Supervisor review/approvals and template response storage are present.
+
+8) Chargeback Workflow Execution
+- Today: Not available in the Aegis module, which focuses on potential mules/victims and investigative workflow.
+- Plan: We can design a separate Chargeback module and integrate during co-creation. Alerts from IB/MB can be ingested to trigger workflows once formats are agreed.
+
+9) Customer Communication Notification Management
+- Today: Outbound customer email/SMS from Aegis is not implemented. Typically, banks use an aggregator.
+- Plan: We can generate templated outputs on case events and integrate with the bank’s aggregator (email/SMS) or provide an internal notifications module if desired.
+
+10) NCCRP – Digital Arrest Frauds, Investment scam
+- Today: No direct MHA/NCCRP pull integration. If API payloads include the needed differentiators, we can classify and process them; otherwise, we can accept uploads and create alerts.
+- Plan: Route cases to branch queues as required; auto customer comms would rely on the notifications module (see #9). Additional NCCRP criteria can be supported via API integration or alternate ingestion.
+
+11) MRNL, FRI, Suspect Registry; DOT portal updates
+- Today: Not implemented.
+- Plan: We can add MRNL/FRI/suspect registries, perform matches, initiate actions, and send updates to the DOT portal once integration details are available. Two-way APIs will make this seamless.
+
+12) Negative Database
+- Today: Not implemented.
+- Plan: We can maintain a negative database of suspect identifiers (account/mobile/email/VPA/device/PAN) with whitelist controls, and expose APIs so the bank can use it across CBS/IB/MB.
+
+13) MIS and Dashboard Reports
+- Today: Standard dashboards/analytics demonstrated are available. Additional MIS/dashboards are supported as long as the necessary data is present in the system.
+- Plan: We will work with users during implementation to configure the specific reports (issuer/acquirer/type-wise/branch-wise/pending/EDD/state-wise/NCCRP docs/action-wise/staff-wise/comms/TAT, etc.).
+
 
