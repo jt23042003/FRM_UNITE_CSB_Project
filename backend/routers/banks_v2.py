@@ -200,7 +200,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
             # Store failed request for audit purposes
             try:
                 # Store in audit table before rollback
-                import json
+                # import json
                 raw_body = {
                     "acknowledgement_no": payload.acknowledgement_no,
                     "sub_category": payload.sub_category,
@@ -261,7 +261,7 @@ async def banks_case_entry(payload: CaseEntryV2, request: Request) -> Dict[str, 
         
         # VM MATCH FOUND - Get customer ID and CREATE VM CASE IMMEDIATELY (before RRN validation)
         victim_cust_id = vm_row[0]
-        print(f"[v2] VM MATCH FOUND! cust_id={victim_cust_id}", flush=True)
+        print(f"[v2] Victim Match Found! cust_id={victim_cust_id}", flush=True)
         
         # Commit what we have so far before creating case
         conn.commit()
@@ -1111,11 +1111,13 @@ async def get_victim_all_transactions(account_number: str) -> Dict[str, Any]:
         conn = _get_db_conn()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
-        # Fetch ALL transactions where victim is the payer
+        # Fetch ALL transactions where victim is the payer - include all fields
         cur.execute("""
             SELECT 
-                id, txn_date, txn_time, acct_num, bene_acct_num,
-                amount, channel, rrn, descr
+                id, txn_ref, txn_date, txn_time, txn_type, amount, currency,
+                acct_num, descr, fee, exch_rate, bene_name, bene_acct_num,
+                pay_ref, auth_code, fraud_type, merch_name, mcc, channel,
+                pay_method, rrn
             FROM public.txn
             WHERE acct_num = %s
             ORDER BY txn_date DESC, txn_time DESC
@@ -1127,19 +1129,31 @@ async def get_victim_all_transactions(account_number: str) -> Dict[str, Any]:
         cur.close()
         conn.close()
         
-        # Format transactions
+        # Format transactions with all fields
         transaction_list = []
         for txn in transactions:
             transaction_list.append({
                 "id": txn['id'],
+                "txn_ref": txn['txn_ref'] or None,
                 "txn_date": txn['txn_date'].strftime('%d-%m-%Y') if txn['txn_date'] else None,
                 "txn_time": str(txn['txn_time']) if txn['txn_time'] else None,
-                "acct_num": txn['acct_num'],
-                "bene_acct_num": txn['bene_acct_num'],
-                "amount": str(txn['amount']),
-                "channel": txn['channel'] or "N/A",
-                "rrn": txn['rrn'],
-                "descr": txn['descr'] or "N/A"
+                "txn_type": txn['txn_type'] or None,
+                "amount": str(txn['amount']) if txn['amount'] else None,
+                "currency": txn['currency'] or None,
+                "acct_num": txn['acct_num'] or None,
+                "descr": txn['descr'] or None,
+                "fee": str(txn['fee']) if txn['fee'] else None,
+                "exch_rate": str(txn['exch_rate']) if txn['exch_rate'] else None,
+                "bene_name": txn['bene_name'] or None,
+                "bene_acct_num": txn['bene_acct_num'] or None,
+                "pay_ref": txn['pay_ref'] or None,
+                "auth_code": txn['auth_code'] or None,
+                "fraud_type": txn['fraud_type'] or None,
+                "merch_name": txn['merch_name'] or None,
+                "mcc": txn['mcc'] or None,
+                "channel": txn['channel'] or None,
+                "pay_method": txn['pay_method'] or None,
+                "rrn": txn['rrn'] or None
             })
         
         return {
@@ -1371,6 +1385,74 @@ async def get_ecbt_transactions(case_id: int) -> Dict[str, Any]:
         raise
     except Exception as e:
         print(f"[v2] Error fetching ECBT transactions for case {case_id}: {e}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.get("/api/v2/banks/transaction-by-rrn/{rrn}", tags=["Bank Ingest v2"])
+async def get_transaction_by_rrn(rrn: str) -> Dict[str, Any]:
+    """
+    Get full transaction details from txn table by RRN.
+    Returns all fields from the txn table for a given RRN.
+    Used for displaying complete transaction details in the UI.
+    """
+    try:
+        conn = _get_db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Fetch ALL fields from txn table for this RRN
+        cur.execute("""
+            SELECT 
+                id, txn_ref, txn_date, txn_time, txn_type, amount, currency,
+                acct_num, descr, fee, exch_rate, bene_name, bene_acct_num,
+                pay_ref, auth_code, fraud_type, merch_name, mcc, channel,
+                pay_method, rrn
+            FROM public.txn
+            WHERE rrn = %s
+            LIMIT 1
+        """, (rrn,))
+        
+        txn = cur.fetchone()
+        
+        cur.close()
+        conn.close()
+        
+        if not txn:
+            raise HTTPException(status_code=404, detail=f"Transaction with RRN {rrn} not found")
+        
+        # Format transaction data
+        transaction_data = {
+            "id": txn['id'],
+            "txn_ref": txn['txn_ref'],
+            "txn_date": txn['txn_date'].strftime('%d-%m-%Y') if txn['txn_date'] else None,
+            "txn_time": str(txn['txn_time']) if txn['txn_time'] else None,
+            "txn_type": txn['txn_type'] or "N/A",
+            "amount": str(txn['amount']) if txn['amount'] else None,
+            "currency": txn['currency'] or "N/A",
+            "acct_num": txn['acct_num'] or "N/A",
+            "descr": txn['descr'] or "N/A",
+            "fee": str(txn['fee']) if txn['fee'] else None,
+            "exch_rate": str(txn['exch_rate']) if txn['exch_rate'] else None,
+            "bene_name": txn['bene_name'] or "N/A",
+            "bene_acct_num": txn['bene_acct_num'] or "N/A",
+            "pay_ref": txn['pay_ref'] or "N/A",
+            "auth_code": txn['auth_code'] or "N/A",
+            "fraud_type": txn['fraud_type'] or "N/A",
+            "merch_name": txn['merch_name'] or "N/A",
+            "mcc": txn['mcc'] or "N/A",
+            "channel": txn['channel'] or "N/A",
+            "pay_method": txn['pay_method'] or "N/A",
+            "rrn": txn['rrn'] or "N/A"
+        }
+        
+        return {
+            "success": True,
+            "data": transaction_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[v2] Error fetching transaction by RRN {rrn}: {e}", flush=True)
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 

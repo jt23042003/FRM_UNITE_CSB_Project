@@ -107,6 +107,7 @@
               <table class="transaction-table">
                 <thead>
                   <tr>
+                    <th class="expand-col"></th>
                     <th>RRN</th>
                     <th>Status</th>
                     <th>Bene Account</th>
@@ -116,29 +117,126 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr 
-                    v-for="validation in validationResults" 
-                    :key="validation.rrn"
-                    :class="getValidationRowClass(validation)"
-                  >
-                    <td>{{ validation.rrn }}</td>
-                    <td>
-                      <span v-if="validation.validation_status === 'matched'" class="status-badge success">
-                        ✓ Matched
-                      </span>
-                      <span v-else class="status-badge error">
-                        {{ getStatusLabel(validation.validation_status) }}
-                      </span>
-                    </td>
-                    <td v-if="validation.matched_txn">{{ validation.matched_txn.bene_acct_num }}</td>
-                    <td v-else class="error-message">{{ validation.validation_message }}</td>
-                    <td v-if="validation.matched_txn" class="amount-cell">{{ formatAmount(validation.matched_txn.amount) }}</td>
-                    <td v-else>-</td>
-                    <td v-if="validation.matched_txn">{{ validation.matched_txn.txn_date }} {{ validation.matched_txn.txn_time }}</td>
-                    <td v-else>-</td>
-                    <td v-if="validation.matched_txn">{{ validation.matched_txn.channel }}</td>
-                    <td v-else>-</td>
-                  </tr>
+                  <template v-for="validation in validationResults" :key="validation.rrn">
+                    <tr 
+                      :class="[getValidationRowClass(validation), { 'row-expanded': expandedTransactions[validation.rrn] }]"
+                      @click="validation.matched_txn && toggleTransactionDetails(validation.rrn)"
+                      :style="validation.matched_txn ? 'cursor: pointer;' : ''"
+                    >
+                      <td class="expand-col">
+                        <span v-if="validation.matched_txn" class="expand-icon">
+                          {{ expandedTransactions[validation.rrn] ? '▼' : '▶' }}
+                        </span>
+                        <span v-else>-</span>
+                      </td>
+                      <td>{{ validation.rrn }}</td>
+                      <td>
+                        <span v-if="validation.validation_status === 'matched'" class="status-badge success">
+                          ✓ Matched
+                        </span>
+                        <span v-else class="status-badge error">
+                          {{ getStatusLabel(validation.validation_status) }}
+                        </span>
+                      </td>
+                      <td v-if="validation.matched_txn">{{ validation.matched_txn.bene_acct_num }}</td>
+                      <td v-else class="error-message">{{ validation.validation_message }}</td>
+                      <td v-if="validation.matched_txn" class="amount-cell">{{ formatAmount(validation.matched_txn.amount) }}</td>
+                      <td v-else>-</td>
+                      <td v-if="validation.matched_txn">{{ validation.matched_txn.txn_date }} {{ validation.matched_txn.txn_time }}</td>
+                      <td v-else>-</td>
+                      <td v-if="validation.matched_txn">{{ validation.matched_txn.channel }}</td>
+                      <td v-else>-</td>
+                    </tr>
+                    <!-- Expanded Details Row -->
+                    <tr v-if="expandedTransactions[validation.rrn] && validation.matched_txn" class="expanded-details-row">
+                      <td colspan="7" class="expanded-content">
+                        <div v-if="loadingTransactions[validation.rrn]" class="loading-details">
+                          Loading transaction details...
+                        </div>
+                        <div v-else class="transaction-details-grid">
+                          <h5>Full Transaction Details</h5>
+                          <div class="details-grid">
+                            <div class="detail-item">
+                              <label>Transaction ID:</label>
+                              <span>{{ expandedTransactions[validation.rrn].id || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Transaction Reference:</label>
+                              <span>{{ expandedTransactions[validation.rrn].txn_ref || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Transaction Type:</label>
+                              <span>{{ expandedTransactions[validation.rrn].txn_type || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Amount:</label>
+                              <span class="amount-highlight">{{ formatAmount(expandedTransactions[validation.rrn].amount) }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Currency:</label>
+                              <span>{{ expandedTransactions[validation.rrn].currency || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Account Number:</label>
+                              <span>{{ expandedTransactions[validation.rrn].acct_num || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Beneficiary Name:</label>
+                              <span>{{ expandedTransactions[validation.rrn].bene_name || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Beneficiary Account:</label>
+                              <span>{{ expandedTransactions[validation.rrn].bene_acct_num || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Description:</label>
+                              <span>{{ expandedTransactions[validation.rrn].descr || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Fee:</label>
+                              <span>{{ expandedTransactions[validation.rrn].fee ? formatAmount(expandedTransactions[validation.rrn].fee) : 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Exchange Rate:</label>
+                              <span>{{ expandedTransactions[validation.rrn].exch_rate || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Payment Reference:</label>
+                              <span>{{ expandedTransactions[validation.rrn].pay_ref || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Authorization Code:</label>
+                              <span>{{ expandedTransactions[validation.rrn].auth_code || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Fraud Type:</label>
+                              <span>{{ expandedTransactions[validation.rrn].fraud_type || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Merchant Name:</label>
+                              <span>{{ expandedTransactions[validation.rrn].merch_name || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>MCC:</label>
+                              <span>{{ expandedTransactions[validation.rrn].mcc || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Channel:</label>
+                              <span>{{ expandedTransactions[validation.rrn].channel || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>Payment Method:</label>
+                              <span>{{ expandedTransactions[validation.rrn].pay_method || 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                              <label>RRN:</label>
+                              <span class="rrn-highlight">{{ expandedTransactions[validation.rrn].rrn || 'N/A' }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
@@ -161,6 +259,68 @@
           <div class="summary-card error">
             <span class="summary-label">✗ Errors:</span>
             <span class="summary-value">{{ validationResults.filter(v => v.validation_status !== 'matched').length }}</span>
+          </div>
+        </div>
+
+        <!-- Third Section: All Victim Transactions -->
+        <div v-if="allVictimTransactions.length > 0" class="transaction-section full-width-section">
+          <h4>All Transactions by Victim Account ({{ i4cDetails.bankAc }})</h4>
+          <p class="section-description">Complete transaction history for the victim account from bank records.</p>
+          <div class="transaction-table-container full-details-table">
+            <table class="transaction-table full-transaction-table">
+              <thead>
+                <tr>
+                  <th>RRN</th>
+                  <th>Txn Ref</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Txn Type</th>
+                  <th>Amount</th>
+                  <th>Currency</th>
+                  <th>Account #</th>
+                  <th>Description</th>
+                  <th>Fee</th>
+                  <th>Exch Rate</th>
+                  <th>Beneficiary Name</th>
+                  <th>Beneficiary Account</th>
+                  <th>Payment Ref</th>
+                  <th>Auth Code</th>
+                  <th>Fraud Type</th>
+                  <th>Merchant Name</th>
+                  <th>MCC</th>
+                  <th>Channel</th>
+                  <th>Payment Method</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="txn in allVictimTransactions" :key="txn.id || txn.rrn">
+                  <td class="rrn-cell">{{ txn.rrn || 'N/A' }}</td>
+                  <td>{{ txn.txn_ref || 'N/A' }}</td>
+                  <td>{{ formatDate(txn.txn_date) }}</td>
+                  <td>{{ formatTime(txn.txn_time) }}</td>
+                  <td>{{ txn.txn_type || 'N/A' }}</td>
+                  <td class="amount-cell">{{ formatAmount(txn.amount) }}</td>
+                  <td>{{ txn.currency || 'N/A' }}</td>
+                  <td>{{ txn.acct_num || 'N/A' }}</td>
+                  <td class="description-cell">{{ txn.descr || 'N/A' }}</td>
+                  <td class="fee-cell">{{ txn.fee ? formatAmount(txn.fee) : 'N/A' }}</td>
+                  <td>{{ txn.exch_rate || 'N/A' }}</td>
+                  <td>{{ txn.bene_name || 'N/A' }}</td>
+                  <td>{{ txn.bene_acct_num || 'N/A' }}</td>
+                  <td>{{ txn.pay_ref || 'N/A' }}</td>
+                  <td>{{ txn.auth_code || 'N/A' }}</td>
+                  <td>{{ txn.fraud_type || 'N/A' }}</td>
+                  <td>{{ txn.merch_name || 'N/A' }}</td>
+                  <td>{{ txn.mcc || 'N/A' }}</td>
+                  <td>{{ txn.channel || 'N/A' }}</td>
+                  <td>{{ txn.pay_method || 'N/A' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="transaction-summary-info">
+            <p><strong>Total Transactions:</strong> {{ allVictimTransactions.length }}</p>
+            <p><strong>Total Amount:</strong> {{ formatAmount(allVictimTransactions.reduce((sum, txn) => sum + (parseFloat(txn.amount) || 0), 0)) }}</p>
           </div>
         </div>
 
@@ -298,8 +458,13 @@ const transactions = ref([]);
 const i4cIncidents = ref([]);  // Raw incidents from I4C complaint
 const validationResults = ref([]);  // Validation results for each incident
 const victimAllTransactions = ref([]);  // ALL transactions by victim for manual review
+const allVictimTransactions = ref([]);  // ALL transactions by victim account (for display section)
 
 const caseId = parseInt(route.params.case_id);
+
+// Expanded transaction details state
+const expandedTransactions = ref({});  // { rrn: fullTransactionData }
+const loadingTransactions = ref({});  // { rrn: true/false }
 
 // Computed property to check if there are unmatched RRNs
 const hasUnmatchedRRNs = computed(() => {
@@ -413,7 +578,7 @@ onMounted(async () => {
         // Populate raw I4C incidents
         i4cIncidents.value = banksV2Data.incidents || [];
         
-        // Fetch ALL victim transactions for manual review (if there are unmatched RRNs)
+        // Fetch ALL victim transactions for display (always fetch, not just for manual review)
         const victimAccountNumber = banksV2Data.instrument?.payer_account_number;
         if (victimAccountNumber) {
           try {
@@ -421,11 +586,18 @@ onMounted(async () => {
               headers: { Authorization: `Bearer ${token}` }
             });
             if (victimTxnRes.data?.success) {
-              victimAllTransactions.value = (victimTxnRes.data.data.transactions || []).map(txn => ({
+              const transactions = victimTxnRes.data.data.transactions || [];
+              
+              // Store for manual review (with checkbox state)
+              victimAllTransactions.value = transactions.map(txn => ({
                 ...txn,
                 selected: false  // Add checkbox state
               }));
-              console.log(`Loaded ${victimAllTransactions.value.length} victim transactions for manual review`);
+              
+              // Store for display section (all transactions)
+              allVictimTransactions.value = transactions;
+              
+              console.log(`Loaded ${transactions.length} victim transactions for display`);
             }
           } catch (error) {
             console.log('Could not fetch victim transactions:', error.message);
@@ -436,9 +608,30 @@ onMounted(async () => {
         i4cDetails.value = {
           name: i4c_data?.customer_name || 'N/A',
           mobileNumber: i4c_data?.mobile || 'N/A',
-          bankAc: i4c_data?.account_number || 'N/A',
+          bankAc: i4c_data?.account_number || acc_num || 'N/A',
           email: i4c_data?.email || 'N/A',
         };
+        
+        // Try to fetch victim transactions even if banks_v2 data not available
+        const victimAccountNumber = i4c_data?.account_number || acc_num;
+        if (victimAccountNumber) {
+          try {
+            const victimTxnRes = await axios.get(`/api/v2/banks/victim-transactions/${victimAccountNumber}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (victimTxnRes.data?.success) {
+              const transactions = victimTxnRes.data.data.transactions || [];
+              allVictimTransactions.value = transactions;
+              victimAllTransactions.value = transactions.map(txn => ({
+                ...txn,
+                selected: false
+              }));
+              console.log(`Loaded ${transactions.length} victim transactions (fallback)`);
+            }
+          } catch (error) {
+            console.log('Could not fetch victim transactions (fallback):', error.message);
+          }
+        }
       }
       bankDetails.value = {
         name: `${customer_details?.fname || ''} ${customer_details?.mname || ''} ${customer_details?.lname || ''}`.trim() || 'N/A',
@@ -518,6 +711,36 @@ const getStatusLabel = (status) => {
     'pending': '⏳ Pending'
   };
   return labels[status] || '✗ Error';
+};
+
+// Toggle transaction details expansion
+const toggleTransactionDetails = async (rrn) => {
+  // If already expanded, collapse it
+  if (expandedTransactions.value[rrn]) {
+    expandedTransactions.value[rrn] = null;
+    return;
+  }
+
+  // If not expanded, fetch full transaction details
+  loadingTransactions.value[rrn] = true;
+  const token = localStorage.getItem('jwt');
+
+  try {
+    const response = await axios.get(`/api/v2/banks/transaction-by-rrn/${rrn}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.data?.success) {
+      expandedTransactions.value[rrn] = response.data.data;
+    } else {
+      window.showNotification('error', 'Error', 'Failed to load transaction details');
+    }
+  } catch (error) {
+    console.error('Error fetching transaction details:', error);
+    window.showNotification('error', 'Error', 'Failed to load transaction details');
+  } finally {
+    loadingTransactions.value[rrn] = false;
+  }
 };
 
 // Send response to I4C
@@ -895,6 +1118,38 @@ const sendResponse = async () => {
   border: 1px solid #dee2e6;
 }
 
+.transaction-section.full-width-section {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 2px solid #0d6efd;
+}
+
+.transaction-section.full-width-section h4 {
+  color: #1a3a5d;
+  margin-bottom: 8px;
+}
+
+.section-description {
+  margin: 0 0 16px 0;
+  color: #6c757d;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.transaction-summary-info {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.transaction-summary-info p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
 .transaction-section h4 {
   margin: 0 0 16px 0;
   color: #495057;
@@ -909,10 +1164,66 @@ const sendResponse = async () => {
   background: white;
 }
 
+.transaction-table-container.full-details-table {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.transaction-table-container.full-details-table::-webkit-scrollbar {
+  height: 8px;
+}
+
+.transaction-table-container.full-details-table::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.transaction-table-container.full-details-table::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.transaction-table-container.full-details-table::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
 .transaction-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+}
+
+.transaction-table.full-transaction-table {
+  min-width: 2000px; /* Ensure table is wide enough for all columns */
+  font-size: 13px; /* Slightly smaller font for wide table */
+}
+
+.transaction-table.full-transaction-table th,
+.transaction-table.full-transaction-table td {
+  padding: 8px 6px; /* Smaller padding for wide table */
+  white-space: nowrap;
+  text-align: left;
+}
+
+.transaction-table.full-transaction-table th {
+  font-size: 12px;
+  font-weight: 600;
+  background: #e9ecef;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.rrn-cell {
+  font-family: monospace;
+  font-weight: 600;
+  color: #0d6efd;
+}
+
+.fee-cell {
+  text-align: right;
+  color: #6c757d;
 }
 
 .transaction-table th {
@@ -1156,6 +1467,109 @@ const sendResponse = async () => {
   font-size: 13px;
 }
 
+/* Expandable Transaction Details */
+.expand-col {
+  width: 40px;
+  text-align: center;
+  padding: 10px 8px !important;
+}
+
+.expand-icon {
+  font-size: 12px;
+  color: #0d6efd;
+  font-weight: bold;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.row-expanded {
+  background: #e7f3ff !important;
+}
+
+.row-expanded:hover {
+  background: #d0e7ff !important;
+}
+
+.expanded-details-row {
+  background: #f8f9fa;
+}
+
+.expanded-details-row td {
+  padding: 0 !important;
+  border-top: 2px solid #0d6efd;
+}
+
+.expanded-content {
+  padding: 20px !important;
+  background: #ffffff;
+}
+
+.loading-details {
+  padding: 20px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.transaction-details-grid {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.transaction-details-grid h5 {
+  margin: 0 0 16px 0;
+  color: #1a3a5d;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #0d6efd;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #0d6efd;
+}
+
+.detail-item label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-item span {
+  font-size: 14px;
+  color: #212529;
+  font-weight: 500;
+}
+
+.detail-item .amount-highlight {
+  color: #28a745;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.detail-item .rrn-highlight {
+  color: #0d6efd;
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 15px;
+}
+
 /* Responsive transaction table */
 @media (max-width: 768px) {
   .transaction-table th,
@@ -1175,6 +1589,10 @@ const sendResponse = async () => {
   
   .validation-summary {
     flex-direction: column;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
   }
 }
 

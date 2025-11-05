@@ -279,7 +279,7 @@
             <h4>Latest Case Changes</h4>
           </div>
           <div class="summary-content">
-            <p>This case has been updated by the following departments:</p>
+            <p>This case has been updated by the following branches:</p>
             <div class="department-list">
               <div v-for="dept in mergedFromDepartments.filter(d => d !== '__base__')" :key="dept" class="department-item">
                 <span class="dept-name">{{ dept }}</span>
@@ -424,8 +424,8 @@
               </div>
             </div>
             <div class="field-group">
-              <label v-if="userRole === 'risk_officer'">Assignments</label>
-              <label v-else-if="userRole === 'others'">Send Back</label>
+              <label v-if="userRole === 'risk_officer'">Assignments <span class="required-indicator">*</span></label>
+              <label v-else-if="userRole === 'others'">Send Back <span class="required-indicator">*</span></label>
               <label v-else-if="userRole === 'supervisor'">Review & Approve</label>
               
               <!-- Assignment UI for Risk Officers -->
@@ -433,7 +433,7 @@
                 <div v-for="(review, reviewIndex) in action.reviews" :key="review.id" class="review-comment-row">
                   <div class="comment-user-selection-row">
                     <select v-model="review.selectedDepartment" :disabled="isAssignmentDisabled" class="compact-select" @change="handleDepartmentChange(review)">
-                      <option value="">Select Department</option>
+                      <option value="">Select Branch</option>
                       <option v-for="dept in departments" :key="dept.id" :value="dept.name">
                         {{ dept.name }}
                       </option>
@@ -485,7 +485,7 @@
                   <div class="info-icon">ℹ️</div>
                   <div class="info-content">
                     <strong>Supervisor Review Mode</strong>
-                    <p>You can review template responses, data uploads, and approve or reject changes from department users.</p>
+                    <p>You can review template responses, data uploads, and approve or reject changes from branch users.</p>
                     <p>Use the sections below to review submitted work and make approval decisions.</p>
                   </div>
                   <!-- NEW: Button to access dedicated template review page -->
@@ -625,7 +625,7 @@
                   </div>
                   <div class="template-response-meta">
                     <span><strong>Submitted by:</strong> {{ response.assigned_to }}</span>
-                    <span><strong>Department:</strong> {{ response.department || 'N/A' }}</span>
+                    <span><strong>Branch:</strong> {{ response.department || 'N/A' }}</span>
                     <span><strong>Submitted on:</strong> {{ new Date(response.created_at).toLocaleString() }}</span>
                   </div>
                   <div v-if="response.template_description" class="template-description">{{ response.template_description }}</div>
@@ -666,7 +666,7 @@
                   </div>
                   <div class="template-response-meta">
                     <span><strong>Submitted by:</strong> {{ response.assigned_to }}</span>
-                    <span><strong>Department:</strong> {{ response.department || 'N/A' }}</span>
+                    <span><strong>Branch:</strong> {{ response.department || 'N/A' }}</span>
                     <span><strong>Submitted on:</strong> {{ new Date(response.created_at).toLocaleString() }}</span>
                     <span v-if="response.approved_by"><strong>Approved by:</strong> {{ response.approved_by }}</span>
                     <span v-if="response.approved_at"><strong>Approved on:</strong> {{ new Date(response.approved_at).toLocaleString() }}</span>
@@ -700,7 +700,7 @@
           <!-- Supervisor Approval Section -->
           <div class="form-section" v-if="userRole === 'supervisor'">
             <div class="field-group">
-              <label>Supervisor Decision</label>
+              <label>Supervisor Decision <span class="required-indicator">*</span></label>
               <div class="input-row">
                 <textarea v-model="supervisorComment" :disabled="isReadOnly" placeholder="Please provide your comment (required for both approval and rejection)..." class="compact-textarea"></textarea>
               </div>
