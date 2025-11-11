@@ -32,40 +32,48 @@
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
         <div v-else class="comparison-grid">
+          <div v-if="isEmailCaseView" class="info-banner">
+            <p>This ECBT case was generated automatically from email ingestion. Only bank customer details are available for review.</p>
+          </div>
           <!-- LEFT SECTION: Actual Victim (I4C Complaint Filer) -->
           <div class="details-section">
             <h4>Actual Victim - I4C Complaint</h4>
-            <div v-if="!isMMTriggered" class="details-row">
+            <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
               <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
               <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
             </div>
-            <div v-if="!isMMTriggered" class="details-row">
+            <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Bank A/c #</label><input type="text" v-model="i4cDetails.bankAc" readonly /></div>
               <div class="field-group"><label>Sub Category</label><input type="text" v-model="i4cDetails.subCategory" readonly /></div>
             </div>
-            <div v-if="!isMMTriggered" class="details-row">
+            <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Requestor</label><input type="text" v-model="i4cDetails.requestor" readonly /></div>
               <div class="field-group"><label>Payer Bank</label><input type="text" v-model="i4cDetails.payerBank" readonly /></div>
             </div>
-            <div v-if="!isMMTriggered" class="details-row">
+            <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Mode of Payment</label><input type="text" v-model="i4cDetails.modeOfPayment" readonly /></div>
               <div class="field-group"><label>State</label><input type="text" v-model="i4cDetails.state" readonly /></div>
             </div>
-            <div v-if="!isMMTriggered" class="details-row">
+            <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>District</label><input type="text" v-model="i4cDetails.district" readonly /></div>
               <div class="field-group"><label>Transaction Type</label><input type="text" v-model="i4cDetails.transactionType" readonly /></div>
             </div>
-            <div v-else class="info-banner" style="margin-top: 10px;">
+            <div v-else-if="isMMTriggered" class="info-banner" style="margin-top: 10px;">
               <div class="info-message">
                 <strong>Note:</strong> This case was triggered by mobile number matching, not an I4C complaint.
+              </div>
+            </div>
+            <div v-else-if="isEmailCaseView" class="info-banner" style="margin-top: 10px;">
+              <div class="info-message">
+                <strong>Note:</strong> Email ingestion cases do not include I4C complaint data.
               </div>
             </div>
           </div>
 
           <!-- RIGHT SECTION: Potential Victim (Customer who transacted with beneficiary) -->
           <div class="details-section">
-            <h4>Potential Victim - {{ isMMTriggered ? 'Mobile Number Match' : 'Bank Customer Details' }}</h4>
+            <h4>Potential Victim - {{ isEmailCaseView ? 'Bank Customer Details (Email Ingestion)' : (isMMTriggered ? 'Mobile Number Match' : 'Bank Customer Details') }}</h4>
             
             <!-- Mobile Number Match Details (for MM-triggered cases) -->
             <div v-if="isMMTriggered && reverificationData" class="reverification-details">
@@ -111,7 +119,7 @@
                 <input type="text" v-model="bankDetails.email" readonly />
               </div>
             </div>
-            <div v-if="!isMMTriggered" class="details-row">
+            <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
                <div class="field-group">
                 <label>Customer ID</label>
                 <input type="text" v-model="bankDetails.customerId" readonly />
@@ -887,6 +895,15 @@ import { API_ENDPOINTS } from '@/config/api';
 const route = useRoute();
 const router = useRouter();
 
+const caseCreatedBy = ref('');
+const isEmailCaseView = computed(() => {
+  return (
+    route.meta?.isEmailCase === true ||
+    route.name === 'ECBTEmailAction' ||
+    (caseCreatedBy.value && caseCreatedBy.value.toLowerCase() === 'emailsystem')
+  );
+});
+
 // Check if we're in review mode
 const isReviewMode = computed(() => route.query.review === 'true');
 
@@ -1287,9 +1304,13 @@ const fetchCaseDetails = async () => {
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, transactions: caseTransactions = [] } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, transactions: caseTransactions = [], created_by } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
+    caseCreatedBy.value = (created_by || '').toString();
+    if (!caseCreatedBy.value && route.meta?.isEmailCase === true) {
+      caseCreatedBy.value = 'EmailSystem';
+    }
     
     // For ECBT cases, fetch actual transactions from txn table instead of payload incidents
     let ecbtTransactions = [];
@@ -2197,6 +2218,18 @@ const calculateTotalValueAtRisk = () => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+.info-banner {
+  grid-column: 1 / -1;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* Progress Steps Header */

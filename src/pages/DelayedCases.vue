@@ -97,7 +97,7 @@
                 <td class="created-date">{{ formatDate(caseItem.creation_date) }}</td>
                 <td class="action">
                   <button 
-                    @click="viewCaseDetails(caseItem.case_id, caseItem.case_type)" 
+                    @click="viewCaseDetails(caseItem)" 
                     class="btn-view-case"
                   >
                     View Details
@@ -211,7 +211,10 @@ export default {
       })
     }
 
-    const viewCaseDetails = (caseId, caseType) => {
+    const viewCaseDetails = (caseItem) => {
+      const caseId = caseItem.case_id
+      const caseType = caseItem.case_type
+      const createdBy = caseItem.created_by
       let route = ''
       switch (caseType?.toUpperCase()) {
         case 'VM':
@@ -227,13 +230,25 @@ export default {
           route = `/pva-action/${caseId}`
           break
         case 'PSA':
-          route = `/psa-action/${caseId}`
+          if (createdBy === 'EmailSystem') {
+            route = `/psa-email-action/${caseId}`
+          } else {
+            route = `/psa-action/${caseId}`
+          }
           break
         case 'ECBT':
-          route = `/ecbt-action/${caseId}`
+          if (createdBy === 'EmailSystem') {
+            route = `/ecbt-email-action/${caseId}`
+          } else {
+            route = `/ecbt-action/${caseId}`
+          }
           break
         case 'ECBNT':
-          route = `/ecbnt-action/${caseId}`
+          if (createdBy === 'EmailSystem') {
+            route = `/ecbnt-email-action/${caseId}`
+          } else {
+            route = `/ecbnt-action/${caseId}`
+          }
           break
         case 'NAB':
           route = `/nab-action/${caseId}`

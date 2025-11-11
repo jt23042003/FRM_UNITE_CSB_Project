@@ -118,7 +118,16 @@ function toCase(c) {
     NAB: 'NABAction',
     MM: 'MobileMatchingAction'
   }
-  const name = map[c.case_type] || 'CaseRiskReview'
+  let name = map[c.case_type] || 'CaseRiskReview'
+  if (c.case_type === 'PSA' && c.created_by === 'EmailSystem') {
+    name = 'PSAEmailAction'
+  }
+  if (c.case_type === 'ECBT' && c.created_by === 'EmailSystem') {
+    name = 'ECBTEmailAction'
+  }
+  if (c.case_type === 'ECBNT' && c.created_by === 'EmailSystem') {
+    name = 'ECBNTEmailAction'
+  }
   return { name, params: { case_id: c.case_id }, query: { review: 'true' } }
 }
 

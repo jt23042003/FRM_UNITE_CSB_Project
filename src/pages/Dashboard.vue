@@ -640,7 +640,7 @@
                 <tbody>
                   <tr v-for="caseItem in recentCases.slice(0, 10)" :key="caseItem.case_id">
                     <td>
-                      <router-link :to="getCaseRoute(caseItem.case_type, caseItem.case_id)" class="case-link">
+                      <router-link :to="getCaseRoute(caseItem)" class="case-link">
                         #{{ caseItem.case_id }}
                       </router-link>
                     </td>
@@ -696,7 +696,15 @@ import '../assets/Dashboard.css';
 const router = useRouter();
 
 // Get the appropriate route for each case type
-const getCaseRoute = (caseType, caseId) => {
+const getCaseRoute = (caseData, fallbackCaseId = null) => {
+  const caseType = typeof caseData === 'object' && caseData !== null ? (caseData.case_type || caseData.caseType) : caseData;
+  const caseId = typeof caseData === 'object' && caseData !== null
+    ? (caseData.case_id || caseData.caseId || fallbackCaseId)
+    : fallbackCaseId;
+  const createdBy = typeof caseData === 'object' && caseData !== null
+    ? (caseData.created_by || caseData.createdBy)
+    : undefined;
+
   const routeMap = {
     'VM': 'OperationalAction',
     'BM': 'BeneficiaryAction', 
@@ -709,8 +717,19 @@ const getCaseRoute = (caseType, caseId) => {
     'MM': 'MobileMatchingAction'
   };
 
+  let routeName = routeMap[caseType] || 'CaseRiskReview';
+  if (caseType === 'PSA' && createdBy === 'EmailSystem') {
+    routeName = 'PSAEmailAction';
+  }
+  if (caseType === 'ECBT' && createdBy === 'EmailSystem') {
+    routeName = 'ECBTEmailAction';
+  }
+  if (caseType === 'ECBNT' && createdBy === 'EmailSystem') {
+    routeName = 'ECBNTEmailAction';
+  }
+
   return {
-    name: routeMap[caseType] || 'CaseRiskReview',
+    name: routeName,
     params: { case_id: caseId }
   };
 };
@@ -1134,7 +1153,7 @@ const handleNodeClick = (node) => {
     const caseId = node.label.split(' ')[1];
     if (caseId && !isNaN(caseId)) {
       // Navigate to case details based on case type
-      const route = getCaseRoute(node.case_type, caseId);
+      const route = getCaseRoute({ case_type: node.case_type, case_id: caseId, created_by: node.created_by }, caseId);
       router.push(route);
     }
   } else if (node.cases && node.cases.length > 0) {

@@ -958,6 +958,105 @@ class CaseEntryMatcher:
             print(f"UNEXPECTED ERROR processing PSA case: {e}", flush=True)
             raise
 
+    async def create_psa_case_from_email(
+        self,
+        customer_id: str,
+        customer_name: Optional[str],
+        account_number: Optional[str],
+        mobile_number: Optional[str],
+        remarks: Optional[str] = None,
+        created_by_user: str = "EmailSystem"
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Lightweight PSA creator used by email/PII ingestion.
+        Skips legacy matching layers and directly creates a PSA case plus history/details.
+        """
+        case_type = "PSA"
+        generated_ack = f"PSA_EMAIL_{uuid.uuid4().hex[:10].upper()}"
+        populated_remarks = remarks or (
+            f"PSA case generated via email ingestion for customer {customer_id}."
+        )
+
+        new_case_main_id = await self.insert_into_case_main(
+            case_type=case_type,
+            source_ack_no=generated_ack,
+            cust_id=customer_id,
+            acc_num=account_number,
+            is_operational=False,
+            status="New",
+            decision_input="Pending Review",
+            remarks_input=populated_remarks,
+            customer_full_name=customer_name,
+            location=None,
+            disputed_amount=None,
+            created_by=created_by_user
+        )
+
+        if not new_case_main_id:
+            print(f"WARNING: Failed to create PSA case for customer {customer_id}", flush=True)
+            return None
+
+        initial_history = {
+            "remarks": populated_remarks,
+            "short_dn": "PSA Email Ingestion",
+            "long_dn": "Automated PSA case created from email-triggered PII match.",
+            "decision_type": "Automated Trigger",
+            "updated_by": created_by_user
+        }
+        await save_or_update_decision(self.executor, new_case_main_id, initial_history)
+
+        await self._insert_psa_case_details(
+            customer_id=customer_id,
+            mobile=mobile_number,
+            account_number=account_number
+        )
+
+        print(f"✅ PSA case (email ingestion) created with case_id: {new_case_main_id}", flush=True)
+        return {
+            "ack_no": generated_ack,
+            "case_id": new_case_main_id,
+            "message": "PSA case created from email ingestion match."
+        }
+
+    async def _insert_psa_case_details(
+        self,
+        customer_id: str,
+        mobile: Optional[str],
+        account_number: Optional[str]
+    ):
+        """
+        Store PSA specific metadata into case_details_1.
+        """
+
+        def _sync_insert():
+            with get_db_connection() as conn:
+                with get_db_cursor(conn) as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO public.case_details_1 (
+                            cust_id, casetype, mobile, email, pan, aadhar, acc_no, card, match_flag, creation_timestamp
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        """,
+                        (
+                            customer_id,
+                            "PSA",
+                            mobile,
+                            None,
+                            None,
+                            None,
+                            account_number,
+                            None,
+                            "Email Ingestion"
+                        )
+                    )
+                    conn.commit()
+
+        try:
+            await self._execute_sync_db_op(_sync_insert)
+        except Exception as e:
+            print(f"WARNING: Failed to insert PSA case details for customer {customer_id}: {e}", flush=True)
+
     async def create_nab_case_if_flagged(self, beneficiary_data: BeneficiaryData) -> Optional[Dict[str, Any]]:
         def _sync_create_nab_case():
             with get_db_connection() as conn:
@@ -1515,7 +1614,7 @@ class CaseEntryMatcher:
 
         await self._execute_sync_db_op(_sync_insert)
 
-    async def _create_ecb_cases_for_customer(self, cust_id: str, customer_full_name: str, reverification_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def _create_ecb_cases_for_customer(self, cust_id: str, customer_full_name: str, reverification_data: Dict[str, Any] = None, created_by_user: Optional[str] = "System") -> Dict[str, Any]:
         """
         After MM case creation, check for ECBNT/ECBT cases by:
         1. Getting account numbers from account_customer table
@@ -1575,7 +1674,7 @@ class CaseEntryMatcher:
                         customer_full_name=customer_full_name,
                         location=None,
                         disputed_amount=None,
-                        created_by="System"
+                        created_by=created_by_user or "System"
                     )
                     
                     if new_case_main_id:
@@ -1585,7 +1684,7 @@ class CaseEntryMatcher:
                             "short_dn": case_type,
                             "long_dn": case_description,
                             "decision_type": "Automated Trigger",
-                            "updated_by": "System"
+                            "updated_by": created_by_user or "System"
                         }
                         await save_or_update_decision(self.executor, new_case_main_id, initial_history_data)
                         
@@ -2486,6 +2585,7 @@ class CaseEntryMatcher:
                             cm.case_id, cm.case_type, cm.source_ack_no, cm.source_bene_accno,
                             cm.acc_num, cm.cust_id, cm.creation_date, cm.creation_time, 
                             cm.is_operational, cm.status, cm.short_dn, cm.long_dn, cm.decision_type,
+                            cm.created_by,
                             
                             -- Customer data
                             c.fname, c.mname, c.lname, c.mobile, c.email, c.pan, c.nat_id, 
@@ -2691,7 +2791,7 @@ class CaseEntryMatcher:
                         SELECT
                             case_id, case_type, source_ack_no, source_bene_accno,
                             acc_num, cust_id, creation_date, creation_time, is_operational, status,
-                            short_dn, long_dn, decision_type -- NEW: Add new columns from case_main
+                            short_dn, long_dn, decision_type, created_by -- NEW: Add new columns from case_main
                         FROM public.case_main
                         WHERE case_id = %s
                     """, (case_id,))

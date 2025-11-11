@@ -264,8 +264,16 @@
 
         <!-- Third Section: All Victim Transactions -->
         <div v-if="allVictimTransactions.length > 0" class="transaction-section full-width-section">
-          <h4>All Transactions by Victim Account ({{ i4cDetails.bankAc }})</h4>
-          <p class="section-description">Complete transaction history for the victim account from bank records.</p>
+          <div class="section-header-with-action">
+            <div>
+              <h4>All Transactions by Victim Account ({{ i4cDetails.bankAc }})</h4>
+              <p class="section-description">Complete transaction history for the victim account from bank records.</p>
+            </div>
+            <button @click="exportToExcel" class="btn-download-excel" :disabled="isExporting">
+              <span v-if="!isExporting">📥 Download Excel</span>
+              <span v-else>⏳ Exporting...</span>
+            </button>
+          </div>
           <div class="transaction-table-container full-details-table">
             <table class="transaction-table full-transaction-table">
               <thead>
@@ -427,6 +435,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 const route = useRoute();
 const router = useRouter();
@@ -465,6 +474,7 @@ const caseId = parseInt(route.params.case_id);
 // Expanded transaction details state
 const expandedTransactions = ref({});  // { rrn: fullTransactionData }
 const loadingTransactions = ref({});  // { rrn: true/false }
+const isExporting = ref(false);
 
 // Computed property to check if there are unmatched RRNs
 const hasUnmatchedRRNs = computed(() => {
@@ -711,6 +721,87 @@ const getStatusLabel = (status) => {
     'pending': '⏳ Pending'
   };
   return labels[status] || '✗ Error';
+};
+
+// Export transactions to Excel
+const exportToExcel = () => {
+  if (allVictimTransactions.value.length === 0) {
+    window.showNotification('warning', 'No Data', 'No transactions to export');
+    return;
+  }
+
+  isExporting.value = true;
+
+  try {
+    // Prepare data for Excel export
+    const excelData = allVictimTransactions.value.map(txn => ({
+      'RRN': txn.rrn || 'N/A',
+      'Transaction Reference': txn.txn_ref || 'N/A',
+      'Date': txn.txn_date || 'N/A',
+      'Time': txn.txn_time || 'N/A',
+      'Transaction Type': txn.txn_type || 'N/A',
+      'Amount': txn.amount || 'N/A',
+      'Currency': txn.currency || 'N/A',
+      'Account Number': txn.acct_num || 'N/A',
+      'Description': txn.descr || 'N/A',
+      'Fee': txn.fee || 'N/A',
+      'Exchange Rate': txn.exch_rate || 'N/A',
+      'Beneficiary Name': txn.bene_name || 'N/A',
+      'Beneficiary Account': txn.bene_acct_num || 'N/A',
+      'Payment Reference': txn.pay_ref || 'N/A',
+      'Authorization Code': txn.auth_code || 'N/A',
+      'Fraud Type': txn.fraud_type || 'N/A',
+      'Merchant Name': txn.merch_name || 'N/A',
+      'MCC': txn.mcc || 'N/A',
+      'Channel': txn.channel || 'N/A',
+      'Payment Method': txn.pay_method || 'N/A'
+    }));
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions');
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 12 }, // RRN
+      { wch: 18 }, // Transaction Reference
+      { wch: 12 }, // Date
+      { wch: 10 }, // Time
+      { wch: 15 }, // Transaction Type
+      { wch: 15 }, // Amount
+      { wch: 10 }, // Currency
+      { wch: 18 }, // Account Number
+      { wch: 25 }, // Description
+      { wch: 10 }, // Fee
+      { wch: 12 }, // Exchange Rate
+      { wch: 20 }, // Beneficiary Name
+      { wch: 20 }, // Beneficiary Account
+      { wch: 18 }, // Payment Reference
+      { wch: 18 }, // Authorization Code
+      { wch: 15 }, // Fraud Type
+      { wch: 20 }, // Merchant Name
+      { wch: 6 },  // MCC
+      { wch: 15 }, // Channel
+      { wch: 15 }  // Payment Method
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Generate filename with account number and date
+    const accountNumber = i4cDetails.value.bankAc || 'Unknown';
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `Victim_Transactions_${accountNumber}_${dateStr}.xlsx`;
+
+    // Write and download file
+    XLSX.writeFile(workbook, filename);
+
+    window.showNotification('success', 'Export Successful', `Excel file downloaded: ${filename}`);
+  } catch (error) {
+    console.error('Error exporting to Excel:', error);
+    window.showNotification('error', 'Export Failed', 'Failed to export transactions to Excel. Please try again.');
+  } finally {
+    isExporting.value = false;
+  }
 };
 
 // Toggle transaction details expansion
@@ -1127,6 +1218,51 @@ const sendResponse = async () => {
 .transaction-section.full-width-section h4 {
   color: #1a3a5d;
   margin-bottom: 8px;
+}
+
+.section-header-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.section-header-with-action > div:first-child {
+  flex: 1;
+}
+
+.btn-download-excel {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+}
+
+.btn-download-excel:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-download-excel:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-download-excel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .section-description {

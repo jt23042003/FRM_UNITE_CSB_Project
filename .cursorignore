@@ -20,5 +20,4 @@
     cp .env.production env.production.visible
     ```
   - Then tell me the path (I can read `env.production.visible`).
-
 If you’d like me to change the ignore rules or read the files for you automatically, switch to agent mode; otherwise use one of the options above and I’ll proceed.
