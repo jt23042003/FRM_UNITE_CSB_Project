@@ -32,6 +32,12 @@
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
         <div v-else class="comparison-grid">
+          <div v-if="isEmailCaseView" class="info-banner">
+            <div class="info-icon">ℹ️</div>
+            <div class="info-message">
+              <strong>Email Ingestion Case:</strong> This ECBNT case was generated from an email workflow, so I4C complaint details are not available.
+            </div>
+          </div>
           <!-- Loading indicator for additional details -->
           <div v-if="isLoadingAdditionalDetails" class="loading-additional">
             <div class="loading-text">Loading additional details...</div>
@@ -40,37 +46,42 @@
           <!-- LEFT SECTION: Actual Victim (I4C Complaint Filer) -->
           <div class="details-section">
             <h4>Actual Victim - I4C Complaint</h4>
-            <div v-if="!reverificationData" class="details-row">
+            <div v-if="!reverificationData && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
               <div class="field-group"><label>Mobile</label><input type="text" v-model="i4cDetails.mobileNumber" readonly /></div>
               <div class="field-group"><label>Email</label><input type="text" v-model="i4cDetails.email" readonly /></div>
             </div>
-            <div v-if="!reverificationData" class="details-row">
+            <div v-if="!reverificationData && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Bank A/c #</label><input type="text" v-model="i4cDetails.bankAc" readonly /></div>
               <div class="field-group"><label>Sub Category</label><input type="text" v-model="i4cDetails.subCategory" readonly /></div>
             </div>
-            <div v-if="!reverificationData" class="details-row">
+            <div v-if="!reverificationData && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Requestor</label><input type="text" v-model="i4cDetails.requestor" readonly /></div>
               <div class="field-group"><label>Payer Bank</label><input type="text" v-model="i4cDetails.payerBank" readonly /></div>
             </div>
-            <div v-if="!reverificationData" class="details-row">
+            <div v-if="!reverificationData && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Mode of Payment</label><input type="text" v-model="i4cDetails.modeOfPayment" readonly /></div>
               <div class="field-group"><label>State</label><input type="text" v-model="i4cDetails.state" readonly /></div>
             </div>
-            <div v-if="!reverificationData" class="details-row">
+            <div v-if="!reverificationData && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>District</label><input type="text" v-model="i4cDetails.district" readonly /></div>
               <div class="field-group"><label>Transaction Type</label><input type="text" v-model="i4cDetails.transactionType" readonly /></div>
             </div>
-            <div v-else class="info-banner" style="margin-top: 10px;">
+            <div v-else-if="reverificationData" class="info-banner" style="margin-top: 10px;">
               <div class="info-message">
                 <strong>Note:</strong> This case was triggered by mobile number matching, not an I4C complaint.
+              </div>
+            </div>
+            <div v-else-if="isEmailCaseView" class="info-banner" style="margin-top: 10px;">
+              <div class="info-message">
+                <strong>Note:</strong> Email ingestion cases do not include I4C complaint information.
               </div>
             </div>
           </div>
 
           <!-- RIGHT SECTION: Potential Victim (Customer who added beneficiary) -->
           <div class="details-section">
-            <h4>Potential Victim - {{ reverificationData ? 'Mobile Number Match' : 'Bank Customer Details' }}</h4>
+            <h4>Potential Victim - {{ isEmailCaseView ? 'Bank Customer Details (Email Ingestion)' : (reverificationData ? 'Mobile Number Match' : 'Bank Customer Details') }}</h4>
             
             <!-- Show reverification flags details if triggered by mobile matching -->
             <div v-if="reverificationData" class="reverification-details">
@@ -847,6 +858,15 @@ import { API_ENDPOINTS } from '@/config/api';
 const route = useRoute();
 const router = useRouter();
 
+const caseCreatedBy = ref('');
+const isEmailCaseView = computed(() => {
+  return (
+    route.meta?.isEmailCase === true ||
+    route.name === 'ECBNTEmailAction' ||
+    (caseCreatedBy.value && caseCreatedBy.value.toLowerCase() === 'emailsystem')
+  );
+});
+
 // Check if we're in review mode
 const isReviewMode = computed(() => route.query.review === 'true');
 
@@ -1206,9 +1226,13 @@ const fetchCaseDetails = async () => {
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, reverification_flags } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, reverification_flags, created_by } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
+    caseCreatedBy.value = (created_by || '').toString();
+    if (!caseCreatedBy.value && route.meta?.isEmailCase === true) {
+      caseCreatedBy.value = 'EmailSystem';
+    }
     
     // ECBNT cases don't display transactions (no transactions exist between customer and beneficiary)
     // Clear transactions array to ensure info banner is shown

@@ -40,6 +40,7 @@ from routers import assignment_router, case_history_router
 from routers.match_suspect_customer import router as match_suspect_customer_router
 from routers.email_ingest import router as email_ingest_router
 from routers.banks_v2 import router as banks_v2_router
+from routers.pii_processor import router as pii_processor_router
 
 # Import all models to ensure they are registered
 from models import Base, create_tables
@@ -146,6 +147,7 @@ app.include_router(template_router.router, tags=["Template Management"])
 app.include_router(supervisor_router.router, tags=["Supervisor Template Review"])
 app.include_router(email_ingest_router, tags=["Email Ingest"])
 app.include_router(banks_v2_router)
+app.include_router(pii_processor_router, tags=["PII Processing"])
 # --- This is your existing root endpoint ---
 @app.get("/")
 async def read_root():

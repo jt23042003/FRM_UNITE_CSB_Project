@@ -567,7 +567,16 @@ function getCaseLink(caseItem) {
     'NAB': 'NABAction',
     'MM': 'MobileMatchingAction'
   };
-  const routeName = routeMap[caseItem.case_type] || 'CaseRiskReview';
+  let routeName = routeMap[caseItem.case_type] || 'CaseRiskReview';
+  if (caseItem.case_type === 'PSA' && caseItem.created_by === 'EmailSystem') {
+    routeName = 'PSAEmailAction';
+  }
+  if (caseItem.case_type === 'ECBT' && caseItem.created_by === 'EmailSystem') {
+    routeName = 'ECBTEmailAction';
+  }
+  if (caseItem.case_type === 'ECBNT' && caseItem.created_by === 'EmailSystem') {
+    routeName = 'ECBNTEmailAction';
+  }
   return {
     name: routeName,
     params: { case_id: caseItem.case_id },

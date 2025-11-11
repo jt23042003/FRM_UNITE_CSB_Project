@@ -32,7 +32,10 @@
         <div v-else-if="fetchError" class="error-indicator">{{ fetchError }}</div>
 
         <div v-else class="comparison-grid">
-          <div class="details-section">
+          <div v-if="isEmailCaseView" class="info-banner">
+            <p>This PSA case was generated automatically from an email ingestion workflow. Review the captured customer details and proceed with screening actions as required.</p>
+          </div>
+          <div class="details-section" v-if="!isEmailCaseView">
             <h4>Customer Details - I4C</h4>
             <div class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
@@ -91,7 +94,7 @@
         </div>
 
         <!-- Two-Section Transaction Layout for PSA Cases -->
-        <div class="transaction-comparison-grid">
+        <div class="transaction-comparison-grid" v-if="!isEmailCaseView">
           <!-- LEFT: Raw I4C Incidents from Complaint -->
           <div class="transaction-section">
             <h4>Transaction Details from I4C Complaint</h4>
@@ -173,7 +176,7 @@
         </div>
         
         <!-- Summary Section -->
-        <div v-if="validationResults.length > 0" class="validation-summary">
+        <div v-if="!isEmailCaseView && validationResults.length > 0" class="validation-summary">
           <div class="summary-card">
             <span class="summary-label">Total Incidents:</span>
             <span class="summary-value">{{ validationResults.length }}</span>
@@ -189,7 +192,7 @@
         </div>
 
         <!-- Manual Review Section - Show ALL victim transactions when there are unmatched RRNs -->
-        <div v-if="hasUnmatchedRRNs && victimAllTransactions.length > 0" class="manual-review-section">
+        <div v-if="!isEmailCaseView && hasUnmatchedRRNs && victimAllTransactions.length > 0" class="manual-review-section">
           <div class="manual-review-header">
             <h4>⚠️ Manual Review Required - Select Matching Transactions</h4>
             <p>Some RRNs could not be automatically matched. Select the transaction(s) below that you believe match the unmatched RRNs from victim account <strong>{{ i4cDetails.bankAc }}</strong>.</p>
@@ -906,6 +909,17 @@ import { API_ENDPOINTS } from '@/config/api';
 const route = useRoute();
 const router = useRouter();
 
+const caseCreatedBy = ref('');
+const isEmailCaseView = computed(() => {
+  return (
+    route.meta?.isEmailCase === true ||
+    route.name === 'PSAEmailAction' ||
+    (caseCreatedBy.value && caseCreatedBy.value.toLowerCase() === 'emailsystem')
+  );
+});
+
+let banksV2Transactions = [];
+
 // Check if we're in review mode
 const isReviewMode = computed(() => route.query.review === 'true');
 
@@ -1344,9 +1358,14 @@ const fetchCaseDetails = async () => {
   if (!token) throw new Error('No authentication token found');
 
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+  banksV2Transactions = [];
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, created_by } = response.data;
+    caseCreatedBy.value = created_by || '';
+    if (!caseCreatedBy.value && route.meta?.isEmailCase === true) {
+      caseCreatedBy.value = 'EmailSystem';
+    }
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
@@ -1412,6 +1431,8 @@ const fetchCaseDetails = async () => {
     
     // Populate I4C details and raw incidents with banks_v2 data if available
     if (banksV2Data) {
+      banksV2Transactions = banksV2Data.transactions || banksV2Data.incidents || [];
+
       i4cDetails.value = {
         name: banksV2Data.instrument?.payer_account_number ? `Account ${banksV2Data.instrument.payer_account_number}` : 'N/A',
         mobileNumber: banksV2Data.instrument?.payer_mobile_number || 'N/A',
@@ -2259,6 +2280,18 @@ const getTemplateQuestionFiles = (questionId) => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+.info-banner {
+  grid-column: 1 / -1;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* Progress Steps Header */

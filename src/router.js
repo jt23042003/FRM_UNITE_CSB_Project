@@ -71,16 +71,37 @@ const routes = [
         props: true,
       },
       {
+        path: 'psa-email-action/:case_id',
+        name: 'PSAEmailAction',
+        component: () => import('@/pages/PSAAction.vue'),
+        props: true,
+        meta: { isEmailCase: true },
+      },
+      {
         path: 'ecbt-action/:case_id',
         name: 'ECBTAction',
         component: () => import('@/pages/ECBTAction.vue'),
         props: true,
       },
       {
+        path: 'ecbt-email-action/:case_id',
+        name: 'ECBTEmailAction',
+        component: () => import('@/pages/ECBTAction.vue'),
+        props: true,
+        meta: { isEmailCase: true },
+      },
+      {
         path: 'ecbnt-action/:case_id',
         name: 'ECBNTAction',
         component: () => import('@/pages/ECBNTAction.vue'),
         props: true,
+      },
+      {
+        path: 'ecbnt-email-action/:case_id',
+        name: 'ECBNTEmailAction',
+        component: () => import('@/pages/ECBNTAction.vue'),
+        props: true,
+        meta: { isEmailCase: true },
       },
       {
         path: 'nab-action/:case_id',
