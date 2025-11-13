@@ -13,9 +13,8 @@ from keycloak.keycloak_openid import KeycloakOpenID
 from db.matcher import CaseEntryMatcher # Make sure this is imported
 from config import (
     DELAY_THRESHOLD_DAYS, 
-    RISK_OFFICER_DELAY_THRESHOLD_DAYS,
-    COMPLIANCE_DEPARTMENT_DELAY_THRESHOLD_DAYS,
-    FINANCE_DEPARTMENT_DELAY_THRESHOLD_DAYS
+    RISK_OFFICER_DELAY_THRESHOLD_DAYS
+    # Removed hardcoded department-specific thresholds for scalability
 )
 
 router = APIRouter()
@@ -268,13 +267,24 @@ async def get_dashboard_analytics(
         with psycopg2.connect(**DB_CONNECTION_PARAMS) as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 
-                # Get total cases count
-                cur.execute("SELECT COUNT(*) as total FROM case_main")
-                total_cases = cur.fetchone()['total']
-                
-                # Get cases by status
+                # Get total cases count and max case_id for verification
                 cur.execute("""
-                    SELECT status, COUNT(*) as count 
+                    SELECT 
+                        COUNT(*) as total,
+                        MAX(case_id) as max_case_id,
+                        MIN(case_id) as min_case_id
+                    FROM case_main
+                """)
+                case_stats = cur.fetchone()
+                total_cases = case_stats['total']
+                max_case_id = case_stats['max_case_id']
+                min_case_id = case_stats['min_case_id']
+                
+                # Get cases by status (including NULL status)
+                cur.execute("""
+                    SELECT 
+                        COALESCE(status, 'Unknown') as status, 
+                        COUNT(*) as count 
                     FROM case_main 
                     GROUP BY status
                 """)
@@ -288,13 +298,19 @@ async def get_dashboard_analytics(
                 """)
                 type_counts = {row['case_type']: row['count'] for row in cur.fetchall()}
                 
-                # Get cases by operational status
+                # Get cases by operational status (including NULL)
                 cur.execute("""
-                    SELECT is_operational, COUNT(*) as count 
+                    SELECT 
+                        is_operational, 
+                        COUNT(*) as count 
                     FROM case_main 
                     GROUP BY is_operational
                 """)
-                operational_counts = {str(row['is_operational']): row['count'] for row in cur.fetchall()}
+                # PostgreSQL returns booleans as Python True/False/None
+                operational_counts = {}
+                for row in cur.fetchall():
+                    key = str(row['is_operational']) if row['is_operational'] is not None else 'None'
+                    operational_counts[key] = row['count']
                 
                 # Get recent activity (last 30 days)
                 thirty_days_ago = datetime.now() - timedelta(days=30)
@@ -338,18 +354,27 @@ async def get_dashboard_analytics(
                 except Exception:
                     funds_saved_total = 0.0
                 
+                # Verify status counts sum matches total (for debugging)
+                status_sum = sum(status_counts.values())
+                
                 result = {
                     "success": True,
                     "data": {
                         "overview": {
                             "total_cases": total_cases,
+                            "max_case_id": max_case_id,  # For verification/debugging
+                            "min_case_id": min_case_id,  # For verification/debugging
                             "new_cases": status_counts.get('New', 0),
                             "assigned_cases": status_counts.get('Assigned', 0),
                             "closed_cases": status_counts.get('Closed', 0),
                             "operational_cases": operational_counts.get('True', 0),
                             "non_operational_cases": operational_counts.get('False', 0),
                             "average_resolution_days": round(avg_resolution_days, 1),
-                            "funds_saved_total": round(funds_saved_total, 2)
+                            "funds_saved_total": round(funds_saved_total, 2),
+                            "_debug": {  # Internal debugging info (can be removed later)
+                                "status_sum": status_sum,
+                                "status_sum_matches_total": status_sum == total_cases
+                            }
                         },
                         "case_types": type_counts,
                         "status_distribution": status_counts,
@@ -2024,14 +2049,9 @@ async def get_department_delayed_cases(
                 if not supervisor_dept:
                     raise HTTPException(status_code=400, detail="Supervisor department not found.")
                 
-                # Get the appropriate threshold for this department
-                if supervisor_dept.upper() == 'COMPLIANCE':
-                    threshold_days = COMPLIANCE_DEPARTMENT_DELAY_THRESHOLD_DAYS
-                elif supervisor_dept.upper() == 'FINANCE':
-                    threshold_days = FINANCE_DEPARTMENT_DELAY_THRESHOLD_DAYS
-                else:
-                    # Default threshold for other departments
-                    threshold_days = 3
+                # Use generic threshold for all departments (no hardcoded department names)
+                # All departments use the same default threshold, making it scalable for any new departments
+                threshold_days = 3  # Default threshold for all departments
                 
                 # Get delayed cases assigned to this department (no action for X days)
                 # Use subquery to get the most recent active assignment to avoid duplicates

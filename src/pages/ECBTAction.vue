@@ -33,10 +33,13 @@
 
         <div v-else class="comparison-grid">
           <div v-if="isEmailCaseView" class="info-banner">
-            <p>This ECBT case was generated automatically from email ingestion. Only bank customer details are available for review.</p>
+            <!-- <div class="info-icon">ℹ</div> -->
+              <div class="info-message">
+              <strong>Email Ingestion Case:</strong> This ECBT case was generated automatically from email ingestion. Only bank customer details are available for review.
+            </div>
           </div>
           <!-- LEFT SECTION: Actual Victim (I4C Complaint Filer) -->
-          <div class="details-section">
+          <div v-if="!isEmailCaseView" class="details-section">
             <h4>Actual Victim - I4C Complaint</h4>
             <div v-if="!isMMTriggered && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
@@ -71,12 +74,20 @@
             </div>
           </div>
 
+          <!-- Email Body Section (only for email cases) -->
+          <div v-if="isEmailCaseView && emailBody" class="email-body-section">
+            <h4>Original Email Content</h4>
+            <div class="email-body-content">
+              <pre>{{ emailBody }}</pre>
+            </div>
+          </div>
+
           <!-- RIGHT SECTION: Potential Victim (Customer who transacted with beneficiary) -->
           <div class="details-section">
             <h4>Potential Victim - {{ isEmailCaseView ? 'Bank Customer Details (Email Ingestion)' : (isMMTriggered ? 'Mobile Number Match' : 'Bank Customer Details') }}</h4>
             
-            <!-- Mobile Number Match Details (for MM-triggered cases) -->
-            <div v-if="isMMTriggered && reverificationData" class="reverification-details">
+            <!-- Mobile Number Match Details (for MM-triggered cases, NOT for email cases) -->
+            <div v-if="isMMTriggered && reverificationData && !isEmailCaseView" class="reverification-details">
               <h5>Reverification Flags Details</h5>
               <div class="details-row">
                 <div class="field-group">
@@ -896,6 +907,7 @@ const route = useRoute();
 const router = useRouter();
 
 const caseCreatedBy = ref('');
+const emailBody = ref('');
 const isEmailCaseView = computed(() => {
   return (
     route.meta?.isEmailCase === true ||
@@ -1304,13 +1316,14 @@ const fetchCaseDetails = async () => {
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, transactions: caseTransactions = [], created_by } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, transactions: caseTransactions = [], created_by, email_body } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     caseCreatedBy.value = (created_by || '').toString();
     if (!caseCreatedBy.value && route.meta?.isEmailCase === true) {
       caseCreatedBy.value = 'EmailSystem';
     }
+    emailBody.value = email_body || '';
     
     // For ECBT cases, fetch actual transactions from txn table instead of payload incidents
     let ecbtTransactions = [];
@@ -1339,7 +1352,12 @@ const fetchCaseDetails = async () => {
       remarks = response.data.decision_history[0]?.remarks || '';
     }
 
-    if (remarks && remarks.includes('Mobile Number Match:')) {
+    // Check if this is an email case - don't set MM flags for email cases
+    const isEmailCase = (caseCreatedBy.value && caseCreatedBy.value.toLowerCase() === 'emailsystem') || 
+                        route.meta?.isEmailCase === true || 
+                        route.name === 'ECBTEmailAction';
+    
+    if (!isEmailCase && remarks && remarks.includes('Mobile Number Match:')) {
       isMMTriggered.value = true;
       // Extract reverification data from remarks
       const mobileMatch = remarks.match(/Mobile Number Match: ([^|]+)/);
@@ -1355,6 +1373,10 @@ const fetchCaseDetails = async () => {
         tspname: tspMatch ? tspMatch[1].trim() : '',
         distribution_details: detailsMatch ? detailsMatch[1].trim() : ''
       };
+    } else if (isEmailCase) {
+      // Explicitly set to false for email cases
+      isMMTriggered.value = false;
+      reverificationData.value = null;
     }
     
     // Load transactions for ECBT - use actual txn table data if available, otherwise fallback to caseTransactions
@@ -2218,6 +2240,43 @@ const calculateTotalValueAtRisk = () => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+.email-body-section {
+  grid-column: 1 / -1;
+  margin-top: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.email-body-section h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.email-body-content {
+  background: #fff;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.email-body-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #495057;
 }
 
 .info-banner {
@@ -3653,6 +3712,17 @@ const calculateTotalValueAtRisk = () => {
   font-size: 20px;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.info-message {
+  flex: 1;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.info-message strong {
+  font-weight: 600;
 }
 
 .info-content {

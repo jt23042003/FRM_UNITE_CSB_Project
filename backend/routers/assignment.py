@@ -189,11 +189,17 @@ async def send_back_case_api(
                     raise HTTPException(status_code=400, detail="Department not set for current user.")
 
                 # Find supervisor for this department
+                # Design: 1 supervisor per department/branch
+                # When branch users send back, only their department's supervisor receives the case
+                # This works generically for any department - no hardcoded department names
                 cur.execute("SELECT user_name FROM user_table WHERE user_type = 'supervisor' AND dept = %s ORDER BY user_id LIMIT 1", (user_department,))
                 sup_row = cur.fetchone()
                 supervisor_username = sup_row[0] if sup_row else None
                 if not supervisor_username:
-                    raise HTTPException(status_code=400, detail=f"No supervisor found for department {user_department}.")
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"No supervisor found for department '{user_department}'. Please ensure a supervisor is configured for this department."
+                    )
 
                 # Ensure new columns exist for approvals (idempotent)
                 try:
