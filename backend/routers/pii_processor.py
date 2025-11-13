@@ -29,6 +29,7 @@ class PiiRecordPayload(BaseModel):
     attachment_mobile_numbers: List[str] = Field(default_factory=list)
     body_account_numbers: List[str] = Field(default_factory=list)
     attachment_account_numbers: List[str] = Field(default_factory=list)
+    email_body: Optional[str] = None
 
     @validator(
         "body_mobile_numbers",
@@ -86,16 +87,25 @@ async def process_pii_record(
     if not payload.unique_mobiles() and not payload.unique_accounts():
         raise HTTPException(status_code=400, detail="No mobile or account numbers provided.")
 
+    # Log incoming payload for debugging
+    unique_mobiles = payload.unique_mobiles()
+    unique_accounts = payload.unique_accounts()
+    print(f"📧 [PII Processor] Received payload - Mobiles: {unique_mobiles}, Accounts: {unique_accounts}", flush=True)
+
     results: Dict[str, Any] = {"psa_cases": [], "ecb_cases": []}
     processed_customers: Set[str] = set()
 
     # Process mobile numbers first
-    for mobile in payload.unique_mobiles():
+    for mobile in unique_mobiles:
+        print(f"🔍 [PII Processor] Processing mobile: {mobile}", flush=True)
         customer = await _find_customer_by_mobile(matcher, mobile)
         if not customer:
+            print(f"❌ [PII Processor] No customer found for mobile: {mobile}", flush=True)
             continue
         cust_id = customer["cust_id"]
+        print(f"✅ [PII Processor] Mobile {mobile} matched customer: {cust_id}", flush=True)
         if cust_id in processed_customers:
+            print(f"⚠️ [PII Processor] Customer {cust_id} already processed, skipping", flush=True)
             continue
 
         psa_result = await _create_psa_case_from_customer(
@@ -103,27 +113,35 @@ async def process_pii_record(
             customer=customer,
             source_detail=f"Mobile {mobile}",
             fallback_account=None,
+            email_body=payload.email_body,
         )
         if psa_result:
+            print(f"✅ [PII Processor] Created PSA case {psa_result.get('case_id')} for mobile {mobile}", flush=True)
             results["psa_cases"].append(psa_result)
 
         ecb_result = await matcher._create_ecb_cases_for_customer(
             cust_id=cust_id,
             customer_full_name=_compose_customer_name(customer),
-            created_by_user="EmailSystem"
+            created_by_user="EmailSystem",
+            email_body=payload.email_body
         )
         if ecb_result and ecb_result.get("ecb_cases_created"):
+            print(f"✅ [PII Processor] Created {ecb_result.get('ecb_cases_created')} ECB cases for customer {cust_id}", flush=True)
             results["ecb_cases"].append(ecb_result)
 
         processed_customers.add(cust_id)
 
     # Process standalone account numbers (mobiles may have already covered some customers)
-    for account_number in payload.unique_accounts():
+    for account_number in unique_accounts:
+        print(f"🔍 [PII Processor] Processing account: {account_number}", flush=True)
         customer = await _find_customer_by_account(matcher, account_number)
         if not customer:
+            print(f"❌ [PII Processor] No customer found for account: {account_number}", flush=True)
             continue
         cust_id = customer["cust_id"]
+        print(f"✅ [PII Processor] Account {account_number} matched customer: {cust_id}", flush=True)
         if cust_id in processed_customers:
+            print(f"⚠️ [PII Processor] Customer {cust_id} already processed, skipping", flush=True)
             continue
 
         psa_result = await _create_psa_case_from_customer(
@@ -131,16 +149,20 @@ async def process_pii_record(
             customer=customer,
             source_detail=f"Account {account_number}",
             fallback_account=account_number,
+            email_body=payload.email_body,
         )
         if psa_result:
+            print(f"✅ [PII Processor] Created PSA case {psa_result.get('case_id')} for account {account_number}", flush=True)
             results["psa_cases"].append(psa_result)
 
         ecb_result = await matcher._create_ecb_cases_for_customer(
             cust_id=cust_id,
             customer_full_name=_compose_customer_name(customer),
-            created_by_user="EmailSystem"
+            created_by_user="EmailSystem",
+            email_body=payload.email_body
         )
         if ecb_result and ecb_result.get("ecb_cases_created"):
+            print(f"✅ [PII Processor] Created {ecb_result.get('ecb_cases_created')} ECB cases for customer {cust_id}", flush=True)
             results["ecb_cases"].append(ecb_result)
 
         processed_customers.add(cust_id)
@@ -216,17 +238,49 @@ async def _find_customer_by_account(
     return await matcher._execute_sync_db_op(_sync_lookup)
 
 
+async def _check_recent_psa_case(
+    matcher: CaseEntryMatcher,
+    cust_id: str,
+    account_number: Optional[str],
+) -> bool:
+    """Check if a PSA case was created for this customer in the last 5 minutes (duplicate prevention)"""
+    def _sync_check():
+        with get_db_connection() as conn:
+            with get_db_cursor(conn) as cur:
+                cur.execute("""
+                    SELECT case_id 
+                    FROM public.case_main 
+                    WHERE case_type = 'PSA' 
+                    AND cust_id = %s 
+                    AND created_by = 'EmailSystem'
+                    AND (acc_num = %s OR %s IS NULL)
+                    AND (creation_date || ' ' || creation_time)::timestamp >= 
+                        (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '5 minutes'
+                    LIMIT 1
+                """, (cust_id, account_number, account_number))
+                return cur.fetchone() is not None
+    
+    return await matcher._execute_sync_db_op(_sync_check)
+
+
 async def _create_psa_case_from_customer(
     matcher: CaseEntryMatcher,
     customer: Dict[str, Any],
     source_detail: str,
     fallback_account: Optional[str],
+    email_body: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     cust_id = customer["cust_id"]
     accounts = await matcher._get_customer_accounts(cust_id)
     account_number = fallback_account
     if accounts:
         account_number = accounts[0].get("acc_num") or account_number
+
+    # Check for recent duplicate PSA case (within last 5 minutes)
+    has_recent_case = await _check_recent_psa_case(matcher, cust_id, account_number)
+    if has_recent_case:
+        print(f"⚠️ [PII Processor] Duplicate prevention: PSA case already created for customer {cust_id} (account: {account_number}) in the last 5 minutes, skipping", flush=True)
+        return None
 
     remarks = (
         f"PSA case auto-created from email ingestion match ({source_detail}) "
@@ -240,6 +294,7 @@ async def _create_psa_case_from_customer(
         mobile_number=customer.get("mobile"),
         remarks=remarks,
         created_by_user="EmailSystem",
+        email_body=email_body,
     )
 
 

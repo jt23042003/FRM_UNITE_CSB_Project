@@ -60,6 +60,14 @@
             </div>
           </div>
 
+          <!-- Email Body Section (only for email cases) -->
+          <div v-if="isEmailCaseView && emailBody" class="email-body-section">
+            <h4>Original Email Content</h4>
+            <div class="email-body-content">
+              <pre>{{ emailBody }}</pre>
+            </div>
+          </div>
+
           <div class="details-section">
             <h4>Customer Details - Bank</h4>
             <div class="details-row">
@@ -910,6 +918,7 @@ const route = useRoute();
 const router = useRouter();
 
 const caseCreatedBy = ref('');
+const emailBody = ref('');
 const isEmailCaseView = computed(() => {
   return (
     route.meta?.isEmailCase === true ||
@@ -1361,11 +1370,12 @@ const fetchCaseDetails = async () => {
   banksV2Transactions = [];
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, created_by } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, created_by, email_body } = response.data;
     caseCreatedBy.value = created_by || '';
     if (!caseCreatedBy.value && route.meta?.isEmailCase === true) {
       caseCreatedBy.value = 'EmailSystem';
     }
+    emailBody.value = email_body || '';
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     
@@ -2280,6 +2290,43 @@ const getTemplateQuestionFiles = (questionId) => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+.email-body-section {
+  grid-column: 1 / -1;
+  margin-top: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.email-body-section h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.email-body-content {
+  background: #fff;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.email-body-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #495057;
 }
 
 .info-banner {

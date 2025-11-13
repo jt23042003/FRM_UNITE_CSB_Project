@@ -33,9 +33,9 @@
 
         <div v-else class="comparison-grid">
           <div v-if="isEmailCaseView" class="info-banner">
-            <div class="info-icon">ℹ️</div>
+            <!-- <div class="info-icon">ℹ</div> -->
             <div class="info-message">
-              <strong>Email Ingestion Case:</strong> This ECBNT case was generated from an email workflow, so I4C complaint details are not available.
+              <strong>Email Ingestion Case:</strong> This ECBNT case was generated automatically from email ingestion. Only bank customer details are available for review.
             </div>
           </div>
           <!-- Loading indicator for additional details -->
@@ -44,7 +44,7 @@
           </div>
           
           <!-- LEFT SECTION: Actual Victim (I4C Complaint Filer) -->
-          <div class="details-section">
+          <div v-if="!isEmailCaseView" class="details-section">
             <h4>Actual Victim - I4C Complaint</h4>
             <div v-if="!reverificationData && !isEmailCaseView" class="details-row">
               <div class="field-group"><label>Name</label><input type="text" v-model="i4cDetails.name" readonly /></div>
@@ -79,12 +79,20 @@
             </div>
           </div>
 
+          <!-- Email Body Section (only for email cases) -->
+          <div v-if="isEmailCaseView && emailBody" class="email-body-section">
+            <h4>Original Email Content</h4>
+            <div class="email-body-content">
+              <pre>{{ emailBody }}</pre>
+            </div>
+          </div>
+
           <!-- RIGHT SECTION: Potential Victim (Customer who added beneficiary) -->
           <div class="details-section">
             <h4>Potential Victim - {{ isEmailCaseView ? 'Bank Customer Details (Email Ingestion)' : (reverificationData ? 'Mobile Number Match' : 'Bank Customer Details') }}</h4>
             
-            <!-- Show reverification flags details if triggered by mobile matching -->
-            <div v-if="reverificationData" class="reverification-details">
+            <!-- Show reverification flags details if triggered by mobile matching (NOT for email cases) -->
+            <div v-if="reverificationData && !isEmailCaseView" class="reverification-details">
               <h5>Reverification Flags Details</h5>
               <div class="details-row">
                 <div class="field-group">
@@ -859,6 +867,7 @@ const route = useRoute();
 const router = useRouter();
 
 const caseCreatedBy = ref('');
+const emailBody = ref('');
 const isEmailCaseView = computed(() => {
   return (
     route.meta?.isEmailCase === true ||
@@ -1226,13 +1235,14 @@ const fetchCaseDetails = async () => {
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, reverification_flags, created_by } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, reverification_flags, created_by, email_body } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     caseCreatedBy.value = (created_by || '').toString();
     if (!caseCreatedBy.value && route.meta?.isEmailCase === true) {
       caseCreatedBy.value = 'EmailSystem';
     }
+    emailBody.value = email_body || '';
     
     // ECBNT cases don't display transactions (no transactions exist between customer and beneficiary)
     // Clear transactions array to ensure info banner is shown
@@ -1263,7 +1273,12 @@ const fetchCaseDetails = async () => {
     console.log('ECBNT Debug - Customer Details:', customer_details);
     
     // Check if this is an ECBNT case with ACTUAL reverification flags data (not just N/A values)
-    if (response.data.case_type === 'ECBNT' && reverification_flags && 
+    // BUT: Don't set reverification data for email cases (EmailSystem) - those are from email ingestion, not MM flow
+    const isEmailCase = (caseCreatedBy.value && caseCreatedBy.value.toLowerCase() === 'emailsystem') || 
+                        route.meta?.isEmailCase === true || 
+                        route.name === 'ECBNTEmailAction';
+    
+    if (!isEmailCase && response.data.case_type === 'ECBNT' && reverification_flags && 
         reverification_flags.mobile_number && reverification_flags.mobile_number !== 'N/A') {
       console.log('ECBNT Debug - Setting reverification data (mobile match triggered)');
       reverificationData.value = {
@@ -1276,7 +1291,11 @@ const fetchCaseDetails = async () => {
         lsacode: reverification_flags.lsacode || 'N/A'
       };
     } else {
-      console.log('ECBNT Debug - No actual reverification data found (regular I4C case)');
+      if (isEmailCase) {
+        console.log('ECBNT Debug - Email case detected, skipping reverification flags (MM flow)');
+      } else {
+        console.log('ECBNT Debug - No actual reverification data found (regular I4C case)');
+      }
       reverificationData.value = null;
     }
     // Populate I4C details with banks_v2 data if available, otherwise fallback to original data
@@ -2315,7 +2334,6 @@ const calculateTotalValueAtRisk = () => {
   border-radius: 6px;
   padding: 16px;
   border: 1px solid #e9ecef;
-  position: relative;
 }
 .details-section h4 {
   margin: 0 0 12px 0;
@@ -3836,32 +3854,73 @@ const calculateTotalValueAtRisk = () => {
   }
 }
 
-/* Info Banner for ECBNT */
-.info-banner {
+/* Info Banner - matching ECBT style */
+.email-body-section {
+  grid-column: 1 / -1;
   margin-top: 24px;
-  padding: 20px;
-  background: #e7f3ff;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.email-body-section h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.email-body-content {
+  background: #fff;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.email-body-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #495057;
+}
+
+.info-banner {
+  grid-column: 1 / -1;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
   border-radius: 8px;
-  border: 1px solid #0d6efd;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
 }
 
 .info-icon {
-  font-size: 24px;
+  font-size: 18px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .info-message {
-  color: #004085;
+  flex: 1;
+  color: #1e293b;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .info-message strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 15px;
+  font-weight: 600;
 }
 </style>
