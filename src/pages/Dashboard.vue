@@ -402,7 +402,7 @@
               <div class="panel-header">
                 <h4>Current Workload Distribution</h4>
               </div>
-              <div class="chart-container">
+              <div class="chart-container-workload">
                 <div class="workload-chart">
                   <div v-for="workload in advancedAnalytics.workload_distribution.slice(0, 10)" :key="workload.assigned_to" class="workload-row">
                     <div class="workload-user">
