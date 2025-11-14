@@ -141,18 +141,19 @@
               </router-link>
             </td>
             <td>{{ caseItem.source_ack_no || '—' }}</td>
-            <td><span class="chip">{{ caseItem.case_type || '—' }}</span></td>
+            <td><span class="chip case-type">{{ caseItem.case_type || '—' }}</span></td>
             <td>
               <span :class="['badge', caseItem.is_operational ? 'operational' : 'non-operational']">
                 {{ caseItem.is_operational ? 'Yes' : 'No' }}
               </span>
             </td>
-            <td>{{ caseItem.location || '—' }}</td>
+            <td> <span class="location-null"> {{ caseItem.location || '—' }} </span></td>
+            
             <td class="numeric">
-              <span v-if="caseItem.disputed_amount !== null && !isNaN(Number(caseItem.disputed_amount))">
+              <span v-if="caseItem.disputed_amount !== null && !isNaN(Number(caseItem.disputed_amount))" class="disputed-amount">
                 ₹{{ Number(caseItem.disputed_amount).toLocaleString('en-IN') }}
               </span>
-              <span v-else>—</span>
+              <span v-else class="disputed-amount-null">—</span>
             </td>
             <td>{{ caseItem.created_by || '—' }}</td>
             <td>
@@ -600,7 +601,7 @@ onMounted(fetchCases);
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
   margin-top: 24px;
   padding: 0 0 16px 0;
-  max-height: 60vh;
+  max-height: 85vh;
   overflow-y: auto;
 }
 
@@ -655,7 +656,18 @@ onMounted(fetchCases);
   max-width: 250px;
   line-height: 1.3;
 }
-
+.disputed-amount{
+  margin-right: 100px;
+}
+.disputed-amount-null{
+  margin-right: 130px;
+}
+.location-null{
+  margin-left : 25px;
+}
+.case-type{
+  margin-left: 50px;
+}
 .days-assigned {
   display: inline-block;
   background: #f8fafc;
@@ -667,11 +679,12 @@ onMounted(fetchCases);
   border: 1px solid #e2e8f0;
   min-width: 35px;
   text-align: center;
+  margin-right: 75px;
 }
 
 /* Chips and badges (match Case Details) */
 .chip { display: inline-block; padding: 2px 8px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 600; font-size: 12px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; margin-left: 20px;}
 .badge.operational { background: #e6f4ea; color: #18794e; }
 .badge.non-operational { background: #fee2e2; color: #991b1b; }
 .status-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }

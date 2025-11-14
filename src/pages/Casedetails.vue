@@ -359,19 +359,19 @@
               </td>
               <td>{{ caseItem.source_ack_no || '—' }}</td>
               <td>
-                <span class="chip">{{ caseItem.case_type || '—' }}</span>
+                <span class="chip case-type">{{ caseItem.case_type || '—' }}</span>
               </td>
               <td>
-                <span :class="['badge', caseItem.is_operational ? 'operational' : 'non-operational']">
+                <span :class="['badge case-type', caseItem.is_operational ? 'operational' : 'non-operational']">
                   {{ caseItem.is_operational ? 'Yes' : 'No' }}
                 </span>
               </td>
-              <td>{{ caseItem.location || '—' }}</td>
+              <td> <span class="location-null"> {{ caseItem.location || '—' }} </span></td>
               <td class="numeric">
                 <span v-if="caseItem.disputed_amount !== null && !isNaN(Number(caseItem.disputed_amount))">
                   ₹{{ Number(caseItem.disputed_amount).toLocaleString('en-IN') }}
                 </span>
-                <span v-else>—</span>
+                <span v-else class="disputed-amount-null">—</span>
               </td>
               <td>{{ caseItem.created_by || '—' }}</td>
               <td>
@@ -1229,8 +1229,8 @@ onMounted(async () => {
 .chip { display: inline-block; padding: 2px 8px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 600; font-size: 12px; }
 
 .status-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
-.status-badge.new { background: #e0f2fe; color: #075985; }
-.status-badge.assigned { background: #fef3c7; color: #92400e; }
+.status-badge.new { background: #e0f2fe; color: #075985; margin-left: 12px; }
+.status-badge.assigned { background: #fef3c7; color: #92400e;  }
 .status-badge.closed { background: #dcfce7; color: #166534; }
 .status-badge.open { background: #e9d5ff; color: #6b21a8; }
 .status-badge.reopened { background: #fef2f2; color: #dc2626; }
@@ -1895,6 +1895,15 @@ onMounted(async () => {
 
 .radio-group input[type="radio"] {
   accent-color: #0d6efd;
+}
+.disputed-amount-null{
+  margin-right: 130px;
+}
+.location-null{
+  margin-left : 25px;
+}
+.case-type{
+  margin-left: 50px;
 }
 
 /* Responsive Design */
