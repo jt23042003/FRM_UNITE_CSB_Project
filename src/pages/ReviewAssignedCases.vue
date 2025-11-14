@@ -595,6 +595,16 @@ onMounted(fetchCases);
   gap: 12px;
 }
 
+/* Search Bar Styles */
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 400px;
+  position: relative;
+}
+
 .dashboard-table-card {
   background: #fff;
   border-radius: 12px;
@@ -606,37 +616,18 @@ onMounted(fetchCases);
 }
 
 .table-responsive { width: 100%; overflow-x: auto; }
-.case-table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 980px; }
+.case-table { width: 100% !important; border-collapse: collapse !important; border-spacing: 0 !important; font-size: 15px !important; min-width: 1000px !important; }
+.case-table thead th { position: sticky !important; top: 0 !important; background: #f7f7f7 !important; z-index: 2 !important; padding: 16px 12px !important; font-weight: 700 !important; font-size: 16px !important; color: #1e293b !important; text-transform: uppercase !important; letter-spacing: 0.5px !important; border-bottom: 2px solid #e2e8f0 !important; }
+.case-table th, .case-table td { padding: 12px 10px !important; text-align: left !important; border-bottom: 1px solid #eef2f7 !important; vertical-align: middle !important; }
+.case-table tbody tr:nth-child(even) { background: #fbfdff !important; }
+.case-table tbody tr:hover { background: #f3f7ff !important; transition: background 0.15s ease !important; }
+.case-table td.numeric { text-align: right !important; font-variant-numeric: tabular-nums !important; }
+.sortable-header { cursor: pointer; user-select: none; position: relative; transition: background-color 0.2s; }
+.sortable-header:hover { background-color: #e8e8e8 !important; transform: translateY(-1px) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; }
+.sort-icon { margin-left: 6px; font-weight: bold; color: #007bff; font-size: 14px; }
 
-.case-table thead th { position: sticky; top: 0; background: #f7f7f7; z-index: 2; padding: 14px 10px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid #e9eef5; }
-
-.case-table th, .case-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eef2f7; vertical-align: middle; }
-.case-table tbody tr:nth-child(even) { background: #fbfdff; }
-.case-table tbody tr:hover { background: #f3f7ff; transition: background .15s ease; }
-.case-table td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
-
-.sortable-header {
-  cursor: pointer;
-  user-select: none;
-  position: relative;
-  transition: background-color 0.2s;
-}
-
-.sortable-header:hover { background-color: #eef4ff; }
-
-.sort-icon {
-  margin-left: 6px; font-weight: bold; color: #007bff;
-}
-
-.ack-link {
-  color: #0d6efd;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.ack-link:hover {
-  text-decoration: underline;
-}
+.ack-link { color: #0d6efd !important; font-weight: 600 !important; text-decoration: none !important; }
+.ack-link:hover { color: #0d6efd !important; text-decoration: underline !important; }
 
 .search-results-info {
   margin-top: 8px;
@@ -666,9 +657,6 @@ onMounted(fetchCases);
   max-width: 250px;
   line-height: 1.3;
 }
-.disputed-amount{
-  margin-right: 100px;
-}
 .disputed-amount-null{
   margin-right: 130px;
 }
@@ -692,16 +680,21 @@ onMounted(fetchCases);
   margin-right: 75px;
 }
 
-/* Chips and badges (match Case Details) */
-.chip { display: inline-block; padding: 2px 8px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 600; font-size: 12px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; margin-left: 20px;}
-.badge.operational { background: #e6f4ea; color: #18794e; }
-.badge.non-operational { background: #fee2e2; color: #991b1b; }
-.status-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
-.status-badge.new { background: #e0f2fe; color: #075985; }
-.status-badge.assigned { background: #fef3c7; color: #92400e; }
-.status-badge.closed { background: #dcfce7; color: #166534; }
-.status-badge.open { background: #e9d5ff; color: #6b21a8; }
+.badge { display: inline-block !important; padding: 2px 8px !important; border-radius: 999px !important; font-size: 12px !important; font-weight: 600 !important; }
+.badge.operational { background: #e6f4ea !important; color: #18794e !important; }
+.badge.non-operational { background: #fee2e2 !important; color: #991b1b !important; }
+
+.chip { display: inline-block !important; padding: 2px 8px !important; border-radius: 8px !important; background: #eef2ff !important; color: #4338ca !important; font-weight: 600 !important; font-size: 12px !important; }
+
+.status-badge { display: inline-block !important; padding: 4px 10px !important; border-radius: 999px !important; font-weight: 700 !important; font-size: 12px !important; }
+.status-badge.new { background: #e0f2fe !important; color: #075985 !important; margin-left: 12px !important; }
+.status-badge.assigned { background: #fef3c7 !important; color: #92400e !important;  }
+.status-badge.closed { background: #dcfce7 !important; color: #166534 !important; }
+.status-badge.open { background: #e9d5ff !important; color: #6b21a8 !important; }
+.status-badge.reopened { background: #fef2f2 !important; color: #dc2626 !important; }
+.status-badge.pending { background: #fef3c7 !important; color: #92400e !important; }
+.status-badge.approved { background: #dcfce7 !important; color: #166534 !important; }
+.status-badge.rejected { background: #fef2f2 !important; color: #dc2626 !important; }
 
 /* Mobile Card View */
 .case-cards { display: none; }
@@ -715,6 +708,7 @@ onMounted(fetchCases);
 .case-card:hover { border-color: #0d6efd; box-shadow: 0 2px 8px rgba(13,110,253,.15); cursor: pointer; }
 
 @media (max-width: 768px) {
+  .dashboard-table-card { padding: 0 0 12px 0; }
   .table-responsive { display: none; }
   .case-cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
 }
