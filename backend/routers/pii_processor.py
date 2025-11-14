@@ -30,6 +30,7 @@ class PiiRecordPayload(BaseModel):
     body_account_numbers: List[str] = Field(default_factory=list)
     attachment_account_numbers: List[str] = Field(default_factory=list)
     email_body: Optional[str] = None
+    email_summary: Optional[str] = None
 
     @validator(
         "body_mobile_numbers",
@@ -51,6 +52,34 @@ class PiiRecordPayload(BaseModel):
             cleaned = value.strip()
             return [cleaned] if cleaned else []
         return []
+
+    @validator("email_body", pre=True)
+    def _coerce_email_body(cls, value):
+        """Convert email_body from array to string if needed"""
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple)):
+            # If it's an array, take the first element and convert to string
+            if len(value) > 0:
+                return str(value[0]).strip() if value[0] else None
+            return None
+        if isinstance(value, str):
+            return value.strip() if value.strip() else None
+        return str(value).strip() if value else None
+
+    @validator("email_summary", pre=True)
+    def _coerce_email_summary(cls, value):
+        """Convert email_summary from array to string if needed"""
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple)):
+            # If it's an array, take the first element and convert to string
+            if len(value) > 0:
+                return str(value[0]).strip() if value[0] else None
+            return None
+        if isinstance(value, str):
+            return value.strip() if value.strip() else None
+        return str(value).strip() if value else None
 
     class Config:
         allow_population_by_field_name = True
@@ -114,6 +143,7 @@ async def process_pii_record(
             source_detail=f"Mobile {mobile}",
             fallback_account=None,
             email_body=payload.email_body,
+            email_summary=payload.email_summary,
         )
         if psa_result:
             print(f"✅ [PII Processor] Created PSA case {psa_result.get('case_id')} for mobile {mobile}", flush=True)
@@ -123,7 +153,8 @@ async def process_pii_record(
             cust_id=cust_id,
             customer_full_name=_compose_customer_name(customer),
             created_by_user="EmailSystem",
-            email_body=payload.email_body
+            email_body=payload.email_body,
+            email_summary=payload.email_summary
         )
         if ecb_result and ecb_result.get("ecb_cases_created"):
             print(f"✅ [PII Processor] Created {ecb_result.get('ecb_cases_created')} ECB cases for customer {cust_id}", flush=True)
@@ -150,6 +181,7 @@ async def process_pii_record(
             source_detail=f"Account {account_number}",
             fallback_account=account_number,
             email_body=payload.email_body,
+            email_summary=payload.email_summary,
         )
         if psa_result:
             print(f"✅ [PII Processor] Created PSA case {psa_result.get('case_id')} for account {account_number}", flush=True)
@@ -159,7 +191,8 @@ async def process_pii_record(
             cust_id=cust_id,
             customer_full_name=_compose_customer_name(customer),
             created_by_user="EmailSystem",
-            email_body=payload.email_body
+            email_body=payload.email_body,
+            email_summary=payload.email_summary
         )
         if ecb_result and ecb_result.get("ecb_cases_created"):
             print(f"✅ [PII Processor] Created {ecb_result.get('ecb_cases_created')} ECB cases for customer {cust_id}", flush=True)
@@ -254,8 +287,8 @@ async def _check_recent_psa_case(
                     AND cust_id = %s 
                     AND created_by = 'EmailSystem'
                     AND (acc_num = %s OR %s IS NULL)
-                    AND (creation_date || ' ' || creation_time)::timestamp >= 
-                        (NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '5 minutes'
+                    AND (creation_date + creation_time) >= 
+                        ((NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '5 minutes')
                     LIMIT 1
                 """, (cust_id, account_number, account_number))
                 return cur.fetchone() is not None
@@ -269,6 +302,7 @@ async def _create_psa_case_from_customer(
     source_detail: str,
     fallback_account: Optional[str],
     email_body: Optional[str] = None,
+    email_summary: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     cust_id = customer["cust_id"]
     accounts = await matcher._get_customer_accounts(cust_id)
@@ -295,6 +329,7 @@ async def _create_psa_case_from_customer(
         remarks=remarks,
         created_by_user="EmailSystem",
         email_body=email_body,
+        email_summary=email_summary,
     )
 
 
