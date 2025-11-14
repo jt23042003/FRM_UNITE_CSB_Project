@@ -79,11 +79,22 @@
             </div>
           </div>
 
-          <!-- Email Body Section (only for email cases) -->
-          <div v-if="isEmailCaseView && emailBody" class="email-body-section">
-            <h4>Original Email Content</h4>
-            <div class="email-body-content">
-              <pre>{{ emailBody }}</pre>
+          <!-- Email Content Section (only for email cases) -->
+          <div v-if="isEmailCaseView && (emailBody || emailSummary)" class="email-content-section">
+            <!-- Email Summary (AI-generated) -->
+            <div v-if="emailSummary" class="email-summary-section">
+              <h4>Email Summary (AI-Generated)</h4>
+              <div class="email-summary-content">
+                <p>{{ emailSummary }}</p>
+              </div>
+            </div>
+            
+            <!-- Original Email Body -->
+            <div v-if="emailBody" class="email-body-section">
+              <h4>Original Email Content</h4>
+              <div class="email-body-content">
+                <pre>{{ emailBody }}</pre>
+              </div>
             </div>
           </div>
 
@@ -868,6 +879,7 @@ const router = useRouter();
 
 const caseCreatedBy = ref('');
 const emailBody = ref('');
+const emailSummary = ref('');
 const isEmailCaseView = computed(() => {
   return (
     route.meta?.isEmailCase === true ||
@@ -1235,7 +1247,7 @@ const fetchCaseDetails = async () => {
   const response = await axios.get(`/api/combined-case-data/${caseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
   
   if (response.data) {
-    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, reverification_flags, created_by, email_body } = response.data;
+    const { i4c_data = null, customer_details = null, account_details, acc_num, action_details, status: caseStatus, source_ack_no, reverification_flags, created_by, email_body, email_summary } = response.data;
     caseAckNo.value = source_ack_no || '';
     status.value = caseStatus || 'New'; // Update the status ref
     caseCreatedBy.value = (created_by || '').toString();
@@ -1243,6 +1255,7 @@ const fetchCaseDetails = async () => {
       caseCreatedBy.value = 'EmailSystem';
     }
     emailBody.value = email_body || '';
+    emailSummary.value = email_summary || '';
     
     // ECBNT cases don't display transactions (no transactions exist between customer and beneficiary)
     // Clear transactions array to ensure info banner is shown
@@ -3855,9 +3868,45 @@ const calculateTotalValueAtRisk = () => {
 }
 
 /* Info Banner - matching ECBT style */
-.email-body-section {
+.email-content-section {
   grid-column: 1 / -1;
   margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.email-summary-section {
+  padding: 16px;
+  background: #e8f4fd;
+  border-radius: 6px;
+  border: 1px solid #b8daff;
+}
+
+.email-summary-section h4 {
+  margin: 0 0 12px 0;
+  color: #0c5460;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #bee5eb;
+}
+
+.email-summary-content {
+  background: #fff;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #bee5eb;
+}
+
+.email-summary-content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #495057;
+}
+
+.email-body-section {
   padding: 16px;
   background: #f8f9fa;
   border-radius: 6px;

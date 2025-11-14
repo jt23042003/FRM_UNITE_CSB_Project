@@ -284,7 +284,8 @@ class CaseEntryMatcher:
                                     location: Optional[str] = None,
                                     disputed_amount: Optional[float] = None,
                                     created_by: Optional[str] = None,
-                                    email_body: Optional[str] = None
+                                    email_body: Optional[str] = None,
+                                    email_summary: Optional[str] = None
                                     ) -> int:
         def _sync_insert():
             with get_db_connection() as conn:
@@ -298,15 +299,15 @@ class CaseEntryMatcher:
                             INSERT INTO public.case_main (
                                 case_type, source_ack_no, cust_id, acc_num, source_bene_accno,
                                 is_operational, status, creation_date, creation_time,
-                                short_dn, long_dn, decision_type, location, disputed_amount, created_by, email_body
+                                short_dn, long_dn, decision_type, location, disputed_amount, created_by, email_body, email_summary
                             )
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, (NOW() AT TIME ZONE 'Asia/Kolkata')::date, (NOW() AT TIME ZONE 'Asia/Kolkata')::time, %s, %s, %s, %s, %s, %s, %s)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, (NOW() AT TIME ZONE 'Asia/Kolkata')::date, (NOW() AT TIME ZONE 'Asia/Kolkata')::time, %s, %s, %s, %s, %s, %s, %s, %s)
                             RETURNING case_id;
                         """, (
                             case_type, source_ack_no, cust_id, acc_num, source_bene_accno,
                             is_operational, status,
                             actual_short_dn, actual_long_dn, actual_decision_type,
-                            location, disputed_amount, created_by or "System", email_body
+                            location, disputed_amount, created_by or "System", email_body, email_summary
                         ))
                         new_case_id = cur.fetchone()['case_id']
                         conn.commit()
@@ -967,7 +968,8 @@ class CaseEntryMatcher:
         mobile_number: Optional[str],
         remarks: Optional[str] = None,
         created_by_user: str = "EmailSystem",
-        email_body: Optional[str] = None
+        email_body: Optional[str] = None,
+        email_summary: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Lightweight PSA creator used by email/PII ingestion.
@@ -992,7 +994,8 @@ class CaseEntryMatcher:
             location=None,
             disputed_amount=None,
             created_by=created_by_user,
-            email_body=email_body
+            email_body=email_body,
+            email_summary=email_summary
         )
 
         if not new_case_main_id:
@@ -1617,7 +1620,7 @@ class CaseEntryMatcher:
 
         await self._execute_sync_db_op(_sync_insert)
 
-    async def _create_ecb_cases_for_customer(self, cust_id: str, customer_full_name: str, reverification_data: Dict[str, Any] = None, created_by_user: Optional[str] = "System", email_body: Optional[str] = None) -> Dict[str, Any]:
+    async def _create_ecb_cases_for_customer(self, cust_id: str, customer_full_name: str, reverification_data: Dict[str, Any] = None, created_by_user: Optional[str] = "System", email_body: Optional[str] = None, email_summary: Optional[str] = None) -> Dict[str, Any]:
         """
         After MM case creation, check for ECBNT/ECBT cases by:
         1. Getting account numbers from account_customer table
@@ -1678,7 +1681,8 @@ class CaseEntryMatcher:
                         location=None,
                         disputed_amount=None,
                         created_by=created_by_user or "System",
-                        email_body=email_body
+                        email_body=email_body,
+                        email_summary=email_summary
                     )
                     
                     if new_case_main_id:
@@ -2589,7 +2593,7 @@ class CaseEntryMatcher:
                             cm.case_id, cm.case_type, cm.source_ack_no, cm.source_bene_accno,
                             cm.acc_num, cm.cust_id, cm.creation_date, cm.creation_time, 
                             cm.is_operational, cm.status, cm.short_dn, cm.long_dn, cm.decision_type,
-                            cm.created_by, cm.email_body,
+                            cm.created_by, cm.email_body, cm.email_summary,
                             
                             -- Customer data
                             c.fname, c.mname, c.lname, c.mobile, c.email, c.pan, c.nat_id, 
@@ -2795,7 +2799,7 @@ class CaseEntryMatcher:
                         SELECT
                             case_id, case_type, source_ack_no, source_bene_accno,
                             acc_num, cust_id, creation_date, creation_time, is_operational, status,
-                            short_dn, long_dn, decision_type, created_by, email_body
+                            short_dn, long_dn, decision_type, created_by, email_body, email_summary
                         FROM public.case_main
                         WHERE case_id = %s
                     """, (case_id,))
