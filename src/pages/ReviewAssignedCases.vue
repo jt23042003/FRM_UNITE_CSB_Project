@@ -628,6 +628,16 @@ onMounted(fetchCases);
   margin-left: 6px; font-weight: bold; color: #007bff;
 }
 
+.ack-link {
+  color: #0d6efd;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ack-link:hover {
+  text-decoration: underline;
+}
+
 .search-results-info {
   margin-top: 8px;
   font-size: 14px;
